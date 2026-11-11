@@ -1,0 +1,29 @@
+{
+	"name": "VASKA",
+	"color": "#9fb3c8",
+	"element": "mist",
+	"weapon": "twin_swords",
+	"max_hp": 950,
+	"walk_speed": 480,
+	"jump_velocity": 1360,
+	"start_energy": 30,
+	"moves": {
+		"light": [
+			{"anim": "slash",  "startup": 0.06, "active": 0.06, "recovery": 0.14, "damage": 30, "reach": 165, "height": [-250, -90], "stun": 0.26, "knock": 110, "step": 50},
+			{"anim": "thrust", "startup": 0.06, "active": 0.06, "recovery": 0.14, "damage": 32, "reach": 175, "height": [-230, -100], "stun": 0.26, "knock": 120, "step": 50},
+			{"anim": "slash",  "startup": 0.07, "active": 0.06, "recovery": 0.16, "damage": 34, "reach": 170, "height": [-250, -90], "stun": 0.30, "knock": 140, "step": 40},
+			{"anim": "kick",   "startup": 0.08, "active": 0.08, "recovery": 0.24, "damage": 45, "reach": 165, "height": [-200, -80], "stun": 0.40, "knock": 330, "step": 30}
+		],
+		"heavy": [
+			{"anim": "rising", "startup": 0.15, "active": 0.09, "recovery": 0.30, "damage": 75, "reach": 180, "height": [-300, -40], "stun": 0.45, "knock": 220, "launch": 600, "step": 60},
+			{"anim": "sweep",  "startup": 0.16, "active": 0.09, "recovery": 0.34, "damage": 70, "reach": 190, "height": [-120, 10], "stun": 0.45, "knock": 280, "step": 50}
+		],
+		"air": {"anim": "air", "startup": 0.06, "active": 0.11, "recovery": 0.14, "damage": 55, "reach": 170, "height": [-260, 10], "stun": 0.38, "knock": 190}
+	},
+	"powers": [
+		{"id": "veil_of_mist", "name": "Veil of Mist", "short": "VEIL", "type": "buff", "status": "veil", "anim": "cast",
+		 "cost": 30, "duration": 3.0, "radius": 200, "startup": 0.18, "active": 0.05, "recovery": 0.2},
+		{"id": "mirror_double", "name": "Mirror Double", "short": "DOUBLE", "type": "summon", "anim": "burst",
+		 "cost": 45, "duration": 6.0, "startup": 0.22, "active": 0.05, "recovery": 0.3}
+	]
+}

@@ -42,5 +42,4 @@ MIRA: Then remember that feeling when you meet the others.
 @hide all
 @flag chapter01_done
 @title CHAPTER 1 COMPLETE | Kael wins his first major battle — but begins to question whether revenge is what he really wants.
-@title TO BE CONTINUED | Chapter 2 — Tala vs. Vaska — coming in the next build
-@next menu
+@next story ch02_pre

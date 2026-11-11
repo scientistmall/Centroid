@@ -1,0 +1,14 @@
+{
+	"title": "FIGHT 02",
+	"subtitle": "Tala vs. Vaska",
+	"arena": "silent_forest",
+	"fog": true,
+	"player": ["tala"],
+	"mode": "single",
+	"enemy": "vaska",
+	"rounds_to_win": 2,
+	"round_time": 99,
+	"ai": 0.48,
+	"flag": "fight02_completed",
+	"win_next": {"type": "story", "id": "ch02_post"}
+}

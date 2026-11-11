@@ -10,46 +10,45 @@ decisions** the game is built from.
 - The green mineral is called **Asterite**. The stone is the **Centroid**.
 - Victory flags: `fight01_completed` … `fight08_completed` (saved in `user://save.json`).
 
-## Fight table (revised)
+## Fight table (Draft 1 matchups — final)
 
-| # | Day | Playable | Opponent | Outcome | Fight mode | Built |
+| # | Day | Playable | Opponent | Outcome | Mode | Built |
 |---|---|---|---|---|---|---|
-| 1 | 4  | Kael | Rhex | Kael defeats and kills Rhex | single | ✅ |
-| 2 | 10 | Tala | Vaska | Tala defeats Vaska (spared) | single | |
-| 3 | 14 | Darin + Mira | Mael | Mael dies; Darin sacrifices himself | tag (2 vs 1) | |
-| 4 | 20 | Oren | Nyra | Oren defeats Nyra | single | |
-| 5 | 27 | Iren | Zerin | Both die in their final clash | single | |
-| 6 | 33 | Lyra, then Kael | Corvin | Lyra mortally wounded; Kael defeats Corvin | relay | |
-| 7 | 36 | Mira + Kael | Thane | Thane falls defending the altar | tag (2 vs 1) | |
-| 8 | 37 | Kael, then Mira | Veyr | Centroid destroyed; Veyr loses his powers and is defeated | relay (2 phases) | |
+| 1 | 4  | Kael | Rhex | Rhex dies | single | ✅ |
+| 2 | 10 | Tala | Vaska | Vaska is spared | single | ✅ |
+| 3 | 14 | Darin | Mael | Mael and Darin die | single | |
+| 4 | 20 | Mira | Nyra | Nyra survives and withdraws | single | |
+| 5 | 27 | Iren | Zerin | Both die | single | |
+| 6 | 33 | Lyra | Corvin | Corvin and Lyra die | single | |
+| 7 | 36 | Kael | Thane | Thane dies | single | |
+| 8 | 37 | **Kael + Oren** | Veyr | Centroid destroyed; Veyr dies | **tag** | |
 
-### Script changes to make when writing those chapters
-- **Fight 4** was *Mira vs. Nyra* in Draft 1. It is now **Oren vs. Nyra**. The sisters'
-  scene still needs a home: Mira could arrive after the fight for the necklace and map
-  scene, with Oren as the fighter.
-- **Fight 6:** Lyra fights first. Her mortal wound happens in the transition, then Kael
-  finishes Corvin.
-- **Fight 7:** Mira and Kael fight Thane together. Thane "falls defending the altar".
-  The brothers' final scene stays.
-- **Fight 8:** Kael fights Veyr while the Centroid powers him. After the resonator
-  breaks it, Mira fights the powerless Veyr.
+**Fight 8 is the only team fight.**
+- It uses tag mode (`"mode": "tag"` in the fight file).
+- You start as Kael and can SWAP to Oren. Each keeps his own health.
+- You lose only if both fall.
 
-## Ending (revised — replaces Part III)
-The game ends with **"The First Sunrise"** right after Veyr is defeated, on Day 37:
+### Veyr
+- **Powers:** master swordsmanship and **Starfall**.
+- **Losing the power:** when the Centroid shatters in the post-fight scene, he loses
+  Starfall. The final blow happens in that scene.
+
+## Ending — "The First Sunrise" (replaces Draft 1 Part III)
+The game ends right after Veyr is defeated, on Day 37:
 - sunlight breaks through;
 - Tala, Oren, Mira and Kael remember Iren, Lyra and Darin;
 - Mira says "We're here.";
 - Kael lowers his sword, the four stand in the morning light, and **THE END**.
 
 **No story scenes come after this.** The journal reading (E02) and the memorial
-epilogue with Vaska and Nyra (E03) are removed.
+epilogue (E03) are removed.
 
-> Open question: Mira receives **Auren's sealed journal** in the prologue and promises
-> to keep it "until we finish this". Without E02 this setup has no payoff. Options:
-> (a) remove the journal from the prologue; (b) let Mira hold it in the final
-> sunrise scene without reading it; (c) give it one line in the ending.
+**Auren's journal** gets one line in the sunrise scene, just after "We're here.":
+> Mira takes Auren's journal from her bag and holds it against her chest.
+> MIRA: "He trusted us to finish this. We did."
 
 ## Build status
 - ✅ Prologue (Opening, P01–P06, Day 1): `data/story/prologue.story`
 - ✅ Chapter 1: `ch01_pre.story`, `fight01.json`, `ch01_post.story`
-- Chapters 2–8: next builds
+- ✅ Chapter 2: `ch02_pre.story`, `fight02.json`, `ch02_post.story`
+- Chapters 3–8: next builds

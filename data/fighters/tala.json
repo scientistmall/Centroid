@@ -1,0 +1,28 @@
+{
+	"name": "TALA",
+	"color": "#7be0a8",
+	"element": "wind",
+	"weapon": "spear",
+	"max_hp": 980,
+	"walk_speed": 450,
+	"jump_velocity": 1340,
+	"start_energy": 25,
+	"moves": {
+		"light": [
+			{"anim": "thrust", "startup": 0.08, "active": 0.08, "recovery": 0.18, "damage": 36, "reach": 235, "height": [-230, -110], "stun": 0.30, "knock": 150, "step": 30},
+			{"anim": "thrust", "startup": 0.09, "active": 0.08, "recovery": 0.18, "damage": 40, "reach": 250, "height": [-220, -100], "stun": 0.32, "knock": 170, "step": 50},
+			{"anim": "sweep",  "startup": 0.10, "active": 0.09, "recovery": 0.28, "damage": 50, "reach": 240, "height": [-120, 10], "stun": 0.45, "knock": 320, "step": 20}
+		],
+		"heavy": [
+			{"anim": "rising",   "startup": 0.17, "active": 0.10, "recovery": 0.32, "damage": 88,  "reach": 235, "height": [-320, -40], "stun": 0.50, "knock": 240, "launch": 680, "step": 40},
+			{"anim": "overhead", "startup": 0.21, "active": 0.10, "recovery": 0.40, "damage": 115, "reach": 255, "height": [-300, -10], "stun": 0.60, "knock": 430, "step": 60}
+		],
+		"air": {"anim": "air", "startup": 0.08, "active": 0.12, "recovery": 0.16, "damage": 58, "reach": 215, "height": [-260, 20], "stun": 0.40, "knock": 200}
+	},
+	"powers": [
+		{"id": "clear_sight", "name": "Clear Sight", "short": "SIGHT", "type": "buff", "status": "clear_sight", "ai_use": "dispel", "anim": "cast",
+		 "cost": 30, "duration": 4.0, "radius": 220, "startup": 0.14, "active": 0.05, "recovery": 0.2},
+		{"id": "piercing_gale", "name": "Piercing Gale", "short": "GALE", "type": "projectile", "fx": "wind", "anim": "thrust",
+		 "cost": 40, "damage": 100, "speed": 2000, "life": 0.5, "startup": 0.16, "active": 0.05, "recovery": 0.3, "stun": 0.5, "knock": 340, "y": -165}
+	]
+}

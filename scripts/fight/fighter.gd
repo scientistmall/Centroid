@@ -60,6 +60,8 @@ var power_def: Dictionary = {}
 var power_fired := false
 var air_attack_used := false
 var _last_pose: Dictionary = {}
+var statuses: Dictionary = {}   # status name -> seconds left (veil, clear_sight, ...)
+var side := 0                   # 0 = player side, 1 = enemy side
 
 
 func setup(fighter_data: Dictionary) -> void:
@@ -83,6 +85,7 @@ func reset_for_round() -> void:
 	stun_time = 0.0
 	invuln = 0.0
 	flash = 0.0
+	clear_statuses()
 	move = {}
 	queued = ""
 	set_state(S.FROZEN)
@@ -128,6 +131,10 @@ func _physics_process(delta: float) -> void:
 	state_time += delta
 	flash = maxf(0.0, flash - delta * 5.0)
 	invuln = maxf(0.0, invuln - delta)
+	for k in statuses.keys():
+		statuses[k] -= delta
+		if statuses[k] <= 0.0:
+			statuses.erase(k)
 	if state not in [S.FROZEN, S.KO, S.WIN]:
 		add_energy(PASSIVE_ENERGY * delta)
 
@@ -156,7 +163,42 @@ func _physics_process(delta: float) -> void:
 	if is_grounded() and state in [S.HURT, S.BLOCKSTUN, S.KO, S.FROZEN, S.WIN]:
 		vel.x = move_toward(vel.x, 0.0, PUSH_FRICTION * delta)
 	position.x = clampf(position.x, stage_left, stage_right)
+	var target_alpha := 0.16 if is_veiled() else 1.0
+	modulate.a = move_toward(modulate.a, target_alpha, delta * 4.0)
 	queue_redraw()
+
+
+# ------------------------------------------------------------------ statuses
+
+func has_status(n: String) -> bool:
+	return statuses.has(n)
+
+
+func add_status(n: String, seconds: float) -> void:
+	statuses[n] = maxf(statuses.get(n, 0.0), seconds)
+
+
+func clear_statuses() -> void:
+	statuses.clear()
+	modulate.a = 1.0
+
+
+## Veil only works while the opponent can't see through it.
+func is_veiled() -> bool:
+	return has_status("veil") and not (opponent != null and opponent.has_status("clear_sight"))
+
+
+func damage_mult() -> float:
+	return 1.2 if is_veiled() else 1.0
+
+
+## Removes illusions (clones) that belong to the other side.
+func dispel_enemy_illusions() -> void:
+	if opponent:
+		opponent.statuses.erase("veil")
+	for c in get_tree().get_nodes_in_group("clones"):
+		if c.side != side:
+			c.pop()
 
 
 func _face_opponent() -> void:
@@ -294,7 +336,11 @@ func attack_rect(m: Dictionary) -> Rect2:
 func _check_melee_hit() -> void:
 	if opponent == null:
 		return
-	if attack_rect(move).intersects(opponent.hurtbox()):
+	var rect := attack_rect(move)
+	for c in get_tree().get_nodes_in_group("clones"):
+		if c.side != side and rect.intersects(c.hurtbox()):
+			c.pop()
+	if rect.intersects(opponent.hurtbox()):
 		move_hit = true
 		var result := opponent.receive_hit(self, move)
 		if result != "miss":
@@ -346,6 +392,23 @@ func _power_update(_delta: float) -> void:
 			elif t >= startup + active:
 				vel.x = 0.0
 				_resolve_overlap()
+		"buff":
+			if t >= startup and not power_fired:
+				power_fired = true
+				var status: String = power_def.get("status", "")
+				if status == "veil" and opponent and opponent.has_status("clear_sight"):
+					pass  # seen through — the veil fizzles
+				else:
+					add_status(status, power_def.get("duration", 3.0))
+				if status == "clear_sight":
+					dispel_enemy_illusions()
+				_spawn_burst(power_def.get("radius", 160.0))
+		"summon":
+			if t >= startup and not power_fired:
+				power_fired = true
+				if not (opponent and opponent.has_status("clear_sight")):
+					_spawn_clone()
+				_spawn_burst(120.0)
 		"burst":
 			if t >= startup and not power_fired:
 				power_fired = true
@@ -382,6 +445,24 @@ func _spawn_projectile() -> void:
 	effects_parent.add_child(pr)
 
 
+func _spawn_clone() -> void:
+	if effects_parent == null or opponent == null:
+		return
+	var c := CloneFighter.new()
+	c.ground_y = ground_y
+	c.stage_left = stage_left
+	c.stage_right = stage_right
+	c.setup(data)
+	c.side = side
+	c.life = power_def.get("duration", 6.0)
+	c.controller = AIController.new(0.75)
+	c.opponent = opponent
+	c.effects_parent = effects_parent
+	c.position = Vector2(clampf(opponent.position.x - opponent.facing * 260.0, stage_left, stage_right), ground_y)
+	effects_parent.add_child(c)
+	c.release()
+
+
 func _spawn_burst(r: float) -> void:
 	if effects_parent == null:
 		return
@@ -409,7 +490,7 @@ func _spawn_spark(at: Vector2, blocked: bool, heavy: bool) -> void:
 func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 	if state == S.KO or invuln > 0.0 or state == S.FROZEN:
 		return "miss"
-	var dmg: float = m.get("damage", 40.0)
+	var dmg: float = float(m.get("damage", 40.0)) * attacker.damage_mult()
 	var stun: float = m.get("stun", 0.3)
 	var knock: float = m.get("knock", 180.0)
 	var away := 1.0 if position.x >= attacker.position.x else -1.0
@@ -508,7 +589,11 @@ func _draw() -> void:
 	draw_set_transform(Vector2(0, ground_y - position.y), 0.0, Vector2(1.0, 0.18))
 	draw_circle(Vector2.ZERO, 70.0 * sh_scale, Color(0, 0, 0, 0.45))
 	draw_set_transform(Vector2.ZERO)
-	var charged := state == S.POWER or energy >= MAX_ENERGY * 0.999 or (state == S.ATTACK and move_kind == "heavy")
+	var charged := state == S.POWER or energy >= MAX_ENERGY * 0.999 or (state == S.ATTACK and move_kind == "heavy") \
+		or not statuses.is_empty()
+	if has_status("clear_sight"):
+		var pulse := 0.5 + 0.5 * sin(clock * 6.0)
+		draw_arc(Vector2(0, -150), 150.0 + pulse * 12.0, 0, TAU, 48, Color(color, 0.35 + 0.25 * pulse), 4.0)
 	FighterPainter.paint(self, current_pose(), facing, color, weapon, element, clock, flash, charged)
 	if invuln > 0.0 and state == S.POWER:
 		draw_rect(Rect2(-60, -280, 120, 280), Color(color.r, color.g, color.b, 0.12))

@@ -19,7 +19,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	# Only a few backdrops animate (glowing stones, flames).
-	if bg_id in ["crater", "research_chamber", "forbidden_chamber", "centroid_chamber", "hq_siege", "solar_altar", "training_ground"]:
+	if bg_id in ["crater", "research_chamber", "forbidden_chamber", "centroid_chamber", "hq_siege", "solar_altar", "training_ground", "silent_forest"]:
 		queue_redraw()
 
 
@@ -38,6 +38,7 @@ func _draw() -> void:
 		"hq_siege": _hq_siege(w, h)
 		"solar_altar": _solar_altar(w, h)
 		"graves": _graves(w, h)
+		"silent_forest": _silent_forest(w, h)
 		_: draw_rect(Rect2(0, 0, w, h), Color.BLACK)
 
 
@@ -209,6 +210,39 @@ func _solar_altar(w: float, h: float) -> void:
 	var p := Vector2(w * 0.5, h * 0.7)
 	draw_colored_polygon(PackedVector2Array([p + Vector2(-300, 200), p + Vector2(-140, -120), p + Vector2(140, -120), p + Vector2(300, 200)]), Color("0f3a28"))
 	_stone(p + Vector2(0, -180), 50, Color("6a3cff"), true)
+
+
+func _silent_forest(w: float, h: float) -> void:
+	# No moon, no stars worth the name: the trees are fading without sunlight.
+	_grad(Rect2(0, 0, w, h), Color("040507"), Color("10141a"))
+	_stars(w, h * 0.4, 14, 0.12, 51)
+	var ground := h * 0.74
+	var rng := RandomNumberGenerator.new()
+	for layer in 3:
+		rng.seed = 100 + layer
+		var col := Color("0b0e12").lerp(Color("1a2026"), 1.0 - layer / 2.0)
+		var x := -60.0 + layer * 70.0
+		while x < w + 60:
+			var tw := rng.randf_range(16, 34) * (1.0 + layer * 0.5)
+			var top := ground - rng.randf_range(380, 620) * (0.7 + layer * 0.2)
+			draw_rect(Rect2(x - tw / 2, top, tw, ground - top + 10), col)
+			# bare branches
+			for b in 4:
+				var by := top + rng.randf_range(20, (ground - top) * 0.55)
+				var s := -1.0 if b % 2 == 0 else 1.0
+				var len := rng.randf_range(50, 130) * (1.0 + layer * 0.3)
+				draw_line(Vector2(x, by), Vector2(x + s * len, by - len * 0.6), col, maxf(3.0, tw * 0.25))
+			x += rng.randf_range(160, 320) / (1.0 + layer * 0.4)
+	draw_rect(Rect2(0, ground, w, h - ground), Color("07090c"))
+	# drifting mist bands
+	for i in 5:
+		var y := ground - 120 + i * 45
+		var drift := fmod(_time * (14.0 + i * 6.0), w + 800)
+		for k in 6:
+			var cx := fmod(k * 520.0 + drift, w + 800) - 400
+			draw_set_transform(Vector2(cx, y), 0, Vector2(1.0, 0.22))
+			draw_circle(Vector2.ZERO, 300, Color(0.7, 0.75, 0.82, 0.045))
+			draw_set_transform(Vector2.ZERO)
 
 
 func _graves(w: float, h: float) -> void:

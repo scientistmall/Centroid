@@ -17,7 +17,9 @@ func _ready() -> void:
 	await _shot_story("prologue", 6, "story_opening")
 	await _shot_story("prologue", 60, "story_flashback")
 	await _shot_story("prologue", 1, "story_card")
-	await _shot_fight()
+	await _shot_story("ch02_pre", 3, "forest_story")
+	await _shot_fight("fight01", "fight")
+	await _shot_fight("fight02", "mist")
 	get_tree().quit()
 
 
@@ -52,8 +54,8 @@ func _shot_story(id: String, taps: int, name: String) -> void:
 	sp.queue_free()
 
 
-func _shot_fight() -> void:
-	SceneRouter.current = {"type": "fight", "id": "fight01"}
+func _shot_fight(id: String, prefix: String) -> void:
+	SceneRouter.current = {"type": "fight", "id": id}
 	var a = load("res://scenes/fight/arena.tscn").instantiate()
 	add_child(a)
 	await get_tree().process_frame
@@ -68,7 +70,9 @@ func _shot_fight() -> void:
 		await get_tree().physics_frame
 		t += 1
 		var interesting: bool = a.player.state in [Fighter.S.ATTACK, Fighter.S.POWER] or a.enemy.state == Fighter.S.POWER
+		if id == "fight02":
+			interesting = get_tree().get_nodes_in_group("clones").size() > 0 or a.enemy.has_status("veil") or a.player.has_status("clear_sight")
 		if interesting and t > 120 * (shots + 1):
-			await _save("fight_%d" % shots)
+			await _save("%s_%d" % [prefix, shots])
 			shots += 1
 	a.queue_free()

@@ -10,6 +10,7 @@ const SAVE_PATH := "user://save.json"
 const CHAPTERS := [
 	{"title": "Prologue — The Falling Star", "requires": "", "start": {"type": "story", "id": "prologue"}},
 	{"title": "Chapter 1 — Kael vs. Rhex", "requires": "prologue_seen", "start": {"type": "story", "id": "ch01_pre"}},
+	{"title": "Chapter 2 — Tala vs. Vaska", "requires": "fight01_completed", "start": {"type": "story", "id": "ch02_pre"}},
 ]
 
 var flags: Dictionary = {}

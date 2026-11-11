@@ -45,6 +45,9 @@ func _physics_process(delta: float) -> void:
 			_pop()
 			other._pop()
 			return
+	for c in get_tree().get_nodes_in_group("clones"):
+		if c.side != owner_fighter.side and rect().intersects(c.hurtbox()):
+			c.pop()
 	if target and target.is_alive() and rect().intersects(target.hurtbox()):
 		var res := target.receive_hit(owner_fighter, params)
 		if res != "miss":
@@ -83,6 +86,14 @@ func _draw() -> void:
 				var c := Color(0.04, 0.0, 0.02, 0.92) if i % 2 == 0 else Color(color, 0.85)
 				draw_colored_polygon(PackedVector2Array([
 					Vector2(x - 24, size.y / 2), Vector2(x + dir * 18, size.y / 2 - h), Vector2(x + 24, size.y / 2)]), c)
+		"wind":
+			# a long translucent lance of wind with trailing streaks
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(dir * 70, 0), Vector2(-dir * 60, -14), Vector2(-dir * 140, 0), Vector2(-dir * 60, 14)]),
+				Color(0.9, 1.0, 0.95, 0.75))
+			for k in 4:
+				var y := rng.randf_range(-26, 26)
+				draw_line(Vector2(-dir * 40, y), Vector2(-dir * rng.randf_range(140, 230), y), Color(color, 0.55), 2.0)
 		_:
 			for i in 4:
 				draw_circle(Vector2.ZERO, 34.0 - i * 7.0, Color(color.r, color.g, color.b, 0.2 + i * 0.2))

@@ -24,6 +24,8 @@ var ground_y := 880.0
 var stage := Vector2(140, 1780)
 var shake := 0.0
 var swap_cooldown := 0.0
+var fog: FogLayer
+var fog_back: FogLayer
 
 var world: Node2D
 var effects: Node2D
@@ -75,7 +77,16 @@ func _build() -> void:
 	player = _make_fighter(team[0], PlayerController.new())
 	player.opponent = enemy
 	enemy.opponent = player
+	enemy.side = 1
 	world.add_child(effects)
+	if fight.get("fog", false):
+		fog_back = FogLayer.new()
+		fog_back.z_index = -1
+		world.add_child(fog_back)
+		fog = FogLayer.new()
+		fog.z_index = 8
+		fog.strength = 0.3
+		world.add_child(fog)
 
 	var ui := CanvasLayer.new()
 	ui.layer = 5
@@ -188,6 +199,10 @@ func _physics_process(delta: float) -> void:
 		if _mode() == "tag" and Input.is_action_just_pressed("swap") and swap_cooldown <= 0.0:
 			_swap_member()
 	_separate()
+	if fog:
+		var target := 0.2 if player.has_status("clear_sight") else 1.0
+		fog.density = move_toward(fog.density, target, delta * 2.0)
+		fog_back.density = fog.density
 	if shake > 0.0:
 		shake = maxf(0.0, shake - delta * 40.0)
 		world.position = Vector2(randf_range(-shake, shake), randf_range(-shake, shake))
@@ -239,6 +254,10 @@ func _time_over() -> void:
 func _round_over(winner: Fighter, text: String = "K.O.") -> void:
 	phase = "end"
 	touch.release_all()
+	for c in get_tree().get_nodes_in_group("clones"):
+		c.pop()
+	player.statuses.erase("veil")
+	enemy.statuses.erase("veil")
 	Engine.time_scale = 0.35
 	hud.banner(text)
 	await _wait(1.2)

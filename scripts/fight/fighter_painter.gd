@@ -167,5 +167,20 @@ static func _element_fx(ci: CanvasItem, j: Dictionary, p: Dictionary, facing: in
 				ci.draw_colored_polygon(PackedVector2Array([
 					base + o + Vector2(-12, 0), base + o + Vector2(0, -h), base + o + Vector2(12, 0)]),
 					Color(0.05, 0.0, 0.02, 0.9) if i % 2 == 0 else Color(rim.r, rim.g, rim.b, 0.7))
+		"wind":
+			# streaks curling along the weapon
+			for k in 3:
+				var pts := PackedVector2Array()
+				var off := rng.randf_range(-18, 18)
+				for i in 8:
+					var t := i / 7.0
+					var n := Vector2(0, sin(t * PI * 2.0 + clock * 10.0 + k) * 14.0 + off)
+					pts.append(hand.lerp(tip, t) + n)
+				ci.draw_polyline(pts, Color(0.85, 1.0, 0.92, 0.55), 2.0)
+		"mist":
+			var c: Vector2 = j["shoulder"]
+			for i in 7:
+				var o := Vector2(rng.randf_range(-70, 70), rng.randf_range(-60, 160))
+				ci.draw_circle(c + o, rng.randf_range(18, 34), Color(0.8, 0.85, 0.95, 0.12))
 		_:
 			ci.draw_circle(tip, 14, Color(rim.r, rim.g, rim.b, 0.4))
