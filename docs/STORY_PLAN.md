@@ -16,7 +16,7 @@ decisions** the game is built from.
 |---|---|---|---|---|---|---|
 | 1 | 4  | Kael | Rhex | Rhex dies | single | ✅ |
 | 2 | 10 | Tala | Vaska | Vaska is spared | single | ✅ |
-| 3 | 14 | Darin | Mael | Mael and Darin die | single | |
+| 3 | 14 | Darin | Mael | Mael and Darin die | single | ✅ |
 | 4 | 20 | Mira | Nyra | Nyra survives and withdraws | single | |
 | 5 | 27 | Iren | Zerin | Both die | single | |
 | 6 | 33 | Lyra | Corvin | Corvin and Lyra die | single | |
@@ -51,4 +51,5 @@ epilogue (E03) are removed.
 - ✅ Prologue (Opening, P01–P06, Day 1): `data/story/prologue.story`
 - ✅ Chapter 1: `ch01_pre.story`, `fight01.json`, `ch01_post.story`
 - ✅ Chapter 2: `ch02_pre.story`, `fight02.json`, `ch02_post.story`
-- Chapters 3–8: next builds
+- ✅ Chapter 3: `ch03_pre.story`, `fight03.json`, `ch03_post.story`
+- Chapters 4–8: next builds
