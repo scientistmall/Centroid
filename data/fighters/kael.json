@@ -1,0 +1,28 @@
+{
+	"name": "KAEL",
+	"color": "#6fd3ff",
+	"element": "lightning",
+	"weapon": "sword",
+	"max_hp": 1000,
+	"walk_speed": 440,
+	"jump_velocity": 1320,
+	"start_energy": 25,
+	"moves": {
+		"light": [
+			{"anim": "slash",  "startup": 0.07, "active": 0.07, "recovery": 0.16, "damage": 38, "reach": 175, "height": [-250, -90], "stun": 0.30, "knock": 140, "step": 40},
+			{"anim": "thrust", "startup": 0.08, "active": 0.07, "recovery": 0.18, "damage": 42, "reach": 205, "height": [-220, -110], "stun": 0.32, "knock": 160, "step": 60},
+			{"anim": "kick",   "startup": 0.09, "active": 0.08, "recovery": 0.26, "damage": 55, "reach": 170, "height": [-200, -80], "stun": 0.42, "knock": 360, "step": 30}
+		],
+		"heavy": [
+			{"anim": "rising",   "startup": 0.16, "active": 0.09, "recovery": 0.30, "damage": 90,  "reach": 190, "height": [-300, -40], "stun": 0.50, "knock": 220, "launch": 650, "step": 50},
+			{"anim": "overhead", "startup": 0.20, "active": 0.10, "recovery": 0.38, "damage": 120, "reach": 205, "height": [-300, -20], "stun": 0.60, "knock": 440, "step": 70}
+		],
+		"air": {"anim": "air", "startup": 0.07, "active": 0.12, "recovery": 0.15, "damage": 60, "reach": 175, "height": [-260, 10], "stun": 0.40, "knock": 200}
+	},
+	"powers": [
+		{"id": "arc_bolt", "name": "Arc Bolt", "short": "BOLT", "type": "projectile", "fx": "bolt", "anim": "cast",
+		 "cost": 30, "damage": 85, "speed": 1650, "startup": 0.16, "active": 0.05, "recovery": 0.28, "stun": 0.45, "knock": 260, "y": -175},
+		{"id": "thunder_step", "name": "Thunder Step", "short": "STEP", "type": "dash", "anim": "dash",
+		 "cost": 45, "damage": 140, "speed": 2400, "startup": 0.12, "active": 0.22, "recovery": 0.32, "stun": 0.6, "knock": 380}
+	]
+}

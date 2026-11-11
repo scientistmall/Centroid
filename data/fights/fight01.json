@@ -1,0 +1,13 @@
+{
+	"title": "FIGHT 01",
+	"subtitle": "Kael vs. Rhex",
+	"arena": "training_ground",
+	"player": ["kael"],
+	"mode": "single",
+	"enemy": "rhex",
+	"rounds_to_win": 2,
+	"round_time": 99,
+	"ai": 0.42,
+	"flag": "fight01_completed",
+	"win_next": {"type": "story", "id": "ch01_post"}
+}

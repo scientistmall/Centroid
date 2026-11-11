@@ -1,0 +1,20 @@
+{
+	"kael":   {"name": "KAEL",   "color": "#6fd3ff", "hair": "spiky",  "side": "guardian"},
+	"mira":   {"name": "MIRA",   "color": "#ff8fc8", "hair": "long",   "side": "guardian"},
+	"tala":   {"name": "TALA",   "color": "#7be0a8", "hair": "tied",   "side": "guardian"},
+	"darin":  {"name": "DARIN",  "color": "#d9a066", "hair": "shaved", "side": "guardian"},
+	"iren":   {"name": "IREN",   "color": "#ffb347", "hair": "messy",  "side": "guardian"},
+	"lyra":   {"name": "LYRA",   "color": "#b8f2ff", "hair": "long",   "side": "guardian"},
+	"oren":   {"name": "OREN",   "color": "#e8e07a", "hair": "short",  "side": "guardian"},
+	"auren":  {"name": "AUREN",  "color": "#f2d27a", "hair": "elder",  "side": "founder"},
+	"seran":  {"name": "SERAN",  "color": "#8fd19e", "hair": "swept",  "side": "founder"},
+	"veyr":   {"name": "VEYR",   "color": "#9b6bff", "hair": "long",   "side": "traitor"},
+	"rhex":   {"name": "RHEX",   "color": "#ff4a3d", "hair": "mohawk", "side": "traitor"},
+	"thane":  {"name": "THANE",  "color": "#a46bff", "hair": "spiky",  "side": "traitor"},
+	"vaska":  {"name": "VASKA",  "color": "#9fb3c8", "hair": "hood",   "side": "traitor"},
+	"mael":   {"name": "MAEL",   "color": "#c27dff", "hair": "short",  "side": "traitor"},
+	"nyra":   {"name": "NYRA",   "color": "#ff6fa0", "hair": "long",   "side": "traitor"},
+	"zerin":  {"name": "ZERIN",  "color": "#ffd166", "hair": "messy",  "side": "traitor"},
+	"corvin": {"name": "CORVIN", "color": "#7ff0e0", "hair": "swept",  "side": "traitor"},
+	"voice":  {"name": "THE VOICE", "color": "#b48cff", "hair": "none", "side": "unknown"}
+}

@@ -1,0 +1,28 @@
+{
+	"name": "RHEX",
+	"color": "#ff4a3d",
+	"element": "black_flame",
+	"weapon": "axe",
+	"max_hp": 1100,
+	"walk_speed": 390,
+	"jump_velocity": 1220,
+	"start_energy": 25,
+	"moves": {
+		"light": [
+			{"anim": "slash",    "startup": 0.10, "active": 0.08, "recovery": 0.22, "damage": 48, "reach": 185, "height": [-250, -80], "stun": 0.32, "knock": 170, "step": 40},
+			{"anim": "overhead", "startup": 0.13, "active": 0.08, "recovery": 0.26, "damage": 55, "reach": 195, "height": [-280, -40], "stun": 0.36, "knock": 220, "step": 50},
+			{"anim": "kick",     "startup": 0.10, "active": 0.08, "recovery": 0.28, "damage": 50, "reach": 160, "height": [-200, -80], "stun": 0.40, "knock": 380, "step": 20}
+		],
+		"heavy": [
+			{"anim": "overhead", "startup": 0.26, "active": 0.12, "recovery": 0.45, "damage": 140, "reach": 215, "height": [-300, -10], "stun": 0.65, "knock": 480, "step": 60},
+			{"anim": "sweep",    "startup": 0.20, "active": 0.10, "recovery": 0.40, "damage": 100, "reach": 210, "height": [-120, 10], "stun": 0.55, "knock": 300, "launch": 500, "step": 40}
+		],
+		"air": {"anim": "air", "startup": 0.09, "active": 0.12, "recovery": 0.18, "damage": 70, "reach": 180, "height": [-260, 10], "stun": 0.42, "knock": 240}
+	},
+	"powers": [
+		{"id": "black_flame_wave", "name": "Black Flame Wave", "short": "WAVE", "type": "projectile", "fx": "flame_wave", "anim": "overhead",
+		 "cost": 35, "damage": 100, "speed": 950, "startup": 0.28, "active": 0.05, "recovery": 0.35, "stun": 0.5, "knock": 300, "y": -75, "life": 2.2},
+		{"id": "hellfire_burst", "name": "Hellfire Burst", "short": "BURST", "type": "burst", "anim": "burst", "armor": true,
+		 "cost": 50, "damage": 170, "radius": 270, "startup": 0.36, "active": 0.12, "recovery": 0.45, "stun": 0.7, "knock": 520, "launch": 800}
+	]
+}
