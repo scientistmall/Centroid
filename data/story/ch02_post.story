@@ -30,5 +30,4 @@ TALA: Because if we kill every person who makes a terrible choice, what exactly 
 @hide all
 @flag chapter02_done
 @title CHAPTER 2 COMPLETE | Vaska survives. Kael learns that victory doesn't always require killing.
-@title TO BE CONTINUED | Chapter 3 — Darin vs. Mael — coming in the next build
-@next menu
+@next story ch03_pre

@@ -39,6 +39,7 @@ func _draw() -> void:
 		"solar_altar": _solar_altar(w, h)
 		"graves": _graves(w, h)
 		"silent_forest": _silent_forest(w, h)
+		"broken_pass": _broken_pass(w, h)
 		_: draw_rect(Rect2(0, 0, w, h), Color.BLACK)
 
 
@@ -243,6 +244,47 @@ func _silent_forest(w: float, h: float) -> void:
 			draw_set_transform(Vector2(cx, y), 0, Vector2(1.0, 0.22))
 			draw_circle(Vector2.ZERO, 300, Color(0.7, 0.75, 0.82, 0.045))
 			draw_set_transform(Vector2.ZERO)
+
+
+func _broken_pass(w: float, h: float) -> void:
+	# A ruined mountain passage under the dark sky.
+	_grad(Rect2(0, 0, w, h), Color("07060a"), Color("1c1820"))
+	_stars(w, h * 0.35, 25, 0.18, 61)
+	var ground := h * 0.74
+	# far peaks
+	var pts := PackedVector2Array([Vector2(0, ground)])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 14
+	var x := 0.0
+	while x <= w:
+		pts.append(Vector2(x, h * rng.randf_range(0.28, 0.45)))
+		x += rng.randf_range(120, 260)
+	pts.append(Vector2(w, h * 0.35))
+	pts.append(Vector2(w, ground))
+	draw_colored_polygon(pts, Color("16121a"))
+	var ridge := pts.slice(1, pts.size() - 1)
+	draw_polyline(ridge, Color(0.45, 0.38, 0.5, 0.35), 3.0)
+	# cliff walls on both sides
+	draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w * 0.16, 0), Vector2(w * 0.22, h * 0.35),
+		Vector2(w * 0.12, h * 0.55), Vector2(w * 0.18, ground), Vector2(0, ground)]), Color("0b090d"))
+	draw_colored_polygon(PackedVector2Array([Vector2(w, 0), Vector2(w * 0.82, 0), Vector2(w * 0.78, h * 0.3),
+		Vector2(w * 0.88, h * 0.5), Vector2(w * 0.8, ground), Vector2(w, ground)]), Color("0b090d"))
+	# cracked road
+	_grad(Rect2(0, ground, w, h - ground), Color("221c1a"), Color("0b0908"))
+	for i in 6:
+		var cx := w * (0.2 + i * 0.12)
+		draw_polyline(PackedVector2Array([Vector2(cx, ground + 10), Vector2(cx + 30, ground + 60),
+			Vector2(cx + 5, ground + 120), Vector2(cx + 40, h)]), Color(0, 0, 0, 0.6), 3.0)
+	# boulders and fragments of the broken blocking stone
+	rng.seed = 7
+	for i in 9:
+		var bx := rng.randf_range(w * 0.05, w * 0.95)
+		var br := rng.randf_range(18, 55)
+		var by := ground + rng.randf_range(25, 150)
+		draw_set_transform(Vector2(bx, by), 0.0, Vector2(1.0, 0.7))
+		draw_circle(Vector2.ZERO, br, Color("2a2324"))
+		draw_arc(Vector2.ZERO, br, PI * 1.1, PI * 1.6, 12, Color(0.6, 0.5, 0.45, 0.3), 3.0)
+		draw_set_transform(Vector2.ZERO)
 
 
 func _graves(w: float, h: float) -> void:

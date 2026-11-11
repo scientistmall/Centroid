@@ -20,6 +20,8 @@ func _ready() -> void:
 	await _shot_story("ch02_pre", 3, "forest_story")
 	await _shot_fight("fight01", "fight")
 	await _shot_fight("fight02", "mist")
+	await _shot_story("ch03_pre", 4, "pass_story")
+	await _shot_fight("fight03", "pass")
 	get_tree().quit()
 
 
@@ -72,6 +74,12 @@ func _shot_fight(id: String, prefix: String) -> void:
 		var interesting: bool = a.player.state in [Fighter.S.ATTACK, Fighter.S.POWER] or a.enemy.state == Fighter.S.POWER
 		if id == "fight02":
 			interesting = get_tree().get_nodes_in_group("clones").size() > 0 or a.enemy.has_status("veil") or a.player.has_status("clear_sight")
+		if id == "fight03":
+			var has_wall := false
+			for n in a.effects.get_children():
+				if n is StoneWall:
+					has_wall = true
+			interesting = has_wall or a.player.has_status("gravity") or get_tree().get_nodes_in_group("projectiles").size() > 1
 		if interesting and t > 120 * (shots + 1):
 			await _save("%s_%d" % [prefix, shots])
 			shots += 1

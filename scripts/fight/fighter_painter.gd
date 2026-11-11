@@ -167,6 +167,19 @@ static func _element_fx(ci: CanvasItem, j: Dictionary, p: Dictionary, facing: in
 				ci.draw_colored_polygon(PackedVector2Array([
 					base + o + Vector2(-12, 0), base + o + Vector2(0, -h), base + o + Vector2(12, 0)]),
 					Color(0.05, 0.0, 0.02, 0.9) if i % 2 == 0 else Color(rim.r, rim.g, rim.b, 0.7))
+		"stone":
+			for i in 5:
+				var o := Vector2(rng.randf_range(-22, 22), rng.randf_range(-22, 22))
+				ci.draw_rect(Rect2(hand + o - Vector2(5, 5), Vector2(10, 10)), Color(rim.r, rim.g, rim.b, 0.8))
+			var hb: Vector2 = j["hand_b"]
+			ci.draw_circle(hb, 22, Color(rim.r, rim.g, rim.b, 0.25))
+		"gravity":
+			var c: Vector2 = j["shoulder"] + Vector2(0, 40)
+			for i in 6:
+				var a := clock * 2.5 + i * TAU / 6.0
+				var pp := c + Vector2(cos(a) * 95.0, sin(a) * 30.0)
+				ci.draw_rect(Rect2(pp - Vector2(7, 7), Vector2(14, 14)), Color("2b2530"))
+				ci.draw_rect(Rect2(pp - Vector2(7, 7), Vector2(14, 14)), Color(rim.r, rim.g, rim.b, 0.7), false, 2.0)
 		"wind":
 			# streaks curling along the weapon
 			for k in 3:

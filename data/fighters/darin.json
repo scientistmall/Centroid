@@ -1,0 +1,28 @@
+{
+	"name": "DARIN",
+	"color": "#d9a066",
+	"element": "stone",
+	"weapon": "gauntlets",
+	"max_hp": 1180,
+	"walk_speed": 385,
+	"jump_velocity": 1200,
+	"start_energy": 25,
+	"moves": {
+		"light": [
+			{"anim": "thrust", "startup": 0.08, "active": 0.07, "recovery": 0.18, "damage": 44, "reach": 150, "height": [-240, -120], "stun": 0.32, "knock": 170, "step": 50},
+			{"anim": "thrust", "startup": 0.08, "active": 0.07, "recovery": 0.18, "damage": 46, "reach": 155, "height": [-240, -120], "stun": 0.32, "knock": 180, "step": 50},
+			{"anim": "kick",   "startup": 0.10, "active": 0.08, "recovery": 0.28, "damage": 58, "reach": 160, "height": [-200, -80], "stun": 0.42, "knock": 380, "step": 30}
+		],
+		"heavy": [
+			{"anim": "rising",   "startup": 0.18, "active": 0.10, "recovery": 0.34, "damage": 105, "reach": 165, "height": [-320, -60], "stun": 0.55, "knock": 260, "launch": 720, "step": 60},
+			{"anim": "overhead", "startup": 0.24, "active": 0.11, "recovery": 0.42, "damage": 140, "reach": 170, "height": [-300, -10], "stun": 0.65, "knock": 500, "step": 70}
+		],
+		"air": {"anim": "air", "startup": 0.09, "active": 0.12, "recovery": 0.18, "damage": 66, "reach": 160, "height": [-260, 10], "stun": 0.42, "knock": 240}
+	},
+	"powers": [
+		{"id": "stone_bulwark", "name": "Stone Bulwark", "short": "WALL", "type": "wall", "ai_use": "defend", "anim": "burst",
+		 "cost": 30, "duration": 3.0, "startup": 0.12, "active": 0.05, "recovery": 0.22},
+		{"id": "quake_fist", "name": "Quake Fist", "short": "QUAKE", "type": "projectile", "fx": "quake", "anim": "overhead", "ground_only": true,
+		 "cost": 40, "damage": 115, "speed": 1150, "life": 1.3, "y": -45, "startup": 0.24, "active": 0.05, "recovery": 0.34, "stun": 0.55, "knock": 300, "launch": 600}
+	]
+}

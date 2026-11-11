@@ -31,6 +31,20 @@ func get_input(f: Fighter, delta: float) -> Dictionary:
 	for p in f.get_tree().get_nodes_in_group("projectiles"):
 		if p.owner_fighter == opp and absf(p.position.x - f.position.x) < 380.0:
 			threatened = true
+	# Defensive powers (e.g. Stone Bulwark) against projectiles and pulls.
+	var danger := false
+	for p in f.get_tree().get_nodes_in_group("projectiles"):
+		if p.owner_fighter == opp and absf(p.position.x - f.position.x) < 650.0:
+			danger = true
+	if opp.state == Fighter.S.POWER and opp.state_time < 0.25 and opp.power_def.get("type", "") in ["pull", "projectile"]:
+		danger = true
+	if danger and f.state in [Fighter.S.IDLE, Fighter.S.WALK, Fighter.S.BLOCK]:
+		for i in mini(2, f.powers.size()):
+			var dp: Dictionary = f.powers[i]
+			if dp.get("ai_use", "") == "defend" and f.energy >= float(dp.get("cost", 30)) \
+					and not f.has_status("anchored") and rng.randf() < 0.15 + level * 0.3:
+				out["power_%d" % (i + 1)] = true
+				return out
 	var see_mult := 0.35 if opp.is_veiled() else 1.0   # hard to read a veiled opponent
 	if threatened and _block_time <= 0.0 and rng.randf() < (0.035 + level * 0.09) * see_mult:
 		_block_time = 0.35 + rng.randf() * 0.3
@@ -105,8 +119,13 @@ func _decide(f: Fighter, dist: float) -> void:
 			if illusions and r < 0.4 + level * 0.5:
 				_choose("power_%d" % (i + 1), "power_%d" % (i + 1))
 				return
-	var can_p1: bool = f.powers.size() > 0 and f.energy >= float(f.powers[0].get("cost", 30)) and f.powers[0].get("ai_use", "") != "dispel"
-	var can_p2: bool = f.powers.size() > 1 and f.energy >= float(f.powers[1].get("cost", 40)) and f.powers[1].get("ai_use", "") != "dispel"
+	# Keep enough energy in reserve for a defensive power, if the fighter has one.
+	var reserve := 0.0
+	for dp in f.powers:
+		if dp.get("ai_use", "") == "defend":
+			reserve = float(dp.get("cost", 30))
+	var can_p1: bool = f.powers.size() > 0 and f.energy >= float(f.powers[0].get("cost", 30)) + reserve and f.powers[0].get("ai_use", "") not in ["dispel", "defend"]
+	var can_p2: bool = f.powers.size() > 1 and f.energy >= float(f.powers[1].get("cost", 40)) + reserve and f.powers[1].get("ai_use", "") not in ["dispel", "defend"]
 	if can_p2 and r < 0.18 + level * 0.15 and dist < _range_of(f, 1) + 150.0:
 		_choose("power_2", "power_2")
 	elif can_p1 and (dist > 380.0 or f.powers[0].get("type", "") in ["buff", "summon"]) and r < 0.3 + level * 0.2:

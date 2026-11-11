@@ -62,6 +62,9 @@ var air_attack_used := false
 var _last_pose: Dictionary = {}
 var statuses: Dictionary = {}   # status name -> seconds left (veil, clear_sight, ...)
 var side := 0                   # 0 = player side, 1 = enemy side
+var pull_source: Fighter        # who is pulling us (gravity status)
+var shots_fired := 0
+var pull_speed := 380.0
 
 
 func setup(fighter_data: Dictionary) -> void:
@@ -151,6 +154,12 @@ func _physics_process(delta: float) -> void:
 		S.POWER: _power_update(delta)
 		S.KO, S.FROZEN, S.WIN: pass
 
+	# Gravity Well: dragged toward the source unless anchored.
+	if has_status("gravity") and not has_status("anchored") and pull_source and state != S.KO:
+		var dx := pull_source.position.x - position.x
+		if absf(dx) > 150.0:
+			position.x += signf(dx) * pull_speed * delta
+
 	# physics
 	if not is_grounded() or vel.y < 0.0:
 		vel.y += GRAVITY * delta
@@ -225,7 +234,7 @@ func _ground_control() -> void:
 		return
 	var mv: float = inp.get("move", 0.0)
 	if inp.get("jump", false):
-		vel.y = -jump_vel
+		vel.y = -jump_vel * (0.6 if has_status("gravity") else 1.0)
 		vel.x = mv * walk_speed * 0.95
 		set_state(S.AIR)
 		return
@@ -251,6 +260,11 @@ func _air_control() -> void:
 func _block_update() -> void:
 	_face_opponent()
 	vel.x = 0.0
+	# Powers can be fired straight out of a block (e.g. Stone Bulwark).
+	if inp.get("power_1", false) and _try_power(0):
+		return
+	if inp.get("power_2", false) and _try_power(1):
+		return
 	if not inp.get("block", false):
 		set_state(S.IDLE)
 
@@ -360,6 +374,7 @@ func _try_power(i: int) -> bool:
 	add_energy(-cost)
 	power_def = p
 	power_fired = false
+	shots_fired = 0
 	move_hit = false
 	_face_opponent()
 	vel.x = 0.0
@@ -376,9 +391,30 @@ func _power_update(_delta: float) -> void:
 	var type: String = power_def.get("type", "projectile")
 	match type:
 		"projectile":
+			var count := int(power_def.get("count", 1))
+			var interval: float = power_def.get("interval", 0.15)
+			while shots_fired < count and t >= startup + shots_fired * interval:
+				_spawn_projectile(shots_fired, count)
+				shots_fired += 1
+		"pull":
 			if t >= startup and not power_fired:
 				power_fired = true
-				_spawn_projectile()
+				if opponent and not opponent.has_status("anchored"):
+					opponent.add_status("gravity", power_def.get("duration", 1.4))
+					opponent.pull_source = self
+					opponent.pull_speed = power_def.get("pull_speed", 380.0)
+				var b := BurstFx.new()
+				b.radius = 150.0
+				b.color = color
+				b.dark_core = true
+				if opponent:
+					b.position = opponent.position + Vector2(0, -120)
+					effects_parent.add_child(b)
+		"wall":
+			if t >= startup and not power_fired:
+				power_fired = true
+				add_status("anchored", power_def.get("duration", 3.0))
+				_spawn_wall()
 		"dash":
 			if t >= startup and t < startup + active:
 				invuln = 0.05
@@ -436,13 +472,26 @@ func _resolve_overlap() -> void:
 		position.x = clampf(opponent.position.x + dirx * BODY_HALF_W * 2.2, stage_left, stage_right)
 
 
-func _spawn_projectile() -> void:
+func _spawn_projectile(index: int = 0, count: int = 1) -> void:
 	if effects_parent == null:
 		return
 	var pr := Projectile.new()
 	pr.setup(self, opponent, power_def, color)
-	pr.position = position + Vector2(facing * 90, float(power_def.get("y", -170)))
+	var spread: float = power_def.get("y_spread", 0.0)
+	var y := float(power_def.get("y", -170)) + (index - (count - 1) / 2.0) * spread
+	pr.position = position + Vector2(facing * 90, y)
 	effects_parent.add_child(pr)
+
+
+func _spawn_wall() -> void:
+	if effects_parent == null:
+		return
+	var w := StoneWall.new()
+	w.side = side
+	w.color = color
+	w.life = power_def.get("duration", 3.0)
+	w.position = Vector2(clampf(position.x + facing * 120.0, stage_left, stage_right), ground_y)
+	effects_parent.add_child(w)
 
 
 func _spawn_clone() -> void:
@@ -493,6 +542,8 @@ func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 	var dmg: float = float(m.get("damage", 40.0)) * attacker.damage_mult()
 	var stun: float = m.get("stun", 0.3)
 	var knock: float = m.get("knock", 180.0)
+	if has_status("anchored"):
+		knock = 0.0
 	var away := 1.0 if position.x >= attacker.position.x else -1.0
 	var from_front := int(signf(attacker.position.x - position.x)) == facing or is_equal_approx(attacker.position.x, position.x)
 	if state in [S.BLOCK, S.BLOCKSTUN] and from_front and not m.get("unblockable", false):
@@ -522,7 +573,7 @@ func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 	stun_time = stun
 	vel.x = away * knock
 	var launch: float = m.get("launch", 0.0)
-	if launch > 0.0:
+	if launch > 0.0 and not has_status("anchored"):
 		vel.y = -launch
 	set_state(S.HURT)
 	return "hit"
@@ -594,6 +645,19 @@ func _draw() -> void:
 	if has_status("clear_sight"):
 		var pulse := 0.5 + 0.5 * sin(clock * 6.0)
 		draw_arc(Vector2(0, -150), 150.0 + pulse * 12.0, 0, TAU, 48, Color(color, 0.35 + 0.25 * pulse), 4.0)
+	if has_status("gravity") and not has_status("anchored"):
+		var src_col := pull_source.color if pull_source else Color(0.7, 0.4, 1.0)
+		draw_set_transform(Vector2(0, ground_y - position.y), 0.0, Vector2(1.0, 0.25))
+		for i in 3:
+			var r := 60.0 + fmod(clock * 120.0 + i * 40.0, 120.0)
+			draw_arc(Vector2.ZERO, r, 0, TAU, 40, Color(src_col, 0.6 * (1.0 - (r - 60.0) / 120.0)), 5.0)
+		draw_set_transform(Vector2.ZERO)
+	if has_status("anchored"):
+		for i in 5:
+			var x := -60.0 + i * 30.0
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(x - 14, ground_y - position.y), Vector2(x - 4, ground_y - position.y - 26 - (i % 2) * 14),
+				Vector2(x + 12, ground_y - position.y)]), Color("6b5a48"))
 	FighterPainter.paint(self, current_pose(), facing, color, weapon, element, clock, flash, charged)
 	if invuln > 0.0 and state == S.POWER:
 		draw_rect(Rect2(-60, -280, 120, 280), Color(color.r, color.g, color.b, 0.12))

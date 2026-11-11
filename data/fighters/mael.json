@@ -1,0 +1,29 @@
+{
+	"name": "MAEL",
+	"color": "#c27dff",
+	"element": "gravity",
+	"weapon": "gauntlets",
+	"max_hp": 1150,
+	"walk_speed": 405,
+	"jump_velocity": 1250,
+	"start_energy": 30,
+	"moves": {
+		"light": [
+			{"anim": "thrust", "startup": 0.08, "active": 0.07, "recovery": 0.17, "damage": 42, "reach": 150, "height": [-240, -120], "stun": 0.30, "knock": 160, "step": 50},
+			{"anim": "slash",  "startup": 0.09, "active": 0.07, "recovery": 0.18, "damage": 45, "reach": 150, "height": [-250, -100], "stun": 0.32, "knock": 180, "step": 40},
+			{"anim": "sweep",  "startup": 0.10, "active": 0.08, "recovery": 0.28, "damage": 52, "reach": 175, "height": [-120, 10], "stun": 0.42, "knock": 320, "step": 30}
+		],
+		"heavy": [
+			{"anim": "overhead", "startup": 0.22, "active": 0.11, "recovery": 0.40, "damage": 135, "reach": 170, "height": [-300, -10], "stun": 0.62, "knock": 480, "step": 70},
+			{"anim": "rising",   "startup": 0.17, "active": 0.10, "recovery": 0.34, "damage": 100, "reach": 165, "height": [-320, -60], "stun": 0.52, "knock": 240, "launch": 700, "step": 60}
+		],
+		"air": {"anim": "air", "startup": 0.08, "active": 0.12, "recovery": 0.17, "damage": 62, "reach": 160, "height": [-260, 10], "stun": 0.40, "knock": 220}
+	},
+	"powers": [
+		{"id": "gravity_well", "name": "Gravity Well", "short": "PULL", "type": "pull", "anim": "cast",
+		 "cost": 30, "duration": 1.4, "pull_speed": 420, "startup": 0.2, "active": 0.05, "recovery": 0.25},
+		{"id": "rising_stones", "name": "Rising Stones", "short": "STONES", "type": "projectile", "fx": "rock", "anim": "burst", "arc": true,
+		 "count": 3, "interval": 0.15, "y": -160, "y_spread": 70,
+		 "cost": 45, "damage": 50, "speed": 1300, "life": 1.8, "startup": 0.25, "active": 0.35, "recovery": 0.3, "stun": 0.35, "knock": 200}
+	]
+}
