@@ -72,6 +72,7 @@ var sec := Vector2.ZERO          # secondary-motion lag for cloth and hair
 var _sec_vel := Vector2.ZERO
 var _trail: Array = []           # recent weapon-tip positions (world) for smears
 var _emitter: CPUParticles2D     # element particles when charged
+var render_3d := false           # true when a 3D puppet draws the body
 
 
 func setup(fighter_data: Dictionary) -> void:
@@ -776,11 +777,20 @@ func _phase_pose(anim: String, t: float, startup: float, active: float, recovery
 
 
 func _draw() -> void:
-	# shadow
+	# shadow (the 3D stage casts real shadows instead)
+	if not render_3d:
+		_draw_shadow()
+	_draw_overlays()
+
+
+func _draw_shadow() -> void:
 	var sh_scale := clampf(1.0 - (ground_y - position.y) / 600.0, 0.3, 1.0)
 	draw_set_transform(Vector2(0, ground_y - position.y), 0.0, Vector2(1.0, 0.18))
 	draw_circle(Vector2.ZERO, 70.0 * sh_scale, Color(0, 0, 0, 0.45))
 	draw_set_transform(Vector2.ZERO)
+
+
+func _draw_overlays() -> void:
 	var charged := state == S.POWER or energy >= MAX_ENERGY * 0.999 or (state == S.ATTACK and move_kind == "heavy") \
 		or not statuses.is_empty()
 	if has_status("clear_sight"):
@@ -810,12 +820,14 @@ func _draw() -> void:
 			var a := clock * 1.5 + i * TAU / 12.0
 			draw_arc(Vector2(cos(a), sin(a)) * 95.0, 12.0, 0, TAU, 10, Color(0.15, 0.35, 0.12, 0.9), 4.0)
 		draw_set_transform(Vector2.ZERO)
-	if costume.is_empty():
+	var local_trail := PackedVector2Array()
+	for wp in _trail:
+		local_trail.append(wp - position)
+	if render_3d:
+		pass   # the 3D puppet draws the body (3D weapon trails come with the real models)
+	elif costume.is_empty():
 		FighterPainter.paint(self, current_pose(), facing, color, weapon, element, clock, flash, charged)
 	else:
-		var local_trail := PackedVector2Array()
-		for wp in _trail:
-			local_trail.append(wp - position)
 		FighterArt.paint(self, current_pose(), facing, color, weapon, element, clock, flash, charged, costume, sec, local_trail)
 	if has_status("poison"):
 		# green drips rising off the body

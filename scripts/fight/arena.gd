@@ -27,6 +27,11 @@ var swap_cooldown := 0.0
 var fog: FogLayer
 var _briefed := false
 var ui_layer: CanvasLayer
+var stage3d: Stage3D
+var _puppets := {}   # Fighter -> Puppet3D
+var _cam_zoom := 1.3
+var _cam_x := 960.0
+var _shake_px := Vector2.ZERO
 var fog_back: FogLayer
 
 var world: Node2D
@@ -62,10 +67,10 @@ func _build() -> void:
 	var bg_layer := CanvasLayer.new()
 	bg_layer.layer = -1
 	add_child(bg_layer)
-	backdrop = Backdrop.new()
-	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	backdrop.bg_id = fight.get("arena", "training_ground")
-	bg_layer.add_child(backdrop)
+	# the 3D stage renders the arena and the fighters' bodies
+	stage3d = Stage3D.new()
+	bg_layer.add_child(stage3d)
+	stage3d.setup(fight.get("arena", "training_ground"), get_viewport().get_visible_rect().size, ground_y)
 
 	world = Node2D.new()
 	add_child(world)
@@ -83,6 +88,8 @@ func _build() -> void:
 	enemy.opponent = player
 	enemy.side = 1
 	world.add_child(effects)
+	_add_puppet(enemy)
+	_add_puppet(player)
 	if fight.get("fog", false):
 		fog_back = FogLayer.new()
 		fog_back.z_index = -1
@@ -118,8 +125,8 @@ func _build() -> void:
 	pause_btn.set_anchor(SIDE_RIGHT, 0.5, true)
 	pause_btn.offset_left = -45
 	pause_btn.offset_right = 45
-	pause_btn.offset_top = 115
-	pause_btn.offset_bottom = 195
+	pause_btn.offset_top = 140
+	pause_btn.offset_bottom = 214
 	pause_btn.add_theme_font_size_override("font_size", 36)
 	pause_btn.focus_mode = Control.FOCUS_NONE
 	pause_btn.pressed.connect(_pause)
@@ -176,6 +183,9 @@ func _start_round() -> void:
 	if round_no == 1 and not _briefed and not SceneRouter.current.get("no_briefing", false):
 		_briefed = true
 		touch.visible = false
+		hud.visible = false
+		await _show_vs().closed
+		hud.visible = true
 		await _show_briefing().closed
 		touch.visible = true
 	if round_no == 1 and _mode() == "single":
@@ -184,6 +194,7 @@ func _start_round() -> void:
 	hud.banner("ROUND %d" % round_no if _mode() == "single" else "READY")
 	await _wait(1.0)
 	hud.banner("FIGHT!")
+	shake = 18.0
 	AudioManager.sfx("gong", -4.0)
 	await _wait(0.6)
 	hud.clear_banner()
@@ -212,9 +223,56 @@ func _physics_process(delta: float) -> void:
 		fog_back.density = fog.density
 	if shake > 0.0:
 		shake = maxf(0.0, shake - delta * 40.0)
-		world.position = Vector2(randf_range(-shake, shake), randf_range(-shake, shake))
+		_shake_px = Vector2(randf_range(-shake, shake), randf_range(-shake, shake))
 	else:
-		world.position = Vector2.ZERO
+		_shake_px = Vector2.ZERO
+	_update_camera(delta)
+	_sync_puppets()
+
+
+## Dynamic framing: zoom in when the fighters are close, out when apart, and follow
+## their midpoint. Same transform for the 3D camera and the 2D effects layer.
+func _update_camera(delta: float) -> void:
+	if player == null or enemy == null:
+		return
+	var vis := get_viewport().get_visible_rect().size
+	var mid := (player.position.x + enemy.position.x) / 2.0
+	var dist := absf(player.position.x - enemy.position.x)
+	var want_zoom := clampf(vis.x * 0.62 / maxf(1.0, dist + 260.0), 1.0, 1.55)
+	_cam_zoom = lerpf(_cam_zoom, want_zoom, clampf(delta * 3.0, 0.0, 1.0))
+	# keep the framed view inside the stage
+	var half := vis.x / 2.0 / _cam_zoom
+	var lo := minf(stage.x - 60.0 + half, vis.x / 2.0)
+	var hi := maxf(stage.y + 60.0 - half, vis.x / 2.0)
+	_cam_x = lerpf(_cam_x, clampf(mid, lo, hi), clampf(delta * 4.0, 0.0, 1.0))
+	if stage3d:
+		world.transform = stage3d.frame(_cam_x, _cam_zoom, _shake_px)
+	else:
+		world.position = _shake_px
+
+
+func _add_puppet(f: Fighter) -> void:
+	if stage3d == null or _puppets.has(f):
+		return
+	f.render_3d = true
+	var p := Puppet3D.new()
+	stage3d.world_root.add_child(p)
+	p.setup(f, stage3d)
+	_puppets[f] = p
+
+
+func _sync_puppets() -> void:
+	if stage3d == null:
+		return
+	for c in get_tree().get_nodes_in_group("clones"):
+		if not _puppets.has(c):
+			_add_puppet(c)
+	for f in _puppets.keys():
+		if not is_instance_valid(f) or f.is_queued_for_deletion():
+			_puppets[f].queue_free()
+			_puppets.erase(f)
+		else:
+			_puppets[f].sync()
 
 
 func _separate() -> void:
@@ -253,8 +311,10 @@ func _on_power(f: Fighter, power_name: String) -> void:
 			Engine.time_scale = 1.0
 
 
-func _on_hit(_f: Fighter, heavy: bool) -> void:
+func _on_hit(f: Fighter, heavy: bool) -> void:
 	shake = maxf(shake, 14.0 if heavy else 6.0)
+	if hud:
+		hud.register_hit(f == enemy)   # player's combo grows when the enemy is hit
 
 
 func _on_ko(f: Fighter) -> void:
@@ -289,6 +349,7 @@ func _round_over(winner: Fighter, text: String = "K.O.") -> void:
 	enemy.statuses.erase("veil")
 	Engine.time_scale = 0.35
 	hud.banner(text)
+	shake = 26.0
 	await _wait(1.2)
 	Engine.time_scale = 1.0
 	var loser := enemy if winner == player else player
@@ -321,6 +382,7 @@ func _replace_player(idx: int, keep_hp_of_old: bool) -> void:
 	team_hp[team[active_idx]] = old.hp if keep_hp_of_old else 0.0
 	active_idx = idx
 	var np := _make_fighter(team[idx], PlayerController.new())
+	_add_puppet(np)
 	var stored: float = team_hp[team[idx]]
 	np.position = Vector2(clampf(old.position.x - old.facing * 160.0, stage.x, stage.y), ground_y)
 	if stored > 0.0:
@@ -391,6 +453,17 @@ func _pause() -> void:
 	get_tree().paused = true
 	_show_overlay("PAUSED", "", [["Resume", _resume], ["Moves", _pause_briefing], ["Settings", _pause_settings],
 		["Retry", _retry], ["Main Menu", _to_menu]], Color.WHITE)
+
+
+func _show_vs() -> VsScreen:
+	var v := VsScreen.new()
+	v.left_id = player.char_id
+	v.right_id = enemy.char_id
+	for ch in StoryManager.CHAPTERS:
+		if ch.get("fighters", []) == [player.char_id, enemy.char_id]:
+			v.place = "%s  ·  %s" % [ch.get("day_label", ""), ch.get("place", "")]
+	ui_layer.add_child(v)
+	return v
 
 
 func _show_briefing() -> Briefing:

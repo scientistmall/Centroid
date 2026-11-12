@@ -47,28 +47,58 @@ static func box(bg: Color, border: Color, bw := 2, radius := 6, bottom := 0) -> 
 	return s
 
 
+static func metal_box(trim: Color, top := Color("3b4352"), bottom := Color("10131a"), glow := 0.5, pressed := 0.0) -> StyleBoxMetal:
+	var b := StyleBoxMetal.new()
+	b.trim = trim
+	b.top = top
+	b.bottom = bottom
+	b.glow = glow
+	b.pressed_offset = pressed
+	b.content_margin_left = 34
+	b.content_margin_right = 34
+	b.content_margin_top = 10
+	b.content_margin_bottom = 6
+	return b
+
+
 static func theme() -> Theme:
 	if _theme:
 		return _theme
 	var t := Theme.new()
 	t.default_font = ui_font()
 	t.default_font_size = 36
-	t.set_stylebox("normal", "Button", box(Color(0.04, 0.05, 0.10, 0.82), Color(ACCENT, 0.35), 2, 4, 4))
-	t.set_stylebox("hover", "Button", box(Color(0.07, 0.10, 0.18, 0.92), Color(ACCENT, 0.8), 2, 4, 4))
-	t.set_stylebox("pressed", "Button", box(Color(0.12, 0.20, 0.32, 0.95), ACCENT, 2, 4, 4))
+	var teko: Font = load("res://assets/fonts/Teko-SemiBold.woff2")
+	# heavy-metal buttons
+	t.set_stylebox("normal", "Button", metal_box(Color("6fe3ff", 0.7)))
+	t.set_stylebox("hover", "Button", metal_box(Color("aef1ff"), Color("4a5468"), Color("161b26"), 0.8))
+	t.set_stylebox("pressed", "Button", metal_box(Color("f5c84c"), Color("2a3140"), Color("0b0d12"), 0.9, 2.0))
+	t.set_stylebox("disabled", "Button", metal_box(Color(1, 1, 1, 0.15), Color("1e222b"), Color("0c0e12"), 0.0))
 	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
-	t.set_stylebox("disabled", "Button", box(Color(0.03, 0.03, 0.05, 0.6), Color(1, 1, 1, 0.08), 2, 4, 2))
-	t.set_color("font_color", "Button", TEXT)
+	t.set_color("font_color", "Button", Color("eaf6ff"))
 	t.set_color("font_hover_color", "Button", Color.WHITE)
-	t.set_color("font_pressed_color", "Button", ACCENT.lightened(0.4))
+	t.set_color("font_pressed_color", "Button", Color("ffe08a"))
 	t.set_color("font_disabled_color", "Button", Color(1, 1, 1, 0.3))
-	t.set_font("font", "Button", bold_font())
+	t.set_font("font", "Button", teko)
+	t.set_font_size("font_size", "Button", 48)
+	# gold primary buttons: theme_type_variation = "PrimaryButton"
+	t.set_type_variation("PrimaryButton", "Button")
+	t.set_stylebox("normal", "PrimaryButton", metal_box(Color("fff0b0"), Color("ffe08a"), Color("b07a22"), 0.6))
+	t.set_stylebox("hover", "PrimaryButton", metal_box(Color.WHITE, Color("fff0b0"), Color("c88e2c"), 0.9))
+	t.set_stylebox("pressed", "PrimaryButton", metal_box(Color("fff0b0"), Color("d9a640"), Color("8a5a14"), 0.9, 2.0))
+	t.set_color("font_color", "PrimaryButton", Color("1a1206"))
+	t.set_color("font_hover_color", "PrimaryButton", Color("000000"))
+	t.set_color("font_pressed_color", "PrimaryButton", Color("1a1206"))
 	t.set_color("font_color", "Label", TEXT)
-	t.set_stylebox("panel", "PanelContainer", box(PANEL, Color(ACCENT, 0.3), 2, 10))
-	# sliders / checkboxes for the settings screen
-	t.set_stylebox("slider", "HSlider", box(Color(1, 1, 1, 0.12), Color(0, 0, 0, 0), 0, 6))
-	t.set_stylebox("grabber_area", "HSlider", box(Color(ACCENT, 0.7), Color(0, 0, 0, 0), 0, 6))
-	t.set_stylebox("grabber_area_highlight", "HSlider", box(ACCENT, Color(0, 0, 0, 0), 0, 6))
-	t.set_constant("grabber_offset", "HSlider", 0)
+	var pbox := metal_box(Color("6fe3ff", 0.5), Color("262c38"), Color("0b0d12"), 0.4)
+	pbox.cut = 26.0
+	pbox.content_margin_left = 48
+	pbox.content_margin_right = 48
+	pbox.content_margin_top = 34
+	pbox.content_margin_bottom = 34
+	t.set_stylebox("panel", "PanelContainer", pbox)
+	# sliders
+	t.set_stylebox("slider", "HSlider", box(Color(1, 1, 1, 0.12), Color(0, 0, 0, 0), 0, 2))
+	t.set_stylebox("grabber_area", "HSlider", box(Color("6fe3ff", 0.75), Color(0, 0, 0, 0), 0, 2))
+	t.set_stylebox("grabber_area_highlight", "HSlider", box(Color("aef1ff"), Color(0, 0, 0, 0), 0, 2))
 	_theme = t
 	return t

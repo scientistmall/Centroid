@@ -34,6 +34,7 @@ func _ready() -> void:
 	if _want("cutin"): await _shot_cutin()
 	if _want("chapters"): await _shot_scene("res://scenes/ui/chapter_select.tscn", "chapters", true)
 	if _want("settings"): await _shot_settings()
+	if _want("vs"): await _shot_vs()
 	if _want("briefing"): await _shot_briefing("fight01", "briefing")
 	if _want("briefing4"): await _shot_briefing("fight04", "briefing4")
 	get_tree().quit()
@@ -157,4 +158,18 @@ func _shot_briefing(id: String, name: String) -> void:
 	add_child(a)
 	await get_tree().create_timer(1.3).timeout
 	await _save(name)
+	a.queue_free()
+
+
+func _shot_vs() -> void:
+	SceneRouter.current = {"type": "fight", "id": "fight01"}
+	var a = load("res://scenes/fight/arena.tscn").instantiate()
+	add_child(a)
+	await get_tree().create_timer(0.35).timeout
+	await _save("vs_mid")
+	for v in a.ui_layer.get_children():
+		if v is VsScreen:
+			v.t = 2.4   # show the finished layout regardless of slow first frames
+	for i in 3: await get_tree().process_frame
+	await _save("vs")
 	a.queue_free()
