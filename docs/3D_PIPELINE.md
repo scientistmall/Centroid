@@ -14,6 +14,158 @@ You need:
 
 ---
 
+## Part 0 — Meet the pilot characters (what they must look like)
+
+Read this before generating anything. The descriptions tell you **what to ask the AI
+for** and **how to judge the result**. The reference images in `docs/ref/` show the
+colours and features from the current game art. Use them for colours and recognizable
+features, not as the final style: the 3D models should look more realistic and detailed.
+
+| Kael (`docs/ref/kael_reference.png`) | Rhex (`docs/ref/rhex_reference.png`) |
+|---|---|
+| ![Kael](ref/kael_reference.png) | ![Rhex](ref/rhex_reference.png) |
+
+### KAEL — "The Lightning Blade" (the hero, 19 years old)
+
+**At a glance:** recognizable from across the arena by his **spiky dark hair**, the **long
+pale scarf trailing behind him**, and a **slim sword glowing blue at the edge**. Lean and
+quick, like a sprinter.
+
+**Body**
+- About 1.78 m tall.
+- Lean, athletic build: toned but slim, a runner, not a bodybuilder.
+- Long arms and legs, narrow waist, shoulders slightly wider than the hips.
+- Upright, confident posture: chin level, ready to move.
+
+**Face**
+- Young (19), sharp and clean: defined cheekbones, narrow chin, no facial hair, no
+  scars.
+- **Light-blue eyes**; straight, determined eyebrows.
+- Default expression: **serious and focused**, never smiling smugly.
+- Skin: light warm tone.
+
+**Hair**
+- **Dark navy-black, spiky**, swept **backward**, like wind blew it back.
+- A few sharp spikes fall over the forehead.
+- Medium length; not long enough to cover the eyes.
+
+**Outfit (top to bottom)**
+
+| Piece | Look | Colour |
+|---|---|---|
+| Scarf | Long and soft, wrapped once around the neck; **one long end hangs down his back** to about the waist | pale blue-white `#d8eef8` |
+| Jacket | Short and fitted (ends at the waist), high collar, sleeves to the wrist | dark navy `#1a2236` |
+| Jacket trim | Thin **glowing** lines along the collar, the front opening and the hems | light blue `#6fd3ff` |
+| Coat tails | Two split tails hanging from the back of the jacket down to mid-thigh | dark navy `#1a2236` |
+| Belt | Slim belt | light blue `#6fd3ff` |
+| Trousers | Fitted, flexible fighting trousers | black `#0d0f14` |
+| Bracers | Leather forearm guards, each with a thin blue band | dark brown leather + blue |
+| Boots | Light armoured boots to mid-shin, slim | black with steel toe caps |
+
+**Weapon (made as a separate model)**
+- A **single-edged, slightly curved sword**, about 1 m long (blade 75 cm).
+- Dark steel blade with a **faint blue glowing edge**, a **round guard** and a wrapped grip.
+- He holds it in his **right hand**.
+
+**Colour rule:** mostly **dark navy and black**. Blue appears only as **thin glowing
+accents**, and the **scarf is the one large light-coloured area**.
+
+**Personality to show:** focused, restless, protective. He looks ready to defend, not to
+show off.
+
+**Check your Kael model**
+- [ ] Slim build, clearly thinner than Rhex.
+- [ ] Spiky dark hair swept back.
+- [ ] Pale scarf with a hanging end.
+- [ ] Short navy jacket with split coat tails.
+- [ ] Blue thin trim, not a bright blue outfit.
+- [ ] Both hands free and open (the sword is a separate file).
+- [ ] No cape covering the arms.
+
+---
+
+### RHEX — "The Black Flame" (the traitor, about 25 years old)
+
+**At a glance:** recognizable by his **red mohawk crest**, a **big layered metal plate on
+one shoulder**, **bare muscular arms**, and a **huge black axe with a red-hot edge**.
+Bulky, aggressive, takes up space.
+
+**Body**
+- About 1.88 m tall, **clearly taller and much broader than Kael**.
+- Heavily muscled: thick neck, big shoulders and arms, solid torso.
+- Wide, planted stance: feet apart, weight forward, like a brawler.
+
+**Face**
+- Square, strong jaw; heavy brow.
+- A **scar running diagonally across his left cheek** (from below the eye toward the jaw).
+- **Red eyes**.
+- Default expression: an **arrogant half-smirk**, one corner of the mouth raised.
+- Skin: medium warm tone.
+
+**Hair**
+- **Dark red spiky mohawk**: a tall crest of spikes running from the forehead to the
+  back of the head.
+- **Shaved sides**, shown as a short dark stubble.
+
+**Outfit (top to bottom)**
+
+| Piece | Look | Colour |
+|---|---|---|
+| Pauldron | **Three overlapping curved steel plates on his LEFT shoulder only**, riveted, with red-painted edges. When he faces you it appears on the **right side of the picture**, as in the reference image. | blackened steel + red edges `#ff4a3d` |
+| Armour vest | **Sleeveless** dark leather battle armour, V-neck with red trim | near-black brown `#1d1414` |
+| Arms | **Bare upper arms**; cloth wraps from wrist to elbow on both forearms | wraps in dusty grey-brown |
+| Belt | Wide belt with a metal buckle | red `#ff4a3d` |
+| Trousers | Heavy, loose-fitting fighting trousers | dark brown-black |
+| Boots | **Heavy, chunky boots** with straps | black leather |
+
+**Weapon (made as a separate model)**
+- A **large single-bladed battle axe**, about 1.2 m long.
+- **Blackened steel head** with a **glowing red cutting edge**, a short **spike on the
+  back** of the head, and a long dark wooden handle wrapped near the bottom.
+- He uses it **two-handed**.
+
+**Colour rule:** **dark leather and dark steel** everywhere. **Red appears only on edges,
+trims, the belt, his eyes and his hair**. No large red clothing areas.
+
+**Personality to show:** arrogant, aggressive, enjoys the fight. He looks like he's about
+to laugh at you.
+
+**Check your Rhex model**
+- [ ] Clearly broader and taller than Kael.
+- [ ] Red mohawk with shaved sides.
+- [ ] Scar on the left cheek.
+- [ ] Shoulder plates on the left shoulder only.
+- [ ] Sleeveless with bare upper arms.
+- [ ] Forearm wraps.
+- [ ] Hands free (the axe is a separate file).
+
+---
+
+### Kael vs. Rhex — they must read as opposites
+| | Kael | Rhex |
+|---|---|---|
+| Body | lean, quick | broad, heavy |
+| Colour | dark navy + **blue** glow | dark leather + **red** glow |
+| Signature piece | long pale **scarf** | steel **shoulder plates** |
+| Weapon | slim curved **sword** | huge **axe** |
+| Mood | focused, protective | arrogant, aggressive |
+
+### Do / don't (for every character)
+- **Do:**
+  - full body, **A-pose**, arms away from the body, hands open;
+  - plain background;
+  - realistic proportions (head about 1/7.5 of body height);
+  - detailed clothing.
+- **Don't:**
+  - chibi or cartoon proportions or oversized heads;
+  - **glowing whole-body effects** or flames on the character (the game adds glow and
+    fire itself);
+  - weapons attached to the hands;
+  - capes that cover the arms;
+  - text, logos or symbols from real brands on clothes.
+
+---
+
 ## Part 1 — Make one character model (repeat per character)
 
 ### Step 1. Concept image (recommended — gives far better models)
@@ -138,16 +290,16 @@ Common style line to add to every brief:
 
 ### Pilot
 **KAEL** (hero, about 19) — *colour: electric blue*
-> Young man, lean athletic build, spiky dark navy-black hair, light blue eyes, determined face. Short dark navy fitted jacket with split coat tails and glowing light-blue trim, long pale blue-white scarf, black fitted trousers, leather bracers, light armored boots, light-blue belt.
+> Young man, 19, lean athletic build, about 1.78 m, spiky dark navy-black hair swept backward, light blue eyes, serious determined face, no scars. Short dark navy (#1a2236) fitted jacket with high collar, split coat tails to mid-thigh and thin glowing light-blue (#6fd3ff) trim, long pale blue-white (#d8eef8) scarf with one end hanging down the back, black fitted trousers, leather bracers with thin blue bands, slim light armored boots, light-blue belt.
 
 Weapon:
-> slightly curved single-edged sword, dark steel blade with faint blue edge glow, round guard, wrapped grip
+> slightly curved single-edged sword about 1 m long, dark steel blade with faint glowing blue edge, round guard, wrapped grip
 
 **RHEX** (traitor, about 25) — *colour: red*
-> Young adult man, broad muscular build, dark red spiky mohawk hair with shaved sides, scar across left cheek, red eyes, arrogant smirk. Sleeveless dark leather battle armor, layered steel shoulder pauldron on the left shoulder, cloth wraps on forearms, heavy boots, red belt.
+> Young adult man, about 25, very broad heavily muscled build, about 1.88 m, square jaw, dark red spiky mohawk crest with shaved stubble sides, diagonal scar across the left cheek, red eyes, arrogant half-smirk. Sleeveless near-black leather (#1d1414) battle armor with red V-neck trim, three overlapping riveted steel plates on the LEFT shoulder only with red edges, bare upper arms, grey-brown cloth wraps on both forearms, wide red (#ff4a3d) belt, heavy dark trousers, chunky strapped black boots.
 
 Weapon:
-> large single-bladed battle axe, blackened steel head with glowing red edge, long dark handle
+> large single-bladed battle axe about 1.2 m long, blackened steel head with glowing red cutting edge and a short back spike, long dark wooden handle wrapped near the bottom
 
 ### Part One fighters
 **TALA** (mentor, about 30) — *colour: jade green*
