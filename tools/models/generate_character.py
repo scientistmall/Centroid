@@ -2,7 +2,7 @@
 """Generate character concept art and textured 3D models with free Hugging Face Spaces.
 
   concept : text -> image   (black-forest-labs/FLUX.1-schnell, Apache-2.0)
-  model   : image -> textured 3D GLB  (tencent/Hunyuan3D-2, Tencent Hunyuan Community License)
+  model   : image -> textured 3D GLB  (tencent/Hunyuan3D-2.1, Tencent Hunyuan Community License)
 
 Usage:
   python3 tools/models/generate_character.py concept kael --n 3
@@ -31,10 +31,11 @@ PROMPTS = {
              "glowing light-blue trim, split coat tails to mid-thigh, long pale blue-white scarf wrapped around the "
              "neck with one end hanging behind, light-blue belt, black fitted trousers, leather bracers with thin blue "
              "bands, slim black armored boots"),
-    "rhex": ("young adult man about 25, very broad heavily muscled build, square jaw, dark red spiky mohawk crest "
+    "rhex": ("tall young adult man about 25, 188 cm, heroic proportions with long legs, broad shoulders and "
+             "a muscular athletic build, square jaw, clean shaven, dark red spiky mohawk crest "
              "with shaved sides, scar across the left cheek, red eyes, arrogant half smirk, sleeveless near-black "
-             "leather battle armor vest with red V-neck trim, three overlapping riveted steel shoulder plates on the "
-             "left shoulder only with red edges, bare muscular upper arms, grey-brown cloth wraps on both forearms, "
+             "leather battle armor vest with red V-neck trim, one asymmetric pauldron of three overlapping riveted steel plates "
+             "with red edges on his left shoulder only, right shoulder bare, bare muscular upper arms, grey-brown cloth wraps on both forearms, "
              "wide red belt, heavy dark trousers, chunky black strapped boots"),
 }
 
@@ -63,7 +64,7 @@ def concept(name: str, n: int, prompt: str = "", tag: str = "", width=832, heigh
     out = []
     for i in range(n):
         res, seed = flux.predict(text, 0, True, width, height, 4, api_name="/infer")
-        path = res["path"] if isinstance(res, dict) else res
+        path = _path(res)
         dst = os.path.join(_dir(name, "concepts"), f"{name}{tag}_{i + 1}.png" if not path.endswith(".webp") else f"{name}{tag}_{i + 1}.webp")
         shutil.copy(path, dst)
         print("concept:", dst, "seed", int(seed))
@@ -71,12 +72,22 @@ def concept(name: str, n: int, prompt: str = "", tag: str = "", width=832, heigh
     return out
 
 
+def _path(f):
+    """Gradio returns files either as a path or as a {"path"/"value": ...} dict."""
+    if isinstance(f, dict):
+        f = f.get("path") or f.get("value") or f.get("name")
+        if isinstance(f, dict):
+            return _path(f)
+    return f
+
+
 def model(name: str, image: str, out_name: str = "", steps: int = 30, octree: int = 256) -> str:
-    hy = Client("tencent/Hunyuan3D-2", verbose=False, headers=HDR)
-    res = hy.predict(None, handle_file(image), None, None, None, None, steps, 5.0, 1234, octree, True, 8000, True,
+    # Hunyuan3D-2.1: shape + PBR texture. (The older tencent/Hunyuan3D-2 Space has texturing disabled.)
+    hy = Client("tencent/Hunyuan3D-2.1", verbose=False, headers=HDR)
+    res = hy.predict(handle_file(image), None, None, None, None, steps, 5.0, 1234, octree, True, 8000, False,
                      api_name="/generation_all")
     white, textured, _html, stats, seed = res
-    src = textured or white
+    src = _path(textured) or _path(white)
     dst = os.path.join(_dir(name, "raw"), (out_name or name) + os.path.splitext(src)[1])
     shutil.copy(src, dst)
     print("model:", dst, "| stats:", stats, "| seed", seed)

@@ -4,3 +4,4 @@ build/
 *.aab
 *.tmp
 export_credentials.cfg
+__pycache__/

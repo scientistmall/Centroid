@@ -1,0 +1,9 @@
+config_version=5
+
+[application]
+config/name="Model Preview"
+run/main_scene="res://preview.tscn"
+
+[display]
+window/size/viewport_width=1600
+window/size/viewport_height=1000
