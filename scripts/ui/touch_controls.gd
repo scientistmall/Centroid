@@ -1,45 +1,68 @@
 class_name TouchControls
 extends Control
-## On-screen controls: floating joystick on the left half, action buttons on the right.
+## On-screen controls: a floating joystick and icon buttons. Power buttons show an
+## energy ring that fills up and glows when the power is ready. Size, opacity and
+## left-handed layout come from Settings.
 ## Feeds the same input actions as the keyboard (Input.action_press/release).
 
 const DEAD := 0.25
 const JOY_R := 120.0
 
-var buttons: Array = []   # {action, label, pos(relative to bottom-right), r, color}
+var buttons: Array = []   # {action, icon, off (from the bottom corner), r, color, power}
+var fighter: Fighter      # for energy rings
 var _joy_index := -1
 var _joy_origin := Vector2.ZERO
 var _joy_vec := Vector2.ZERO
 var _btn_touch := {}      # touch index -> action
 var _jump_held := false
+var _t := 0.0
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	buttons = [
-		{"action": "attack_light", "label": "ATK", "off": Vector2(-200, -190), "r": 92.0, "color": Color(0.9, 0.9, 1.0)},
-		{"action": "attack_heavy", "label": "HVY", "off": Vector2(-390, -130), "r": 72.0, "color": Color(1.0, 0.7, 0.4)},
-		{"action": "jump", "label": "JMP", "off": Vector2(-140, -390), "r": 66.0, "color": Color(0.6, 1.0, 0.7)},
-		{"action": "block", "label": "BLK", "off": Vector2(-340, -320), "r": 66.0, "color": Color(0.6, 0.8, 1.0)},
-		{"action": "power_1", "label": "P1", "off": Vector2(-560, -110), "r": 62.0, "color": Color(0.7, 0.9, 1.0)},
-		{"action": "power_2", "label": "P2", "off": Vector2(-540, -280), "r": 62.0, "color": Color(0.9, 0.7, 1.0)},
+		{"action": "attack_light", "icon": "attack_light", "off": Vector2(-200, -190), "r": 92.0, "color": Color(0.9, 0.92, 1.0)},
+		{"action": "attack_heavy", "icon": "attack_heavy", "off": Vector2(-390, -130), "r": 72.0, "color": Color(1.0, 0.72, 0.42)},
+		{"action": "jump", "icon": "jump", "off": Vector2(-140, -390), "r": 66.0, "color": Color(0.6, 1.0, 0.72)},
+		{"action": "block", "icon": "block", "off": Vector2(-340, -320), "r": 66.0, "color": Color(0.62, 0.8, 1.0)},
+		{"action": "power_1", "icon": "bolt", "off": Vector2(-560, -110), "r": 64.0, "color": Color(0.7, 0.9, 1.0), "power": 0},
+		{"action": "power_2", "icon": "dash", "off": Vector2(-540, -285), "r": 64.0, "color": Color(0.9, 0.7, 1.0), "power": 1},
 	]
 
 
-func set_power_labels(p1: String, p2: String, col: Color) -> void:
+func set_fighter(f: Fighter) -> void:
+	fighter = f
 	for b in buttons:
-		if b["action"] == "power_1":
-			b["label"] = p1
-			b["color"] = col.lightened(0.3)
-		elif b["action"] == "power_2":
-			b["label"] = p2
-			b["color"] = col.lightened(0.1)
+		if b.has("power") and b["power"] < f.powers.size():
+			b["icon"] = ButtonIcons.for_power(f.powers[b["power"]])
+			b["color"] = f.color.lightened(0.25 if b["power"] == 0 else 0.05)
 	queue_redraw()
 
 
+func _scale() -> float:
+	return Settings.button_scale
+
+
 func _btn_center(b: Dictionary) -> Vector2:
-	return size + b["off"]
+	var off: Vector2 = b["off"] * _scale()
+	if Settings.left_handed:
+		return Vector2(-off.x, size.y + off.y)
+	return size + off
+
+
+func _joy_default() -> Vector2:
+	return Vector2(size.x - 260, size.y - 230) if Settings.left_handed else Vector2(260, size.y - 230)
+
+
+func _in_joy_zone(p: Vector2) -> bool:
+	var left_zone := p.x < size.x * 0.45
+	return (not left_zone if Settings.left_handed else left_zone) and p.y > size.y * 0.2
+
+
+func _process(delta: float) -> void:
+	_t += delta
+	queue_redraw()
 
 
 func _input(event: InputEvent) -> void:
@@ -51,7 +74,7 @@ func _input(event: InputEvent) -> void:
 			if hit != "":
 				_btn_touch[event.index] = hit
 				Input.action_press(hit)
-			elif event.position.x < size.x * 0.45 and event.position.y > size.y * 0.2 and _joy_index == -1:
+			elif _in_joy_zone(event.position) and _joy_index == -1:
 				_joy_index = event.index
 				_joy_origin = event.position
 				_joy_vec = Vector2.ZERO
@@ -63,16 +86,14 @@ func _input(event: InputEvent) -> void:
 				_joy_index = -1
 				_joy_vec = Vector2.ZERO
 				_apply_joy()
-		queue_redraw()
 	elif event is InputEventScreenDrag and event.index == _joy_index:
 		_joy_vec = ((event.position - _joy_origin) / JOY_R).limit_length(1.0)
 		_apply_joy()
-		queue_redraw()
 
 
 func _button_at(p: Vector2) -> String:
 	for b in buttons:
-		if p.distance_to(_btn_center(b)) <= b["r"] * 1.15:
+		if p.distance_to(_btn_center(b)) <= b["r"] * _scale() * 1.15:
 			return b["action"]
 	return ""
 
@@ -97,26 +118,39 @@ func _apply_joy() -> void:
 
 
 func release_all() -> void:
-	for a in ["move_left", "move_right", "jump", "attack_light", "attack_heavy", "block", "power_1", "power_2"]:
-		Input.action_release(a)
+	for a in ["move_left", "move_right", "jump", "attack_light", "attack_heavy", "block", "power_1", "power_2", "swap"]:
+		if InputMap.has_action(a):
+			Input.action_release(a)
 	_btn_touch.clear()
 	_joy_index = -1
 	_joy_vec = Vector2.ZERO
 
 
 func _draw() -> void:
-	var font := get_theme_default_font()
+	var op := Settings.button_opacity
+	var sc := _scale()
 	# joystick
-	var base := _joy_origin if _joy_index != -1 else Vector2(260, size.y - 230)
-	draw_circle(base, JOY_R, Color(1, 1, 1, 0.08))
-	draw_arc(base, JOY_R, 0, TAU, 48, Color(1, 1, 1, 0.3), 4)
-	draw_circle(base + _joy_vec * JOY_R, 52, Color(1, 1, 1, 0.3))
+	var base := _joy_origin if _joy_index != -1 else _joy_default()
+	draw_circle(base, JOY_R * sc, Color(1, 1, 1, 0.07 * op))
+	draw_arc(base, JOY_R * sc, 0, TAU, 48, Color(1, 1, 1, 0.3 * op), 4)
+	draw_circle(base + _joy_vec * JOY_R * sc, 52 * sc, Color(1, 1, 1, 0.28 * op))
 	for b in buttons:
 		var c := _btn_center(b)
+		var r: float = b["r"] * sc
 		var pressed := _btn_touch.values().has(b["action"]) or Input.is_action_pressed(b["action"])
 		var col: Color = b["color"]
-		draw_circle(c, b["r"], Color(col, 0.35 if pressed else 0.14))
-		draw_arc(c, b["r"], 0, TAU, 40, Color(col, 0.7), 4)
-		var fs := 34 if String(b["label"]).length() <= 3 else 22
-		var tw := font.get_string_size(b["label"], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string(font, c + Vector2(-tw / 2, fs * 0.35), b["label"], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1, 0.85))
+		var ready := true
+		if b.has("power") and fighter and b["power"] < fighter.powers.size():
+			var cost := float(fighter.powers[b["power"]].get("cost", 30))
+			var frac := clampf(fighter.energy / cost, 0.0, 1.0)
+			ready = frac >= 1.0
+			# energy ring
+			draw_arc(c, r + 9, -PI / 2, -PI / 2 + TAU * frac, 48, Color(col, (0.95 if ready else 0.55) * op), 7.0)
+			if ready:
+				var pulse := 0.5 + 0.5 * sin(_t * 6.0)
+				draw_circle(c, r + 14 + pulse * 6, Color(col, 0.10 * op))
+		var fill := 0.38 if pressed else (0.16 if ready else 0.06)
+		draw_circle(c, r, Color(0.02, 0.03, 0.06, 0.45 * op))
+		draw_circle(c, r, Color(col, fill * op))
+		draw_arc(c, r, 0, TAU, 40, Color(col, (0.8 if ready else 0.35) * op), 4)
+		ButtonIcons.draw(self, b["icon"], c, r, Color(1, 1, 1, (0.92 if ready else 0.4) * op))

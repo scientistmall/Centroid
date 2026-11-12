@@ -25,6 +25,7 @@ var stage := Vector2(140, 1780)
 var shake := 0.0
 var swap_cooldown := 0.0
 var fog: FogLayer
+var _briefed := false
 var ui_layer: CanvasLayer
 var fog_back: FogLayer
 
@@ -42,7 +43,8 @@ func _ready() -> void:
 	fight = _load_json("res://data/fights/%s.json" % fight_id)
 	var vis := get_viewport().get_visible_rect().size
 	ground_y = vis.y - 190.0
-	stage = Vector2(140.0, vis.x - 140.0)
+	# keep the fight between the joystick and the button cluster so fighters stay visible
+	stage = Vector2(vis.x * 0.12, vis.x * 0.80) if not Settings.left_handed else Vector2(vis.x * 0.20, vis.x * 0.88)
 	_build()
 	_start_round()
 
@@ -103,7 +105,7 @@ func _build() -> void:
 	ui.add_child(touch)
 	_update_touch_labels()
 	if _mode() == "tag":
-		touch.buttons.append({"action": "swap", "label": "SWAP", "off": Vector2(-120, -560), "r": 56.0, "color": Color(1, 1, 0.6)})
+		touch.buttons.append({"action": "swap", "icon": "swap", "off": Vector2(-120, -560), "r": 56.0, "color": Color(1, 1, 0.6)})
 		if not InputMap.has_action("swap"):
 			InputMap.add_action("swap")
 			var ev := InputEventKey.new()
@@ -152,11 +154,7 @@ func _make_fighter(id: String, ctrl: Object) -> Fighter:
 
 
 func _update_touch_labels() -> void:
-	var labels := ["P1", "P2"]
-	for i in 2:
-		if i < player.powers.size():
-			labels[i] = player.powers[i].get("short", labels[i])
-	touch.set_power_labels(labels[0], labels[1], player.color)
+	touch.set_fighter(player)
 
 
 # ---------------------------------------------------------------- rounds
@@ -175,6 +173,11 @@ func _start_round() -> void:
 	player.facing = 1
 	enemy.facing = -1
 	touch.release_all()
+	if round_no == 1 and not _briefed and not SceneRouter.current.get("no_briefing", false):
+		_briefed = true
+		touch.visible = false
+		await _show_briefing().closed
+		touch.visible = true
 	if round_no == 1 and _mode() == "single":
 		hud.banner(fight.get("title", "FIGHT"), fight.get("subtitle", ""))
 		await _wait(1.6)
@@ -386,7 +389,33 @@ func _pause() -> void:
 		return
 	touch.release_all()
 	get_tree().paused = true
-	_show_overlay("PAUSED", "", [["Resume", _resume], ["Retry", _retry], ["Main Menu", _to_menu]], Color.WHITE)
+	_show_overlay("PAUSED", "", [["Resume", _resume], ["Moves", _pause_briefing], ["Settings", _pause_settings],
+		["Retry", _retry], ["Main Menu", _to_menu]], Color.WHITE)
+
+
+func _show_briefing() -> Briefing:
+	var b := Briefing.new()
+	var pd := player.data.duplicate()
+	var ed := enemy.data.duplicate()
+	b.player = pd
+	b.enemy = ed
+	b.counters = fight.get("counters", [])
+	ui_layer.add_child(b)
+	return b
+
+
+func _pause_briefing() -> void:
+	overlay.visible = false
+	await _show_briefing().closed
+	overlay.visible = true
+
+
+func _pause_settings() -> void:
+	overlay.visible = false
+	var s := SettingsPanel.new()
+	ui_layer.add_child(s)
+	await s.closed
+	overlay.visible = true
 
 
 func _resume() -> void:

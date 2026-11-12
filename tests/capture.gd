@@ -32,6 +32,10 @@ func _ready() -> void:
 	if _want("sanctuary_story"): await _shot_story("ch04_pre", 5, "sanctuary_story")
 	if _want("sanctuary"): await _shot_fight("fight04", "sanctuary")
 	if _want("cutin"): await _shot_cutin()
+	if _want("chapters"): await _shot_scene("res://scenes/ui/chapter_select.tscn", "chapters", true)
+	if _want("settings"): await _shot_settings()
+	if _want("briefing"): await _shot_briefing("fight01", "briefing")
+	if _want("briefing4"): await _shot_briefing("fight04", "briefing4")
 	get_tree().quit()
 
 
@@ -67,7 +71,7 @@ func _shot_story(id: String, taps: int, name: String) -> void:
 
 
 func _shot_fight(id: String, prefix: String) -> void:
-	SceneRouter.current = {"type": "fight", "id": id}
+	SceneRouter.current = {"type": "fight", "id": id, "no_briefing": true}
 	var a = load("res://scenes/fight/arena.tscn").instantiate()
 	add_child(a)
 	await get_tree().process_frame
@@ -103,7 +107,7 @@ func _shot_fight(id: String, prefix: String) -> void:
 
 
 func _shot_cutin() -> void:
-	SceneRouter.current = {"type": "fight", "id": "fight01"}
+	SceneRouter.current = {"type": "fight", "id": "fight01", "no_briefing": true}
 	var a = load("res://scenes/fight/arena.tscn").instantiate()
 	add_child(a)
 	var t := 0
@@ -123,4 +127,34 @@ func _shot_cutin() -> void:
 	for i in 14:
 		await get_tree().process_frame
 	await _save("cutin_enemy")
+	a.queue_free()
+
+
+func _shot_scene(path: String, name: String, with_progress := false) -> void:
+	if with_progress:
+		for f in ["prologue_seen", "fight01_completed", "fight02_completed"]:
+			StoryManager.flags[f] = true
+	var sc = load(path).instantiate()
+	add_child(sc)
+	for i in 20: await get_tree().process_frame
+	await _save(name)
+	sc.queue_free()
+	StoryManager.new_game()
+
+
+func _shot_settings() -> void:
+	var m = load("res://scenes/main_menu.tscn").instantiate()
+	add_child(m)
+	m.add_child(SettingsPanel.new())
+	for i in 10: await get_tree().process_frame
+	await _save("settings")
+	m.queue_free()
+
+
+func _shot_briefing(id: String, name: String) -> void:
+	SceneRouter.current = {"type": "fight", "id": id}
+	var a = load("res://scenes/fight/arena.tscn").instantiate()
+	add_child(a)
+	await get_tree().create_timer(1.3).timeout
+	await _save(name)
 	a.queue_free()

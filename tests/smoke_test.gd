@@ -94,7 +94,7 @@ func _test_fight(id: String, must_use: Array) -> void:
 
 
 func _run_match(id: String, check_result: bool) -> void:
-	SceneRouter.current = {"type": "fight", "id": id}
+	SceneRouter.current = {"type": "fight", "id": id, "no_briefing": true}
 	var arena = load("res://scenes/fight/arena.tscn").instantiate()
 	add_child(arena)
 	await get_tree().process_frame
@@ -135,7 +135,7 @@ func _run_match(id: String, check_result: bool) -> void:
 
 ## Scripted check: an anchored fighter is not dragged by Gravity Well; a free one is.
 func _test_anchor_vs_pull() -> void:
-	SceneRouter.current = {"type": "fight", "id": "fight03"}
+	SceneRouter.current = {"type": "fight", "id": "fight03", "no_briefing": true}
 	var arena = load("res://scenes/fight/arena.tscn").instantiate()
 	add_child(arena)
 	var t := 0
@@ -172,7 +172,7 @@ func _steps(n: int) -> void:
 
 
 func _test_status_mechanics() -> void:
-	SceneRouter.current = {"type": "fight", "id": "fight04"}
+	SceneRouter.current = {"type": "fight", "id": "fight04", "no_briefing": true}
 	var arena = load("res://scenes/fight/arena.tscn").instantiate()
 	add_child(arena)
 	var t := 0

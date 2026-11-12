@@ -19,7 +19,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	# Only a few backdrops animate (glowing stones, flames).
-	if bg_id in ["crater", "research_chamber", "forbidden_chamber", "centroid_chamber", "hq_siege", "solar_altar", "training_ground", "silent_forest", "underground_sanctuary"]:
+	if bg_id in ["crater", "research_chamber", "forbidden_chamber", "centroid_chamber", "hq_siege", "solar_altar", "training_ground", "silent_forest", "underground_sanctuary", "title"]:
 		queue_redraw()
 
 
@@ -41,6 +41,7 @@ func _draw() -> void:
 		"silent_forest": _silent_forest(w, h)
 		"broken_pass": _broken_pass(w, h)
 		"underground_sanctuary": _sanctuary(w, h)
+		"title": _title(w, h)
 		_: draw_rect(Rect2(0, 0, w, h), Color.BLACK)
 
 
@@ -331,6 +332,69 @@ func _sanctuary(w: float, h: float) -> void:
 	_grad(Rect2(0, ground, w, h - ground), Color("1d171a"), Color("0a0809"))
 	for i in 10:
 		draw_line(Vector2(w * i / 10.0, ground), Vector2(w * i / 10.0 - 120, h), Color(0, 0, 0, 0.3), 2.0)
+
+
+## Main menu wallpaper: eclipse, the Centroid, guardians facing traitors.
+const TITLE_GUARDIANS := [["kael", "sword"], ["mira", "flex_blade"], ["tala", "spear"], ["darin", "gauntlets"],
+	["iren", "daggers"], ["lyra", "bow"], ["oren", "gauntlets"]]
+const TITLE_TRAITORS := [["thane", "twin_swords"], ["rhex", "axe"], ["vaska", "twin_swords"], ["mael", "gauntlets"],
+	["nyra", "whip"], ["zerin", "spear"], ["corvin", "crystal_blades"]]
+
+
+func _title(w: float, h: float) -> void:
+	_grad(Rect2(0, 0, w, h), Color("02030a"), Color("0d0b1c"))
+	_stars(w, h * 0.8, 160, 0.6, 3)
+	var c := Vector2(w * 0.5, h * 0.36)
+	var r := h * 0.2
+	# corona rays slowly turning
+	for i in 90:
+		var a := i * TAU / 90.0 + _time * 0.03
+		var len := r * (1.35 + 0.35 * sin(i * 7.3) + 0.08 * sin(_time * 0.8 + i))
+		draw_line(c + Vector2(cos(a), sin(a)) * r * 1.02, c + Vector2(cos(a), sin(a)) * len,
+			Color(1.0, 0.86, 0.6, 0.10 + 0.06 * sin(i * 3.1)), 2.0)
+	for i in range(10, 0, -1):
+		draw_circle(c, r * (1.0 + i * 0.05), Color(1.0, 0.8, 0.55, 0.018))
+	draw_circle(c, r, Color("010104"))
+	draw_arc(c, r, 0, TAU, 96, Color(1.0, 0.92, 0.75, 0.85), 3.0)
+	# the Centroid: a black stone with a bright and a dark half, slowly turning
+	var sc := Vector2(w * 0.5, h * 0.62)
+	var turn := sin(_time * 0.4) * 0.6
+	for i in range(8, 0, -1):
+		draw_circle(sc, 40.0 + i * 9.0, Color(0.55, 0.42, 1.0, 0.03))
+	draw_set_transform(sc, turn * 0.3, Vector2(1.0, 0.82))
+	draw_circle(Vector2.ZERO, 46, Color("07060c"))
+	draw_set_transform(Vector2.ZERO)
+	var d := Vector2(cos(turn), sin(turn) * 0.3)
+	draw_line(sc - d * 40, sc + d * 40, Color(1, 0.95, 0.8, 0.95), 3.0)
+	draw_line(sc - d * 40 + Vector2(0, 4), sc + d * 40 + Vector2(0, 4), Color(0.35, 0.1, 0.6, 0.9), 3.0)
+	# horizon
+	var ground := h * 0.83
+	draw_colored_polygon(PackedVector2Array([Vector2(0, ground), Vector2(w * 0.3, ground - 22), Vector2(w * 0.5, ground - 8),
+		Vector2(w * 0.72, ground - 26), Vector2(w, ground), Vector2(w, h), Vector2(0, h)]), Color("040408"))
+	# guardians (left, facing right) and traitors (right, facing left)
+	var chars := StoryParser.characters()
+	for side in 2:
+		var group: Array = TITLE_GUARDIANS if side == 0 else TITLE_TRAITORS
+		for i in group.size():
+			var id: String = group[i][0]
+			var col := Color(chars.get(id, {}).get("color", "#ffffff"))
+			var depth := 1.0 - i * 0.07
+			var x := w * (0.08 + i * 0.045) if side == 0 else w * (0.92 - i * 0.045)
+			var y := ground + 6 - i * 3
+			draw_set_transform(Vector2(x, y), 0.0, Vector2(0.62, 0.62) * depth)
+			var pose := Poses.idle_breath(_time + i * 0.7)
+			FighterPainter.paint(self, pose, 1 if side == 0 else -1, Color(col, 0.75 * depth), group[i][1], "", _time, 0.0, false)
+			draw_set_transform(Vector2.ZERO)
+	# drifting embers
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9
+	for i in 40:
+		var x0 := rng.randf() * w
+		var spd := rng.randf_range(12, 40)
+		var y0 := fmod(rng.randf() * h - _time * spd, h)
+		if y0 < 0:
+			y0 += h
+		draw_circle(Vector2(x0 + sin(_time + i) * 10.0, y0), rng.randf_range(1.5, 3.0), Color(1.0, 0.75, 0.45, 0.35))
 
 
 func _graves(w: float, h: float) -> void:

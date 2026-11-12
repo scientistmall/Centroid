@@ -2,12 +2,32 @@
 	"title": "FIGHT 04",
 	"subtitle": "Mira vs. Nyra",
 	"arena": "underground_sanctuary",
-	"player": ["mira"],
+	"player": [
+		"mira"
+	],
 	"mode": "single",
 	"enemy": "nyra",
 	"rounds_to_win": 2,
 	"round_time": 99,
 	"ai": 0.55,
 	"flag": "fight04_completed",
-	"win_next": {"type": "story", "id": "ch04_post"}
+	"win_next": {
+		"type": "story",
+		"id": "ch04_post"
+	},
+	"counters": [
+		{
+			"threat": "venom_lash",
+			"answers": [
+				"power_1"
+			]
+		},
+		{
+			"threat": "withering_curse",
+			"answers": [
+				"power_1",
+				"back"
+			]
+		}
+	]
 }

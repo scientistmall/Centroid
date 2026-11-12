@@ -7,6 +7,7 @@ const SCENES := {
 	"story": "res://scenes/story/story_player.tscn",
 	"fight": "res://scenes/fight/arena.tscn",
 	"menu": "res://scenes/main_menu.tscn",
+	"chapters": "res://scenes/ui/chapter_select.tscn",
 }
 
 ## Default keyboard bindings (useful on PC; phones use the touch controls).
