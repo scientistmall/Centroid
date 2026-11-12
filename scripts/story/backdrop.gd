@@ -19,7 +19,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	# Only a few backdrops animate (glowing stones, flames).
-	if bg_id in ["crater", "research_chamber", "forbidden_chamber", "centroid_chamber", "hq_siege", "solar_altar", "training_ground", "silent_forest"]:
+	if bg_id in ["crater", "research_chamber", "forbidden_chamber", "centroid_chamber", "hq_siege", "solar_altar", "training_ground", "silent_forest", "underground_sanctuary"]:
 		queue_redraw()
 
 
@@ -40,6 +40,7 @@ func _draw() -> void:
 		"graves": _graves(w, h)
 		"silent_forest": _silent_forest(w, h)
 		"broken_pass": _broken_pass(w, h)
+		"underground_sanctuary": _sanctuary(w, h)
 		_: draw_rect(Rect2(0, 0, w, h), Color.BLACK)
 
 
@@ -285,6 +286,51 @@ func _broken_pass(w: float, h: float) -> void:
 		draw_circle(Vector2.ZERO, br, Color("2a2324"))
 		draw_arc(Vector2.ZERO, br, PI * 1.1, PI * 1.6, 12, Color(0.6, 0.5, 0.45, 0.3), 3.0)
 		draw_set_transform(Vector2.ZERO)
+
+
+func _sanctuary(w: float, h: float) -> void:
+	# Underground chamber once used to keep medicines and supplies.
+	_grad(Rect2(0, 0, w, h), Color("0c0a0e"), Color("1a1518"))
+	var ground := h * 0.74
+	# vaulted ceiling arches
+	for i in 5:
+		var cx := w * (0.1 + i * 0.2)
+		draw_arc(Vector2(cx, h * 0.32), w * 0.11, PI, TAU, 24, Color("231d22"), 26.0)
+		draw_rect(Rect2(cx - w * 0.11 - 13, h * 0.32, 26, ground - h * 0.32), Color("1f191e"))
+	# stone block lines
+	for r in 7:
+		var y := h * 0.36 + r * 52.0
+		draw_line(Vector2(0, y), Vector2(w, y), Color(0, 0, 0, 0.25), 2.0)
+	# supply shelves with jars and boxes
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20
+	for s in 3:
+		var sx := w * (0.2 + s * 0.27)
+		for row in 3:
+			var sy := h * 0.42 + row * 70.0
+			draw_rect(Rect2(sx - 110, sy, 220, 8), Color("3a2d24"))
+			var x := sx - 100.0
+			while x < sx + 90.0:
+				var jw := rng.randf_range(16, 30)
+				var jh := rng.randf_range(20, 46)
+				draw_rect(Rect2(x, sy - jh, jw, jh), Color("2a2229"))
+				x += jw + rng.randf_range(4, 14)
+	# the crystal necklace glint on a shelf
+	var glint := Vector2(w * 0.47, h * 0.42 + 140.0 - 12.0)
+	var pulse := 0.6 + 0.4 * sin(_time * 2.2)
+	for i in range(5, 0, -1):
+		draw_circle(glint, i * 6.0 * pulse, Color(1.0, 0.6, 0.8, 0.05))
+	draw_circle(glint + Vector2(-6, 0), 4, Color(1.0, 0.8, 0.9, 0.9))
+	draw_circle(glint + Vector2(6, 0), 4, Color(1.0, 0.8, 0.9, 0.9))
+	# dim lantern
+	var fl := 0.85 + 0.15 * sin(_time * 6.0) * sin(_time * 2.7)
+	for i in range(7, 0, -1):
+		draw_circle(Vector2(w * 0.86, h * 0.3), i * 20.0 * fl, Color(1, 0.65, 0.3, 0.03))
+	draw_circle(Vector2(w * 0.86, h * 0.3), 8, Color(1, 0.8, 0.5, 0.9))
+	# floor
+	_grad(Rect2(0, ground, w, h - ground), Color("1d171a"), Color("0a0809"))
+	for i in 10:
+		draw_line(Vector2(w * i / 10.0, ground), Vector2(w * i / 10.0 - 120, h), Color(0, 0, 0, 0.3), 2.0)
 
 
 func _graves(w: float, h: float) -> void:

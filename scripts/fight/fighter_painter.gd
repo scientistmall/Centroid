@@ -130,6 +130,16 @@ static func _weapon(ci: CanvasItem, hand: Vector2, deg: float, facing: int, weap
 			ci.draw_colored_polygon(PackedVector2Array([tip + d * (34 + extra), tip + n2 * (9 + extra), tip - n2 * (9 + extra)]), col)
 		"gauntlets":
 			ci.draw_circle(hand, 15 + extra, col)
+		"whip", "flex_blade":
+			# a segmented, gently swaying line (whip / whip-sword)
+			var nw := Vector2(-d.y, d.x)
+			var sway := Time.get_ticks_msec() / 1000.0
+			var wpts := PackedVector2Array()
+			for i in 10:
+				var u := i / 9.0
+				wpts.append(hand + d * len * u + nw * sin(u * PI * 1.3 + sway * 5.0) * 16.0 * u)
+			ci.draw_polyline(wpts, col, (5 if weapon == "flex_blade" else 4) + extra)
+			ci.draw_line(hand - nw * (8 + extra), hand + nw * (8 + extra), col, 8 + extra)
 		"bow":
 			var n3 := Vector2(-d.y, d.x)
 			var pts := PackedVector2Array()
@@ -167,6 +177,18 @@ static func _element_fx(ci: CanvasItem, j: Dictionary, p: Dictionary, facing: in
 				ci.draw_colored_polygon(PackedVector2Array([
 					base + o + Vector2(-12, 0), base + o + Vector2(0, -h), base + o + Vector2(12, 0)]),
 					Color(0.05, 0.0, 0.02, 0.9) if i % 2 == 0 else Color(rim.r, rim.g, rim.b, 0.7))
+		"moonlight":
+			# soft pale motes drifting around the blade
+			for i in 6:
+				var u := fmod(clock * 0.6 + i / 6.0, 1.0)
+				var pm := hand.lerp(tip, u) + Vector2(sin(clock * 3.0 + i) * 16.0, cos(clock * 2.0 + i) * 12.0)
+				ci.draw_circle(pm, 5.0, Color(1, 0.95, 1, 0.65))
+			ci.draw_circle(j["head"] + Vector2(0, -50), 14, Color(rim.r, rim.g, rim.b, 0.25))
+		"poison":
+			for i in 5:
+				var u2 := fmod(clock * 1.2 + i / 5.0, 1.0)
+				var pp := hand.lerp(tip, 0.3 + 0.7 * (i / 5.0)) + Vector2(0, u2 * 40.0)
+				ci.draw_circle(pp, 5.0 * (1.0 - u2) + 2.0, Color(0.45, 1.0, 0.35, 0.8 * (1.0 - u2)))
 		"stone":
 			for i in 5:
 				var o := Vector2(rng.randf_range(-22, 22), rng.randf_range(-22, 22))

@@ -22,6 +22,8 @@ func _ready() -> void:
 	await _shot_fight("fight02", "mist")
 	await _shot_story("ch03_pre", 4, "pass_story")
 	await _shot_fight("fight03", "pass")
+	await _shot_story("ch04_pre", 5, "sanctuary_story")
+	await _shot_fight("fight04", "sanctuary")
 	get_tree().quit()
 
 
@@ -80,6 +82,12 @@ func _shot_fight(id: String, prefix: String) -> void:
 				if n is StoneWall:
 					has_wall = true
 			interesting = has_wall or a.player.has_status("gravity") or get_tree().get_nodes_in_group("projectiles").size() > 1
+		if id == "fight04":
+			var has_lash := false
+			for n in a.effects.get_children():
+				if n is LashFx:
+					has_lash = true
+			interesting = has_lash or a.player.has_status("poison") or a.player.has_status("purified") or a.player.has_status("cursed")
 		if interesting and t > 120 * (shots + 1):
 			await _save("%s_%d" % [prefix, shots])
 			shots += 1

@@ -18,7 +18,7 @@ Status: ✅ in game · 🔜 next builds
 | **Rhex** ✅ | Fire axe | Explosive black flames | Arrogant, aggressive | **Black Flame Wave**: a slow ground wave of black fire | **Hellfire Burst**: an armoured explosion around him (can't be interrupted while charging) |
 | **Vaska** ✅ | Twin blades | Mist manipulation, illusions | Deceptive, calculating | **Veil of Mist**: she turns almost invisible for 3 s and her attacks hit 20% harder | **Mirror Double**: spawns an illusion clone that fights beside her (deals no damage, vanishes when hit) |
 | **Mael** ✅ | Earth-breaking fists | Gravity manipulation | Disciplined, ruthless | **Gravity Well**: pulls the opponent toward him and slows jumps | **Rising Stones**: rock fragments orbit him, then launch |
-| **Nyra** 🔜 | Poison-coated whip | Energy-draining curses | Cruel, patient | **Venom Lash**: a long whip that poisons (damage over time) | **Withering Curse**: drains the opponent's energy into her own |
+| **Nyra** ✅ | Poison-coated whip | Energy-draining curses | Cruel, patient | **Venom Lash**: a 400 px whip strike that poisons (15 HP/s for 4 s, can't KO) | **Withering Curse**: steals up to 35 energy and curses (energy gain halved for 4 s) |
 | **Zerin** 🔜 | Storm spear | Accelerated electric bursts | Conflicted, proud | **Overcharge**: speeds himself up for a few seconds | **Storm Lance**: a lightning-fast spear dash |
 | **Corvin** 🔜 | Crystal blades | Regenerating cosmic shards | Cold, obsessive | **Shard Field**: crystal shards on the floor that damage on contact | **Crystal Regrowth**: heals while the shards are intact |
 | **Thane** 🔜 | Dual swords | Shadow portals, void attacks | Charismatic, strongest traitor | **Shadow Portal**: teleports behind the opponent | **Void Rend**: a slash that tears space and can't be blocked from the front |
@@ -34,7 +34,7 @@ shatters (post-fight scene), Starfall is gone and only his swordsmanship remains
 | **Kael** ✅ | Sword | Lightning | Rhex, Thane, Veyr | **Arc Bolt**: a fast lightning projectile | **Thunder Step**: an invulnerable lightning dash through the enemy | Speed beats Rhex's slow, heavy axe. Lightning lights up Thane's shadow portals (later upgrade). His finisher **Stormbreaker** channels everything into the resonator (story). |
 | **Tala** ✅ | Spear | Wind / keen senses | Vaska | **Clear Sight**: for 4 s, mist and illusions vanish and the real Vaska is revealed | **Piercing Gale**: a long wind lance | Her story is "trust your senses", so Clear Sight is the key to beating illusions. |
 | **Darin** ✅ | Gauntlets | Stone | Mael | **Stone Bulwark**: a barrier wall that stops projectiles and anchors him (immune to pull) | **Quake Fist**: a ground shockwave that knocks floating rocks down | Gravity can't move an anchored wall. It is also the barrier he raises to save Mira. |
-| **Mira** | Flexible blade (whip-sword) | Moonlight / purification | Nyra | **Purify**: cleanses poison and curses, small heal | **Ribbon Lash**: a long whip-blade that pulls the enemy in | Purify undoes her sister's poison and curses; Ribbon Lash outreaches the whip. |
+| **Mira** ✅ | Flexible blade (whip-sword) | Moonlight / purification | Nyra | **Purify**: cleanses poison, curse and gravity, heals 60, immune to poison and curses for 3 s | **Ribbon Lash**: a 420 px whip-blade strike that reels the enemy in | Purify undoes her sister's poison and curses; Ribbon Lash outreaches the whip. |
 | **Iren** | Twin daggers | Wind speed | Zerin | **Afterimage**: a quick dodge that leaves a decoy | **Grounding Blades**: thrown daggers that discharge Zerin's Overcharge | Matches speed with speed and "grounds" the storm. |
 | **Lyra** | Bow | Sonic | Corvin | **Resonant Arrow**: shatters crystal shards (stops regeneration) | **Sonic Barrier**: a shield that reflects projectiles | The story's key discovery: the right frequency breaks the crystals and the Centroid. |
 | **Oren** | Resonance gloves (gadgets) | Sound / tech | Veyr (tag partner with Kael) | **Damper Field**: Starfall shards are cancelled inside it | **Resonance Pulse**: a shockwave that drains Veyr's energy | His gadgets answer Veyr's cosmic power while Kael's swordsmanship matches Veyr's blade. |
@@ -43,13 +43,19 @@ shatters (post-fight scene), Starfall is gone and only his swordsmanship remains
 In game now:
 - **Power types:** projectile, dash, burst, **buff** (timed status), **summon** (clone).
 - **Power types:** pull, wall; multi-shot, arcing and ground-only projectiles.
-- **Statuses:** `veil`, `clear_sight`, `gravity` (pull), `anchored` (immune to pull and knockback).
+- **Statuses:**
+  - `veil`, `clear_sight`;
+  - `gravity` (pull), `anchored` (immune to pull and knockback);
+  - `poison` (damage over time, can't KO), `cursed` (half energy gain), `purified`
+    (immune to poison and curse).
+- **Power types:** lash (long-reach strike with on-hit status or reel-in), drain
+  (energy steal).
 - **Fog** arenas.
 - **Team modes:** tag mode is used by Fight 8 (Kael + Oren); relay mode exists but is
   unused.
 
 Still to add:
-- Statuses: poison, energy drain, slow, haste.
+- Statuses: slow, haste.
 - Shields that reflect projectiles (Lyra).
 - Floor hazards and regeneration.
 - Teleport.

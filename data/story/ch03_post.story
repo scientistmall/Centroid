@@ -64,5 +64,4 @@ MIRA: If you spend the rest of your life blaming yourself, you'll make his sacri
 @hide all
 @flag chapter03_done
 @title CHAPTER 3 COMPLETE | Darin gave his life to protect Mira. Mira begins finding her own strength; Kael grows afraid of losing anyone else.
-@title TO BE CONTINUED | Chapter 4 — Mira vs. Nyra — coming in the next build
-@next menu
+@next story ch04_pre

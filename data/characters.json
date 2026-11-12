@@ -13,7 +13,7 @@
 	"thane":  {"name": "THANE",  "color": "#a46bff", "hair": "spiky",  "side": "traitor"},
 	"vaska":  {"name": "VASKA",  "color": "#9fb3c8", "hair": "hood",   "side": "traitor"},
 	"mael":   {"name": "MAEL",   "color": "#c27dff", "hair": "short",  "side": "traitor"},
-	"nyra":   {"name": "NYRA",   "color": "#ff6fa0", "hair": "long",   "side": "traitor"},
+	"nyra":   {"name": "NYRA",   "color": "#9be15d", "hair": "long",   "side": "traitor"},
 	"zerin":  {"name": "ZERIN",  "color": "#ffd166", "hair": "messy",  "side": "traitor"},
 	"corvin": {"name": "CORVIN", "color": "#7ff0e0", "hair": "swept",  "side": "traitor"},
 	"voice":  {"name": "THE VOICE", "color": "#b48cff", "hair": "none", "side": "unknown"}

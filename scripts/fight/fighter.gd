@@ -19,6 +19,7 @@ const BODY_HALF_W := 40.0
 const BODY_H := 285.0
 const PASSIVE_ENERGY := 2.5      # per second
 const PUSH_FRICTION := 2600.0
+const POISON_DPS := 15.0
 
 var ground_y := 880.0
 var stage_left := 140.0
@@ -117,6 +118,8 @@ func hurtbox() -> Rect2:
 
 
 func add_energy(amount: float) -> void:
+	if amount > 0.0 and has_status("cursed"):
+		amount *= 0.5   # Withering Curse halves energy gain
 	var before := energy
 	energy = clampf(energy + amount, 0.0, MAX_ENERGY)
 	if not is_equal_approx(before, energy):
@@ -138,6 +141,9 @@ func _physics_process(delta: float) -> void:
 		statuses[k] -= delta
 		if statuses[k] <= 0.0:
 			statuses.erase(k)
+	if has_status("poison") and state not in [S.FROZEN, S.KO, S.WIN] and hp > 1.0:
+		hp = maxf(1.0, hp - POISON_DPS * delta)   # poison weakens but never KOs
+		hp_changed.emit(self)
 	if state not in [S.FROZEN, S.KO, S.WIN]:
 		add_energy(PASSIVE_ENERGY * delta)
 
@@ -184,6 +190,8 @@ func has_status(n: String) -> bool:
 
 
 func add_status(n: String, seconds: float) -> void:
+	if n in ["poison", "cursed"] and has_status("purified"):
+		return   # Purify protects for a few seconds
 	statuses[n] = maxf(statuses.get(n, 0.0), seconds)
 
 
@@ -432,6 +440,12 @@ func _power_update(_delta: float) -> void:
 			if t >= startup and not power_fired:
 				power_fired = true
 				var status: String = power_def.get("status", "")
+				for c in power_def.get("cleanse", []):
+					statuses.erase(c)
+				var heal: float = power_def.get("heal", 0.0)
+				if heal > 0.0:
+					hp = minf(max_hp, hp + heal)
+					hp_changed.emit(self)
 				if status == "veil" and opponent and opponent.has_status("clear_sight"):
 					pass  # seen through — the veil fizzles
 				else:
@@ -439,6 +453,44 @@ func _power_update(_delta: float) -> void:
 				if status == "clear_sight":
 					dispel_enemy_illusions()
 				_spawn_burst(power_def.get("radius", 160.0))
+		"lash":
+			# Long whip strike; can poison (apply_status) or reel the target in (pull_in).
+			if t >= startup and not power_fired:
+				power_fired = true
+				_spawn_lash(position + Vector2(facing * float(power_def.get("reach", 400.0)), -175.0))
+			if t >= startup and t < startup + active and not move_hit and opponent:
+				var rect := attack_rect(power_def)
+				for c in get_tree().get_nodes_in_group("clones"):
+					if c.side != side and rect.intersects(c.hurtbox()):
+						c.pop()
+				if rect.intersects(opponent.hurtbox()):
+					move_hit = true
+					var res3 := opponent.receive_hit(self, power_def)
+					if res3 == "hit":
+						_apply_on_hit(opponent)
+						if power_def.get("pull_in", false) and opponent.is_alive():
+							opponent.position.x = clampf(position.x + facing * 150.0, stage_left, stage_right)
+							opponent.vel.x = 0.0
+					if res3 != "miss":
+						hitstop = 0.08
+						_spawn_spark(opponent.position + Vector2(0, -170), res3 == "block", true)
+		"drain":
+			# Steal energy and curse the target (halved energy gain).
+			if t >= startup and not power_fired:
+				power_fired = true
+				if opponent and absf(opponent.position.x - position.x) <= float(power_def.get("range", 650.0)) \
+						and not opponent.has_status("purified"):
+					var amt := minf(opponent.energy, float(power_def.get("amount", 35.0)))
+					opponent.add_energy(-amt)
+					add_energy(amt)
+					_apply_on_hit(opponent)
+					_spawn_lash(opponent.position + Vector2(0, -160))
+					var b2 := BurstFx.new()
+					b2.radius = 130.0
+					b2.color = color
+					b2.dark_core = true
+					b2.position = opponent.position + Vector2(0, -150)
+					effects_parent.add_child(b2)
 		"summon":
 			if t >= startup and not power_fired:
 				power_fired = true
@@ -481,6 +533,23 @@ func _spawn_projectile(index: int = 0, count: int = 1) -> void:
 	var y := float(power_def.get("y", -170)) + (index - (count - 1) / 2.0) * spread
 	pr.position = position + Vector2(facing * 90, y)
 	effects_parent.add_child(pr)
+
+
+## Applies a power's on-hit statuses, e.g. {"poison": 4.0} or {"cursed": 4.0}.
+func _apply_on_hit(target: Fighter) -> void:
+	var st: Dictionary = power_def.get("apply_status", {})
+	for k in st:
+		target.add_status(k, float(st[k]))
+
+
+func _spawn_lash(to: Vector2) -> void:
+	if effects_parent == null:
+		return
+	var l := LashFx.new()
+	l.from = position + Vector2(facing * 40.0, -190.0)
+	l.to = to
+	l.color = color
+	effects_parent.add_child(l)
 
 
 func _spawn_wall() -> void:
@@ -658,6 +727,23 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([
 				Vector2(x - 14, ground_y - position.y), Vector2(x - 4, ground_y - position.y - 26 - (i % 2) * 14),
 				Vector2(x + 12, ground_y - position.y)]), Color("6b5a48"))
+	if has_status("purified"):
+		var pu := 0.5 + 0.5 * sin(clock * 4.0)
+		draw_circle(Vector2(0, -150), 135.0 + pu * 10.0, Color(1, 1, 1, 0.06 + 0.04 * pu))
+		draw_arc(Vector2(0, -150), 140.0 + pu * 10.0, 0, TAU, 48, Color(1, 1, 1, 0.35), 3.0)
+	if has_status("cursed"):
+		# a ring of dark chain links around the waist
+		draw_set_transform(Vector2(0, -150), 0.0, Vector2(1.0, 0.35))
+		for i in 12:
+			var a := clock * 1.5 + i * TAU / 12.0
+			draw_arc(Vector2(cos(a), sin(a)) * 95.0, 12.0, 0, TAU, 10, Color(0.15, 0.35, 0.12, 0.9), 4.0)
+		draw_set_transform(Vector2.ZERO)
 	FighterPainter.paint(self, current_pose(), facing, color, weapon, element, clock, flash, charged)
+	if has_status("poison"):
+		# green drips rising off the body
+		for i in 6:
+			var ph := fmod(clock * 0.9 + i * 0.37, 1.0)
+			var px := -40.0 + fmod(i * 23.0, 80.0)
+			draw_circle(Vector2(px, -60.0 - ph * 200.0), 7.0 * (1.0 - ph) + 2.0, Color(0.45, 1.0, 0.35, 0.7 * (1.0 - ph)))
 	if invuln > 0.0 and state == S.POWER:
 		draw_rect(Rect2(-60, -280, 120, 280), Color(color.r, color.g, color.b, 0.12))

@@ -12,6 +12,7 @@ const CHAPTERS := [
 	{"title": "Chapter 1 — Kael vs. Rhex", "requires": "prologue_seen", "start": {"type": "story", "id": "ch01_pre"}},
 	{"title": "Chapter 2 — Tala vs. Vaska", "requires": "fight01_completed", "start": {"type": "story", "id": "ch02_pre"}},
 	{"title": "Chapter 3 — Darin vs. Mael", "requires": "fight02_completed", "start": {"type": "story", "id": "ch03_pre"}},
+	{"title": "Chapter 4 — Mira vs. Nyra", "requires": "fight03_completed", "start": {"type": "story", "id": "ch04_pre"}},
 ]
 
 var flags: Dictionary = {}

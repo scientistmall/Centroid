@@ -103,7 +103,27 @@ func _range_of(f: Fighter, i: int) -> float:
 			return p.get("radius", 250.0) * 0.8
 		if p.get("type", "") == "dash":
 			return 520.0
+		if p.get("type", "") == "lash":
+			return p.get("reach", 400.0) - 20.0
+		if p.get("type", "") == "drain":
+			return p.get("range", 650.0)
 	return 2000.0
+
+
+## Whether power i makes sense right now (ignores energy).
+func _power_ok(f: Fighter, i: int, dist: float) -> bool:
+	var p: Dictionary = f.powers[i]
+	match p.get("type", ""):
+		"buff", "summon":
+			return true
+		"lash":
+			return dist > 200.0 and dist <= _range_of(f, i)
+		"drain":
+			return dist <= _range_of(f, i) and f.opponent.energy >= float(p.get("amount", 35)) * 0.8
+		"burst", "dash":
+			return dist < _range_of(f, i) + 150.0
+		_:
+			return dist > 380.0 or i == 1
 
 
 func _decide(f: Fighter, dist: float) -> void:
@@ -119,16 +139,31 @@ func _decide(f: Fighter, dist: float) -> void:
 			if illusions and r < 0.4 + level * 0.5:
 				_choose("power_%d" % (i + 1), "power_%d" % (i + 1))
 				return
+	# Cleansing powers (e.g. Purify) are used when poisoned or cursed.
+	for i in mini(2, f.powers.size()):
+		var cp: Dictionary = f.powers[i]
+		if cp.get("ai_use", "") == "cleanse" and f.energy >= float(cp.get("cost", 30)) \
+				and (f.has_status("poison") or f.has_status("cursed")) and r < 0.45 + level * 0.45:
+			_choose("power_%d" % (i + 1), "power_%d" % (i + 1))
+			return
 	# Keep enough energy in reserve for a defensive power, if the fighter has one.
 	var reserve := 0.0
 	for dp in f.powers:
 		if dp.get("ai_use", "") == "defend":
 			reserve = float(dp.get("cost", 30))
-	var can_p1: bool = f.powers.size() > 0 and f.energy >= float(f.powers[0].get("cost", 30)) + reserve and f.powers[0].get("ai_use", "") not in ["dispel", "defend"]
-	var can_p2: bool = f.powers.size() > 1 and f.energy >= float(f.powers[1].get("cost", 40)) + reserve and f.powers[1].get("ai_use", "") not in ["dispel", "defend"]
-	if can_p2 and r < 0.18 + level * 0.15 and dist < _range_of(f, 1) + 150.0:
+	var special := ["dispel", "defend", "cleanse"]
+	var can_p1: bool = f.powers.size() > 0 and f.energy >= float(f.powers[0].get("cost", 30)) + reserve and f.powers[0].get("ai_use", "") not in special
+	var can_p2: bool = f.powers.size() > 1 and f.energy >= float(f.powers[1].get("cost", 40)) + reserve and f.powers[1].get("ai_use", "") not in special
+	# Range-limited lashes are taken eagerly while the opponent is in range.
+	var p2_chance := 0.18 + level * 0.15
+	var p1_chance := 0.3 + level * 0.2
+	if f.powers.size() > 1 and f.powers[1].get("type", "") == "lash":
+		p2_chance = 0.45 + level * 0.3
+	if f.powers.size() > 0 and f.powers[0].get("type", "") == "lash":
+		p1_chance = 0.45 + level * 0.3
+	if can_p2 and r < p2_chance and _power_ok(f, 1, dist):
 		_choose("power_2", "power_2")
-	elif can_p1 and (dist > 380.0 or f.powers[0].get("type", "") in ["buff", "summon"]) and r < 0.3 + level * 0.2:
+	elif can_p1 and r < p1_chance and _power_ok(f, 0, dist):
 		_choose("power_1", "power_1")
 	elif dist > 420.0:
 		_choose("jump_in" if r > 0.85 else "approach", "jump")

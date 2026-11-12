@@ -27,11 +27,15 @@ func _ready() -> void:
 	await _test_story_player("ch02_post")
 	await _test_story_player("ch03_pre")
 	await _test_story_player("ch03_post")
+	await _test_story_player("ch04_pre")
+	await _test_story_player("ch04_post")
 	await _test_anchor_vs_pull()
+	await _test_status_mechanics()
 	await _test_fight("fight01", [])
 	await _test_fight("fight02", ["Veil of Mist", "Mirror Double", "Clear Sight"])
 	await _test_fight("fight03", ["Stone Bulwark", "Quake Fist", "Gravity Well", "Rising Stones"])
-	check(fights_done == 3, "all fight tests completed (%d/3)" % fights_done)
+	await _test_fight("fight04", ["Purify", "Ribbon Lash", "Venom Lash", "Withering Curse"])
+	check(fights_done == 4, "all fight tests completed (%d/4)" % fights_done)
 	print("\nRESULT: %s (%d failures)" % ["PASS" if failures.is_empty() else "FAIL", failures.size()])
 	get_tree().quit(0 if failures.is_empty() else 1)
 
@@ -67,8 +71,28 @@ func _test_story_player(id: String) -> void:
 	await get_tree().process_frame
 
 
+## Runs AI-vs-AI matches of a fight. Power-usage checks are merged across up to
+## 3 matches, because a single short random match may skip a power by chance.
 func _test_fight(id: String, must_use: Array) -> void:
 	stats = {"powers": 0, "hits": 0, "used": {}, "max_clones": 0, "gravity": false}
+	for attempt in 3:
+		await _run_match(id, attempt == 0)
+		var missing := must_use.filter(func(n): return not stats["used"].has(n))
+		if missing.is_empty() and (not must_use.has("Mirror Double") or stats["max_clones"] > 0):
+			break
+		print("     (match %d missed %s — running another match)" % [attempt + 1, missing])
+	check(stats["hits"] > 5, "%s: fighters land hits (%d)" % [id, stats["hits"]])
+	check(stats["powers"] > 0, "%s: powers are used (%d) %s" % [id, stats["powers"], stats["used"].keys()])
+	for n in must_use:
+		check(stats["used"].has(n), "%s: '%s' was used" % [id, n])
+	if must_use.has("Gravity Well"):
+		check(stats["gravity"], "%s: gravity pull was applied" % id)
+	if must_use.has("Mirror Double"):
+		check(stats["max_clones"] > 0, "%s: a clone appeared" % id)
+	fights_done += 1
+
+
+func _run_match(id: String, check_result: bool) -> void:
 	SceneRouter.current = {"type": "fight", "id": id}
 	var arena = load("res://scenes/fight/arena.tscn").instantiate()
 	add_child(arena)
@@ -90,15 +114,11 @@ func _test_fight(id: String, must_use: Array) -> void:
 		if arena.player.controller is PlayerController:   # relay/tag could swap it back
 			arena.player.controller = AIController.new(0.7)
 	check(arena.phase == "over", "%s finishes (%d frames, %.0f s game time)" % [id, frames, frames / 60.0])
-	check(stats["hits"] > 5, "%s: fighters land hits (%d)" % [id, stats["hits"]])
-	check(stats["powers"] > 0, "%s: powers are used (%d) %s" % [id, stats["powers"], stats["used"].keys()])
-	for n in must_use:
-		check(stats["used"].has(n), "%s: '%s' was used" % [id, n])
-	if must_use.has("Gravity Well"):
-		check(stats["gravity"], "%s: gravity pull was applied" % id)
-	if must_use.has("Mirror Double"):
-		check(stats["max_clones"] > 0, "%s: a clone appeared" % id)
 	print("     wins: ", arena.hud.wins, "  player hp ", arena.player.hp, "  enemy hp ", arena.enemy.hp)
+	if not check_result:
+		arena.queue_free()
+		await get_tree().process_frame
+		return
 	var flag: String = arena.fight.get("flag", "")
 	var player_won: bool = arena.hud.wins[0] > arena.hud.wins[1]
 	if player_won:
@@ -108,7 +128,6 @@ func _test_fight(id: String, must_use: Array) -> void:
 		check(not StoryManager.has_flag(flag), "defeat does not set %s" % flag)
 	var f := FileAccess.open(StoryManager.SAVE_PATH, FileAccess.READ)
 	check(f != null and f.get_as_text().contains("prologue_seen"), "save file written with flags")
-	fights_done += 1
 	arena.queue_free()
 	await get_tree().process_frame
 
@@ -141,5 +160,78 @@ func _test_anchor_vs_pull() -> void:
 			check(moved < 1.0, "anchored fighter is not pulled (moved %.1f px)" % moved)
 		else:
 			check(moved > 100.0, "free fighter is pulled by gravity (moved %.1f px)" % moved)
+	arena.queue_free()
+	await get_tree().process_frame
+
+
+## Scripted checks for Chapter 4 mechanics: poison, Purify, Withering Curse, Ribbon Lash.
+func _steps(n: int) -> void:
+	for i in n:
+		await get_tree().physics_frame
+
+
+func _test_status_mechanics() -> void:
+	SceneRouter.current = {"type": "fight", "id": "fight04"}
+	var arena = load("res://scenes/fight/arena.tscn").instantiate()
+	add_child(arena)
+	var t := 0
+	while arena.phase != "fight" and t < 600:
+		await get_tree().physics_frame
+		t += 1
+	var mira: Fighter = arena.player
+	var nyra: Fighter = arena.enemy
+	mira.controller = null
+	nyra.controller = null
+	arena.time_left = 999.0
+
+	# Poison drains HP over time but never KOs.
+	mira.hp = 500.0
+	mira.add_status("poison", 1.0)
+	await _steps(60)
+	check(mira.hp < 495.0 and mira.hp > 480.0, "poison deals damage over time (hp %.1f)" % mira.hp)
+	mira.hp = 5.0
+	mira.add_status("poison", 2.0)
+	await _steps(90)
+	check(is_equal_approx(mira.hp, 1.0) and mira.is_alive(), "poison never reduces HP below 1 (hp %.1f)" % mira.hp)
+
+	# Purify cleanses poison, heals, and blocks new poison for a few seconds.
+	mira.hp = 400.0
+	mira.add_status("poison", 4.0)
+	mira.energy = 100.0
+	mira._try_power(0)
+	await _steps(30)
+	check(not mira.has_status("poison"), "Purify removes poison")
+	check(mira.has_status("purified"), "Purify grants purified")
+	check(mira.hp > 440.0, "Purify heals (hp %.1f)" % mira.hp)
+	mira.add_status("poison", 2.0)
+	check(not mira.has_status("poison"), "purified blocks new poison")
+
+	# Withering Curse steals energy and curses.
+	mira.statuses.clear()
+	mira.energy = 60.0
+	nyra.energy = 100.0
+	nyra.position.x = mira.position.x + 400.0
+	nyra._face_opponent()
+	nyra._try_power(1)
+	await _steps(30)
+	check(mira.energy < 35.0, "Withering Curse drains energy (mira %.1f)" % mira.energy)
+	check(nyra.energy > 90.0, "Withering Curse transfers energy to Nyra (nyra %.1f)" % nyra.energy)
+	check(mira.has_status("cursed"), "Withering Curse applies cursed")
+	var before := mira.energy
+	mira.add_energy(10.0)
+	check(is_equal_approx(mira.energy - before, 5.0), "cursed halves energy gain (+%.1f)" % (mira.energy - before))
+
+	# Ribbon Lash reels a distant opponent in.
+	mira.statuses.clear()
+	await _steps(40)   # let Nyra recover
+	mira.position.x = 600.0
+	nyra.position.x = 980.0
+	nyra.set_state(Fighter.S.IDLE)
+	mira.energy = 100.0
+	mira._face_opponent()
+	mira._try_power(1)
+	await _steps(30)
+	var gap := absf(nyra.position.x - mira.position.x)
+	check(gap < 220.0, "Ribbon Lash pulls the opponent in (gap %.0f px)" % gap)
 	arena.queue_free()
 	await get_tree().process_frame

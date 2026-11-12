@@ -1,0 +1,28 @@
+{
+	"name": "NYRA",
+	"color": "#9be15d",
+	"element": "poison",
+	"weapon": "whip",
+	"max_hp": 960,
+	"walk_speed": 430,
+	"jump_velocity": 1300,
+	"start_energy": 30,
+	"moves": {
+		"light": [
+			{"anim": "slash",  "startup": 0.09, "active": 0.09, "recovery": 0.20, "damage": 32, "reach": 245, "height": [-250, -80], "stun": 0.28, "knock": 130, "step": 20},
+			{"anim": "thrust", "startup": 0.09, "active": 0.09, "recovery": 0.20, "damage": 34, "reach": 255, "height": [-230, -90], "stun": 0.30, "knock": 140, "step": 20},
+			{"anim": "sweep",  "startup": 0.11, "active": 0.10, "recovery": 0.28, "damage": 40, "reach": 250, "height": [-120, 10], "stun": 0.40, "knock": 260, "step": 10}
+		],
+		"heavy": [
+			{"anim": "overhead", "startup": 0.22, "active": 0.11, "recovery": 0.40, "damage": 95, "reach": 260, "height": [-300, -10], "stun": 0.55, "knock": 380, "step": 30},
+			{"anim": "rising",   "startup": 0.18, "active": 0.10, "recovery": 0.34, "damage": 80, "reach": 240, "height": [-320, -40], "stun": 0.48, "knock": 220, "launch": 600, "step": 30}
+		],
+		"air": {"anim": "air", "startup": 0.08, "active": 0.12, "recovery": 0.17, "damage": 52, "reach": 220, "height": [-260, 10], "stun": 0.38, "knock": 190}
+	},
+	"powers": [
+		{"id": "venom_lash", "name": "Venom Lash", "short": "VENOM", "type": "lash", "anim": "slash", "apply_status": {"poison": 4.0},
+		 "cost": 30, "damage": 55, "reach": 400, "height": [-260, -60], "startup": 0.16, "active": 0.10, "recovery": 0.3, "stun": 0.4, "knock": 200},
+		{"id": "withering_curse", "name": "Withering Curse", "short": "CURSE", "type": "drain", "anim": "cast", "apply_status": {"cursed": 4.0},
+		 "cost": 35, "range": 650, "amount": 35, "startup": 0.3, "active": 0.05, "recovery": 0.35}
+	]
+}
