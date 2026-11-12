@@ -20,9 +20,9 @@
 		"air": {"anim": "air", "startup": 0.09, "active": 0.12, "recovery": 0.18, "damage": 66, "reach": 160, "height": [-260, 10], "stun": 0.42, "knock": 240}
 	},
 	"powers": [
-		{"id": "stone_bulwark", "name": "Stone Bulwark", "short": "WALL", "type": "wall", "ai_use": "defend", "anim": "burst",
+		{"id": "stone_bulwark", "sfx": "stone", "name": "Stone Bulwark", "short": "WALL", "type": "wall", "ai_use": "defend", "anim": "burst",
 		 "cost": 30, "duration": 3.0, "startup": 0.12, "active": 0.05, "recovery": 0.22},
-		{"id": "quake_fist", "name": "Quake Fist", "short": "QUAKE", "type": "projectile", "fx": "quake", "anim": "overhead", "ground_only": true,
+		{"id": "quake_fist", "sfx": "stone", "hit_sfx": "stone", "name": "Quake Fist", "short": "QUAKE", "type": "projectile", "fx": "quake", "anim": "overhead", "ground_only": true,
 		 "cost": 40, "damage": 115, "speed": 1150, "life": 1.3, "y": -45, "startup": 0.24, "active": 0.05, "recovery": 0.34, "stun": 0.55, "knock": 300, "launch": 600}
 	]
 }

@@ -11,6 +11,8 @@ extends RefCounted
 ##   @hide left|right|all                       remove portrait(s)
 ##   @flashback on|off                          memory tint on/off
 ##   @flag flag_name                            set a story flag
+##   @music track_name                          crossfade to a music track (assets/music)
+##   @sfx sound_name                            play a sound effect (assets/sfx)
 ##   @wait 1.5                                  pause (seconds)
 ##   @next story|fight|menu id                  where to go when the scene ends
 ##   NAME: spoken line                          dialogue (NAME in capitals)
@@ -85,6 +87,10 @@ static func parse(text: String) -> Dictionary:
 					steps.append({"t": "flashback", "on": arg.to_lower() == "on"})
 				"flag":
 					steps.append({"t": "flag", "name": arg})
+				"music":
+					steps.append({"t": "music", "id": arg})
+				"sfx":
+					steps.append({"t": "sfx", "id": arg})
 				"wait":
 					steps.append({"t": "wait", "sec": float(arg)})
 				"next":

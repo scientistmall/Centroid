@@ -20,6 +20,7 @@ func _ready() -> void:
 	SceneRouter._busy = true   # keep the router from leaving this test scene
 	StoryManager.new_game()
 	await _test_story_files()
+	_test_assets()
 	await _test_story_player("prologue")
 	await _test_story_player("ch01_pre")
 	await _test_story_player("ch01_post")
@@ -213,7 +214,7 @@ func _test_status_mechanics() -> void:
 	nyra.position.x = mira.position.x + 400.0
 	nyra._face_opponent()
 	nyra._try_power(1)
-	await _steps(30)
+	await _steps(90)   # powers trigger a brief cut-in slow-motion
 	check(mira.energy < 35.0, "Withering Curse drains energy (mira %.1f)" % mira.energy)
 	check(nyra.energy > 90.0, "Withering Curse transfers energy to Nyra (nyra %.1f)" % nyra.energy)
 	check(mira.has_status("cursed"), "Withering Curse applies cursed")
@@ -235,3 +236,30 @@ func _test_status_mechanics() -> void:
 	check(gap < 220.0, "Ribbon Lash pulls the opponent in (gap %.0f px)" % gap)
 	arena.queue_free()
 	await get_tree().process_frame
+
+
+## Every sound / music track referenced by data files must exist.
+func _test_assets() -> void:
+	var missing: Array = []
+	var dir := DirAccess.open("res://data/fighters")
+	for f in dir.get_files():
+		if not f.ends_with(".json"):
+			continue
+		var d = JSON.parse_string(FileAccess.get_file_as_string("res://data/fighters/" + f))
+		for p in d.get("powers", []):
+			for key in ["sfx", "hit_sfx"]:
+				if p.has(key) and not ResourceLoader.exists("res://assets/sfx/%s.ogg" % p[key]):
+					missing.append("%s:%s" % [f, p[key]])
+	var sdir := DirAccess.open("res://data/story")
+	for f in sdir.get_files():
+		if not f.ends_with(".story"):
+			continue
+		for st in StoryParser.load_file("res://data/story/" + f)["steps"]:
+			if st["t"] == "music" and not ResourceLoader.exists("res://assets/music/%s.ogg" % st["id"]):
+				missing.append("%s:@music %s" % [f, st["id"]])
+			if st["t"] == "sfx" and not ResourceLoader.exists("res://assets/sfx/%s.ogg" % st["id"]):
+				missing.append("%s:@sfx %s" % [f, st["id"]])
+	for t in ["main_theme", "story_calm", "battle_1", "victory", "defeat"]:
+		if not ResourceLoader.exists("res://assets/music/%s.ogg" % t):
+			missing.append("music " + t)
+	check(missing.is_empty(), "all referenced audio exists %s" % [missing])

@@ -25,6 +25,7 @@ var stage := Vector2(140, 1780)
 var shake := 0.0
 var swap_cooldown := 0.0
 var fog: FogLayer
+var ui_layer: CanvasLayer
 var fog_back: FogLayer
 
 var world: Node2D
@@ -73,7 +74,8 @@ func _build() -> void:
 	team = p_ids if p_ids is Array else [p_ids]
 	for id in team:
 		team_hp[id] = -1.0
-	enemy = _make_fighter(fight.get("enemy", "rhex"), AIController.new(fight.get("ai", 0.45)))
+	enemy = _make_fighter(fight.get("enemy", "rhex"), AIController.new(clampf(float(fight.get("ai", 0.45)) * Settings.ai_multiplier(), 0.1, 1.0)))
+	AudioManager.play_music(fight.get("music", "battle_1"))
 	player = _make_fighter(team[0], PlayerController.new())
 	player.opponent = enemy
 	enemy.opponent = player
@@ -91,6 +93,7 @@ func _build() -> void:
 	var ui := CanvasLayer.new()
 	ui.layer = 5
 	add_child(ui)
+	ui_layer = ui
 	hud = FightHud.new()
 	hud.left = player
 	hud.right = enemy
@@ -143,7 +146,7 @@ func _make_fighter(id: String, ctrl: Object) -> Fighter:
 	f.effects_parent = effects
 	f.knocked_out.connect(_on_ko)
 	f.got_hit.connect(_on_hit)
-	f.power_used.connect(func(ff: Fighter, n: String): hud.show_power(ff, n))
+	f.power_used.connect(_on_power)
 	world.add_child(f)
 	return f
 
@@ -178,6 +181,7 @@ func _start_round() -> void:
 	hud.banner("ROUND %d" % round_no if _mode() == "single" else "READY")
 	await _wait(1.0)
 	hud.banner("FIGHT!")
+	AudioManager.sfx("gong", -4.0)
 	await _wait(0.6)
 	hud.clear_banner()
 	player.release()
@@ -222,6 +226,28 @@ func _separate() -> void:
 		var s := signf(dx) if dx != 0.0 else 1.0
 		player.position.x = clampf(player.position.x - s * push, stage.x, stage.y)
 		enemy.position.x = clampf(enemy.position.x + s * push, stage.x, stage.y)
+
+
+## Anime cut-in banner + a short dramatic slow-down when a power fires.
+func _on_power(f: Fighter, power_name: String) -> void:
+	if ui_layer == null:
+		return
+	for c in ui_layer.get_children():
+		if c is CutIn:
+			c.queue_free()
+	var cut := CutIn.new()
+	cut.char_id = f.char_id
+	cut.accent = f.color
+	cut.power_name = power_name
+	cut.from_left = f.side == 0
+	ui_layer.add_child(cut)
+	AudioManager.sfx("cutin", -2.0)
+	ui_layer.move_child(cut, 1)   # above the HUD bars, below overlays
+	if phase == "fight":
+		Engine.time_scale = 0.35
+		await _wait(0.32)
+		if phase == "fight":
+			Engine.time_scale = 1.0
 
 
 func _on_hit(_f: Fighter, heavy: bool) -> void:
@@ -331,6 +357,7 @@ func _swap_member() -> void:
 
 func _match_over(victory: bool) -> void:
 	phase = "over"
+	AudioManager.sting("victory" if victory else "defeat")
 	touch.visible = false
 	_show_overlay(
 		"VICTORY" if victory else "DEFEAT",

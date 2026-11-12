@@ -20,9 +20,9 @@
 		"air": {"anim": "air", "startup": 0.08, "active": 0.12, "recovery": 0.17, "damage": 52, "reach": 220, "height": [-260, 10], "stun": 0.38, "knock": 190}
 	},
 	"powers": [
-		{"id": "venom_lash", "name": "Venom Lash", "short": "VENOM", "type": "lash", "anim": "slash", "apply_status": {"poison": 4.0},
+		{"id": "venom_lash", "sfx": "whip", "hit_sfx": "poison", "name": "Venom Lash", "short": "VENOM", "type": "lash", "anim": "slash", "apply_status": {"poison": 4.0},
 		 "cost": 30, "damage": 55, "reach": 400, "height": [-260, -60], "startup": 0.16, "active": 0.10, "recovery": 0.3, "stun": 0.4, "knock": 200},
-		{"id": "withering_curse", "name": "Withering Curse", "short": "CURSE", "type": "drain", "anim": "cast", "apply_status": {"cursed": 4.0},
+		{"id": "withering_curse", "sfx": "curse", "name": "Withering Curse", "short": "CURSE", "type": "drain", "anim": "cast", "apply_status": {"cursed": 4.0},
 		 "cost": 35, "range": 650, "amount": 35, "startup": 0.3, "active": 0.05, "recovery": 0.35}
 	]
 }

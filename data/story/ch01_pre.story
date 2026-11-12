@@ -1,5 +1,6 @@
 # Chapter 1 — Before Fight 1 (Kael vs. Rhex)
 
+@music main_theme
 @card DAY 4 OF DARKNESS | The Abandoned Training Ground
 @bg training_ground
 > We return to the training ground. Kael and Rhex stand facing each other.

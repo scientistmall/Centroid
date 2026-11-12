@@ -1,5 +1,6 @@
 # Chapter 4 — Before Fight 4 (Mira vs. Nyra)
 
+@music main_theme
 @card DAY 20 OF DARKNESS | The Underground Sanctuary
 @bg underground_sanctuary
 > The group enters an underground chamber once used by the organization to preserve medicines and supplies.

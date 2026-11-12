@@ -11,8 +11,10 @@ config/features=PackedStringArray("4.7", "Mobile")
 
 [autoload]
 
+Settings="*res://autoload/settings.gd"
 StoryManager="*res://autoload/story_manager.gd"
 SceneRouter="*res://autoload/scene_router.gd"
+AudioManager="*res://autoload/audio_manager.gd"
 
 [display]
 

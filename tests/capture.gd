@@ -31,6 +31,7 @@ func _ready() -> void:
 	if _want("pass"): await _shot_fight("fight03", "pass")
 	if _want("sanctuary_story"): await _shot_story("ch04_pre", 5, "sanctuary_story")
 	if _want("sanctuary"): await _shot_fight("fight04", "sanctuary")
+	if _want("cutin"): await _shot_cutin()
 	get_tree().quit()
 
 
@@ -98,4 +99,28 @@ func _shot_fight(id: String, prefix: String) -> void:
 		if interesting and t > 120 * (shots + 1):
 			await _save("%s_%d" % [prefix, shots])
 			shots += 1
+	a.queue_free()
+
+
+func _shot_cutin() -> void:
+	SceneRouter.current = {"type": "fight", "id": "fight01"}
+	var a = load("res://scenes/fight/arena.tscn").instantiate()
+	add_child(a)
+	var t := 0
+	while a.phase != "fight" and t < 600:
+		await get_tree().physics_frame
+		t += 1
+	a.player.controller = null
+	a.enemy.controller = null
+	a.player.energy = 100.0
+	a.player._try_power(0)
+	for i in 12:
+		await get_tree().process_frame
+	await _save("cutin_player")
+	await get_tree().create_timer(1.5, true, false, true).timeout
+	a.enemy.energy = 100.0
+	a.enemy._try_power(1)
+	for i in 14:
+		await get_tree().process_frame
+	await _save("cutin_enemy")
 	a.queue_free()

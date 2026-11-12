@@ -1,5 +1,6 @@
 # Chapter 3 — Before Fight 3 (Darin vs. Mael)
 
+@music main_theme
 @card DAY 14 OF DARKNESS | The Broken Pass
 @bg broken_pass
 > The group reaches a ruined mountain passage.

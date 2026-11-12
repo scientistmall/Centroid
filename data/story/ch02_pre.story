@@ -1,5 +1,6 @@
 # Chapter 2 — Before Fight 2 (Tala vs. Vaska)
 
+@music main_theme
 @card DAY 10 OF DARKNESS | The Silent Forest
 @bg silent_forest
 > The guardians travel through an empty forest beneath the dark sky.

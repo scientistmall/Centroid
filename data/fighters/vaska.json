@@ -21,9 +21,9 @@
 		"air": {"anim": "air", "startup": 0.06, "active": 0.11, "recovery": 0.14, "damage": 55, "reach": 170, "height": [-260, 10], "stun": 0.38, "knock": 190}
 	},
 	"powers": [
-		{"id": "veil_of_mist", "name": "Veil of Mist", "short": "VEIL", "type": "buff", "status": "veil", "anim": "cast",
+		{"id": "veil_of_mist", "sfx": "mist", "name": "Veil of Mist", "short": "VEIL", "type": "buff", "status": "veil", "anim": "cast",
 		 "cost": 30, "duration": 3.0, "radius": 200, "startup": 0.18, "active": 0.05, "recovery": 0.2},
-		{"id": "mirror_double", "name": "Mirror Double", "short": "DOUBLE", "type": "summon", "anim": "burst",
+		{"id": "mirror_double", "sfx": "mist", "name": "Mirror Double", "short": "DOUBLE", "type": "summon", "anim": "burst",
 		 "cost": 45, "duration": 6.0, "startup": 0.22, "active": 0.05, "recovery": 0.3}
 	]
 }

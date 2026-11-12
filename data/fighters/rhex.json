@@ -20,9 +20,9 @@
 		"air": {"anim": "air", "startup": 0.09, "active": 0.12, "recovery": 0.18, "damage": 70, "reach": 180, "height": [-260, 10], "stun": 0.42, "knock": 240}
 	},
 	"powers": [
-		{"id": "black_flame_wave", "name": "Black Flame Wave", "short": "WAVE", "type": "projectile", "fx": "flame_wave", "anim": "overhead",
+		{"id": "black_flame_wave", "sfx": "flame_wave", "hit_sfx": "fire_burst", "name": "Black Flame Wave", "short": "WAVE", "type": "projectile", "fx": "flame_wave", "anim": "overhead",
 		 "cost": 35, "damage": 100, "speed": 950, "startup": 0.28, "active": 0.05, "recovery": 0.35, "stun": 0.5, "knock": 300, "y": -75, "life": 2.2},
-		{"id": "hellfire_burst", "name": "Hellfire Burst", "short": "BURST", "type": "burst", "anim": "burst", "armor": true,
+		{"id": "hellfire_burst", "sfx": "fire_burst", "name": "Hellfire Burst", "short": "BURST", "type": "burst", "anim": "burst", "armor": true,
 		 "cost": 50, "damage": 170, "radius": 270, "startup": 0.36, "active": 0.12, "recovery": 0.45, "stun": 0.7, "knock": 520, "launch": 800}
 	]
 }

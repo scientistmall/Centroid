@@ -7,6 +7,7 @@ var _chapters: VBoxContainer
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	AudioManager.play_music("main_theme")
 	var bg := Backdrop.new()
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg.bg_id = "solar_altar"

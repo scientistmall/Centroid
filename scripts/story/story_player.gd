@@ -226,6 +226,10 @@ func _advance() -> void:
 				_flash_label.visible = s["on"]
 			"flag":
 				StoryManager.set_flag(s["name"])
+			"music":
+				AudioManager.play_music(s["id"])
+			"sfx":
+				AudioManager.sfx(s["id"])
 			"line":
 				_say(s)
 				return

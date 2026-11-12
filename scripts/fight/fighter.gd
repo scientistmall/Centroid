@@ -71,6 +71,7 @@ var costume: Dictionary = {}
 var sec := Vector2.ZERO          # secondary-motion lag for cloth and hair
 var _sec_vel := Vector2.ZERO
 var _trail: Array = []           # recent weapon-tip positions (world) for smears
+var _emitter: CPUParticles2D     # element particles when charged
 
 
 func setup(fighter_data: Dictionary) -> void:
@@ -85,6 +86,10 @@ func setup(fighter_data: Dictionary) -> void:
 	jump_vel = float(data.get("jump_velocity", 1300))
 	powers = data.get("powers", [])
 	costume = PortraitArt.look_for(char_id).get("fighter", {})
+	if element != "" and _emitter == null:
+		_emitter = Vfx.element_emitter(element, color)
+		_emitter.z_index = 2
+		add_child(_emitter)
 	reset_for_round()
 
 
@@ -190,6 +195,10 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 
+func _sfx(sound: String, db := 0.0) -> void:
+	AudioManager.sfx(sound, db)
+
+
 # ------------------------------------------------------------------ visual motion
 
 ## Springy cloth/hair lag and the weapon smear trail.
@@ -199,6 +208,12 @@ func _update_visual_motion(delta: float) -> void:
 	_sec_vel += (target - sec) * 90.0 * delta
 	_sec_vel *= exp(-9.0 * delta)
 	sec += _sec_vel * delta
+	# charged element particles stream off the weapon
+	if _emitter:
+		var charged := state == S.POWER or energy >= MAX_ENERGY * 0.999 or (state == S.ATTACK and move_kind == "heavy")
+		_emitter.emitting = charged and state != S.KO
+		if weapon != "none":
+			_emitter.position = FighterPainter.weapon_tip(current_pose(), facing, weapon) * 0.85
 	var swinging := false
 	if state == S.ATTACK:
 		var tm := _move_times()
@@ -279,6 +294,7 @@ func _ground_control() -> void:
 	var mv: float = inp.get("move", 0.0)
 	if inp.get("jump", false):
 		vel.y = -jump_vel * (0.6 if has_status("gravity") else 1.0)
+		_sfx("jump", -6.0)
 		vel.x = mv * walk_speed * 0.95
 		set_state(S.AIR)
 		return
@@ -299,6 +315,7 @@ func _air_control() -> void:
 			move_hit = false
 			queued = ""
 			set_state(S.ATTACK)
+			_sfx("swing_light", -3.0)
 
 
 func _block_update() -> void:
@@ -347,6 +364,7 @@ func _start_attack(kind: String, idx: int) -> void:
 	queued = ""
 	_face_opponent()
 	set_state(S.ATTACK)
+	_sfx("swing_heavy" if kind == "heavy" else "swing_light", -3.0)
 
 
 func _move_times() -> Vector3:
@@ -424,6 +442,7 @@ func _try_power(i: int) -> bool:
 	vel.x = 0.0
 	set_state(S.POWER)
 	power_used.emit(self, p.get("name", "Power"))
+	_sfx(p.get("sfx", "bolt_cast"))
 	return true
 
 
@@ -636,6 +655,15 @@ func _spawn_spark(at: Vector2, blocked: bool, heavy: bool) -> void:
 	s.color = Color(0.8, 0.85, 1.0) if blocked else color
 	s.big = heavy
 	effects_parent.add_child(s)
+	# element-flavoured particles on impact
+	var kind := "sparks"
+	match element:
+		"black_flame": kind = "embers"
+		"stone", "gravity": kind = "dust"
+		"mist": kind = "mist"
+		"moonlight": kind = "motes"
+		"poison": kind = "drips"
+	Vfx.burst(effects_parent, at, Color(0.8, 0.85, 1.0) if blocked else color, "sparks" if blocked else kind, 1.3 if heavy else 0.8)
 
 
 # ------------------------------------------------------------------ damage
@@ -659,6 +687,7 @@ func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 		attacker.add_energy(3.0)
 		set_state(S.BLOCKSTUN)
 		hp_changed.emit(self)
+		_sfx("block", -2.0)
 		return "block"
 	hp = maxf(0.0, hp - dmg)
 	flash = 1.0
@@ -667,10 +696,17 @@ func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 	hp_changed.emit(self)
 	var heavy := dmg >= 90.0
 	got_hit.emit(self, heavy)
+	_sfx("hit_heavy" if heavy else "hit_light")
+	if m.has("hit_sfx"):
+		_sfx(m["hit_sfx"], -3.0)
+	if side == 0:
+		Settings.vibrate(60 if heavy else 25)
 	if hp <= 0.0:
 		set_state(S.KO)
 		vel = Vector2(away * 520.0, -780.0)
 		knocked_out.emit(self)
+		_sfx("ko")
+		Settings.vibrate(200)
 		return "hit"
 	# Armoured powers (e.g. big cleaves) keep going through hits.
 	if state == S.POWER and power_def.get("armor", false) and not power_fired:

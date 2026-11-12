@@ -1,5 +1,6 @@
 # Chapter 4 — After Fight 4 (only reached after victory)
 
+@music story_calm
 @bg underground_sanctuary
 > Nyra lies on the ground, unable to stand.
 > Mira approaches.

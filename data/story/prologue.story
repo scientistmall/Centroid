@@ -2,6 +2,7 @@
 # Opening scene (Day 4) followed by the flashbacks P01–P06.
 # Format help: see scripts/story/story_parser.gd
 
+@music main_theme
 @title THE CENTROID
 @card DAY 4 OF DARKNESS | Abandoned training ground | Continuous night
 @bg training_ground
@@ -32,6 +33,7 @@ RHEX: Remember this place? We used to fight until Auren ordered us to stop.
 
 # ---------------------------------------------------------------- P01
 @flashback on
+@music story_calm
 @card YEARS EARLIER | Before the darkness | The organization's headquarters
 @bg hq_night
 > Auren stands outside the headquarters, watching the stars.
@@ -187,6 +189,7 @@ THE VOICE: Those who follow you will share your strength.
 > Not all seven join for the same reason. Some desire power, some believe Veyr's arguments, and others fear being left behind.
 
 # ---------------------------------------------------------------- P05
+@music main_theme
 @card THE FIRST BETRAYAL | Centroid chamber
 @bg centroid_chamber
 > Auren discovers Veyr communicating with the unknown intelligence.

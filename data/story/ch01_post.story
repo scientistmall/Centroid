@@ -1,5 +1,6 @@
 # Chapter 1 — After Fight 1 (only reached after victory)
 
+@music story_calm
 @bg training_ground
 > Rhex drops to one knee. His axe falls beside him.
 @show left kael

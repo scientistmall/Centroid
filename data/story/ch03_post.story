@@ -1,5 +1,6 @@
 # Chapter 3 — After Fight 3 (only reached after victory)
 
+@music story_calm
 @bg broken_pass
 > Mael falls to the ground.
 > His gravitational energy becomes unstable.

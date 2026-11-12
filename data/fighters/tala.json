@@ -20,9 +20,9 @@
 		"air": {"anim": "air", "startup": 0.08, "active": 0.12, "recovery": 0.16, "damage": 58, "reach": 215, "height": [-260, 20], "stun": 0.40, "knock": 200}
 	},
 	"powers": [
-		{"id": "clear_sight", "name": "Clear Sight", "short": "SIGHT", "type": "buff", "status": "clear_sight", "ai_use": "dispel", "anim": "cast",
+		{"id": "clear_sight", "sfx": "wind", "name": "Clear Sight", "short": "SIGHT", "type": "buff", "status": "clear_sight", "ai_use": "dispel", "anim": "cast",
 		 "cost": 30, "duration": 4.0, "radius": 220, "startup": 0.14, "active": 0.05, "recovery": 0.2},
-		{"id": "piercing_gale", "name": "Piercing Gale", "short": "GALE", "type": "projectile", "fx": "wind", "anim": "thrust",
+		{"id": "piercing_gale", "sfx": "wind", "hit_sfx": "hit_heavy", "name": "Piercing Gale", "short": "GALE", "type": "projectile", "fx": "wind", "anim": "thrust",
 		 "cost": 40, "damage": 100, "speed": 2000, "life": 0.5, "startup": 0.16, "active": 0.05, "recovery": 0.3, "stun": 0.5, "knock": 340, "y": -165}
 	]
 }

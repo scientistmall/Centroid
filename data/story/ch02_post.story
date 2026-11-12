@@ -1,5 +1,6 @@
 # Chapter 2 — After Fight 2 (only reached after victory)
 
+@music story_calm
 @bg silent_forest
 > Vaska falls to the ground.
 > Tala points her spear toward her.
