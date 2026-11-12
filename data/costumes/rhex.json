@@ -1,0 +1,24 @@
+{
+	"portrait": {
+		"skin": "#c99572",
+		"hair": "#3d1814",
+		"hair_light": "#ff4a3d",
+		"hair_style": "mohawk",
+		"eyes": "#ff4a3d",
+		"outfit": "#1d1414",
+		"outfit_trim": "#ff4a3d",
+		"accessory": "pauldron",
+		"accessory_color": "#3a2a26",
+		"scar": true,
+		"age": "adult",
+		"build": "broad"
+	},
+	"fighter": {
+		"hair_style": "mohawk",
+		"coat": {"length": 0, "split": false},
+		"shoulder": "pauldron",
+		"wraps": true,
+		"belt": "#ff4a3d",
+		"bulk": 1.18
+	}
+}

@@ -1,0 +1,24 @@
+{
+	"portrait": {
+		"skin": "#e8b994",
+		"hair": "#1c2340",
+		"hair_light": "#3d5a9e",
+		"hair_style": "spiky",
+		"eyes": "#6fd3ff",
+		"outfit": "#1a2236",
+		"outfit_trim": "#6fd3ff",
+		"accessory": "scarf",
+		"accessory_color": "#d8eef8",
+		"age": "young",
+		"build": "lean"
+	},
+	"fighter": {
+		"hair_style": "spiky",
+		"scarf": {"color": "#d8eef8", "length": 150},
+		"coat": {"length": 70, "split": true},
+		"shoulder": "none",
+		"bracers": true,
+		"belt": "#6fd3ff",
+		"bulk": 1.0
+	}
+}
