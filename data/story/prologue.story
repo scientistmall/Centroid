@@ -10,19 +10,19 @@
 > Footsteps echo between the stone pillars. Kael enters carrying a small lantern.
 > Someone is sitting on the steps ahead.
 @show right rhex
-RHEX: I thought you'd never come.
+RHEX [smile]: I thought you'd never come.
 > Kael stops.
 @show left kael
-KAEL: Rhex...
+KAEL [shocked]: Rhex...
 > Rhex stands and slowly turns toward him.
 RHEX: How long has it been? Since we last trained here?
-KAEL: Before you betrayed us.
+KAEL [angry]: Before you betrayed us.
 > Rhex smiles.
-RHEX: You still talk like a child.
-KAEL: You helped kill Seran. You helped steal the Centroid. And now the whole world is suffering.
-RHEX: Still blaming everyone else because you're too weak to change anything?
+RHEX [smile]: You still talk like a child.
+KAEL [angry]: You helped kill Seran. You helped steal the Centroid. And now the whole world is suffering.
+RHEX [determined]: Still blaming everyone else because you're too weak to change anything?
 > Kael grips his sword.
-KAEL: Where are the others?
+KAEL [determined]: Where are the others?
 RHEX: You haven't seen your old friends in months, and that's the first thing you ask?
 > Rhex looks around the ruined training ground.
 RHEX: Remember this place? We used to fight until Auren ordered us to stop.
@@ -220,7 +220,7 @@ VEYR: Then you trusted the wrong man.
 > Auren falls.
 > Kael, arriving after hearing the commotion, sees his founder lying on the ground.
 @show left kael
-KAEL: Auren!
+KAEL [shocked]: Auren!
 @hide all
 > Seran attacks Veyr. The two deputies clash, their disagreement turning into a fight neither imagined they would have.
 > Seran eventually gains the advantage and prepares to kill Veyr.
@@ -231,11 +231,11 @@ THE VOICE: He is not yours to destroy.
 > The seven traitors flee.
 > Kael looks toward the escaping fighters. He sees his older brother Thane among them.
 @show left kael
-KAEL: Thane!
+KAEL [shocked]: Thane!
 > Thane turns.
 @show right thane
 THANE: Come with us, Kael.
-KAEL: You watched him kill Auren!
+KAEL [angry]: You watched him kill Auren!
 THANE: You don't understand what's coming.
 KAEL: Then explain it!
 > Thane cannot answer. He leaves.
@@ -245,7 +245,7 @@ KAEL: Then explain it!
 AUREN: Kael...
 KAEL: Don't move. Seran will help you.
 AUREN: Listen to him.
-KAEL: Please...
+KAEL [sad]: Please...
 AUREN: Don't let what happened here become everything you are.
 @hide right
 > Auren dies.
@@ -262,7 +262,7 @@ AUREN: Don't let what happened here become everything you are.
 > But when the traitors return, their enhanced powers overwhelm the organization's defenses.
 > Seran orders Kael to take the others away.
 @show left kael
-KAEL: We can still save the stone!
+KAEL [determined]: We can still save the stone!
 @show right seran
 SERAN: We can replace a stone. We can't replace all of you.
 KAEL: They're going to bring Veyr back!

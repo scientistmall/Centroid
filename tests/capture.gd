@@ -1,29 +1,36 @@
 extends Node
 ## Saves screenshots of key screens. Run under Xvfb with a real renderer:
 ##   xvfb-run -s "-screen 0 2400x1080x24" godot --rendering-method gl_compatibility \
-##     --resolution 2400x1080 res://tests/capture.tscn -- <out_dir>
+##     --resolution 2400x1080 res://tests/capture.tscn -- <out_dir> [only...]
+## Optional extra args limit which shots run (e.g. "menu fight story_opening").
 
 var out := "user://shots"
+var only: Array = []
+
+
+func _want(name: String) -> bool:
+	return only.is_empty() or only.has(name)
 
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]
+	only = args.slice(1)
 	DirAccess.make_dir_recursive_absolute(out)
 	SceneRouter._busy = true
 	StoryManager.new_game()
-	await _shot_menu()
-	await _shot_story("prologue", 6, "story_opening")
-	await _shot_story("prologue", 60, "story_flashback")
-	await _shot_story("prologue", 1, "story_card")
-	await _shot_story("ch02_pre", 3, "forest_story")
-	await _shot_fight("fight01", "fight")
-	await _shot_fight("fight02", "mist")
-	await _shot_story("ch03_pre", 4, "pass_story")
-	await _shot_fight("fight03", "pass")
-	await _shot_story("ch04_pre", 5, "sanctuary_story")
-	await _shot_fight("fight04", "sanctuary")
+	if _want("menu"): await _shot_menu()
+	if _want("story_opening"): await _shot_story("prologue", 11, "story_opening")
+	if _want("story_flashback"): await _shot_story("prologue", 60, "story_flashback")
+	if _want("story_card"): await _shot_story("prologue", 1, "story_card")
+	if _want("forest_story"): await _shot_story("ch02_pre", 3, "forest_story")
+	if _want("fight"): await _shot_fight("fight01", "fight")
+	if _want("mist"): await _shot_fight("fight02", "mist")
+	if _want("pass_story"): await _shot_story("ch03_pre", 4, "pass_story")
+	if _want("pass"): await _shot_fight("fight03", "pass")
+	if _want("sanctuary_story"): await _shot_story("ch04_pre", 5, "sanctuary_story")
+	if _want("sanctuary"): await _shot_fight("fight04", "sanctuary")
 	get_tree().quit()
 
 

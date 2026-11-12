@@ -5,27 +5,58 @@ extends Control
 
 var char_id: String = ""
 var facing_left := false
+var expression := "neutral"
 var _color := Color.WHITE
 var _hair := "short"
+var _look: Dictionary = {}
+var _t := 0.0
+var _shake := 0.0
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	resized.connect(queue_redraw)
+	_t = randf() * 3.0   # so two portraits don't blink in sync
 
 
 func set_character(id: String, face_left: bool) -> void:
 	char_id = id
 	facing_left = face_left
+	expression = "neutral"
 	var c := StoryParser.character(id)
 	_color = Color(c.get("color", "#cccccc"))
 	_hair = c.get("hair", "short")
+	_look = PortraitArt.look_for(id).get("portrait", {})
 	visible = id != "" and _hair != "none"
 	queue_redraw()
 
 
+func set_expression(e: String) -> void:
+	if e == "":
+		return
+	if e in ["angry", "shocked"] and e != expression:
+		_shake = 0.25   # a little jolt on strong emotions
+	expression = e
+
+
+func _process(delta: float) -> void:
+	if not _look.is_empty() and visible:
+		_t += delta
+		_shake = maxf(0.0, _shake - delta)
+		queue_redraw()
+
+
 func _draw() -> void:
 	if char_id == "":
+		return
+	if not _look.is_empty():
+		var jolt := Vector2(sin(_t * 90.0) * 8.0 * _shake, 0)
+		if facing_left:
+			draw_set_transform(Vector2(size.x, 0) + jolt, 0, Vector2(-1, 1))
+		else:
+			draw_set_transform(jolt)
+		PortraitArt.paint(self, size, _look, expression, _t, _color)
+		draw_set_transform(Vector2.ZERO)
 		return
 	var w := size.x
 	var h := size.y

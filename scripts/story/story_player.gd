@@ -285,6 +285,7 @@ func _say(s: Dictionary) -> void:
 				slot = "left" if _last_spoke["left"] < _last_spoke["right"] else "right"
 			_show(slot, who)
 		_last_spoke[slot] = index
+		_portraits[slot].set_expression(s.get("expr", ""))
 		for k in _portraits:
 			_portraits[k].self_modulate = Color.WHITE if k == slot else Color(0.45, 0.45, 0.5)
 	_box.visible = true

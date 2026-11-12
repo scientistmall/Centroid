@@ -14,6 +14,8 @@ extends RefCounted
 ##   @wait 1.5                                  pause (seconds)
 ##   @next story|fight|menu id                  where to go when the scene ends
 ##   NAME: spoken line                          dialogue (NAME in capitals)
+##   NAME [angry]: spoken line                  dialogue with an expression
+##                                              (neutral, angry, determined, sad, shocked, smile)
 ##   > narration text                           stage direction / narration
 
 const CHARACTERS_PATH := "res://data/characters.json"
@@ -97,12 +99,19 @@ static func parse(text: String) -> Dictionary:
 		else:
 			var colon := line.find(":")
 			var who := line.substr(0, colon) if colon > 0 else ""
-			if colon > 0 and who == who.to_upper() and who.length() <= 24:
+			# optional expression: "KAEL [angry]: text"
+			var expr := ""
+			var lb := who.find("[")
+			if lb != -1 and who.find("]") > lb:
+				expr = who.substr(lb + 1, who.find("]") - lb - 1).strip_edges().to_lower()
+				who = who.substr(0, lb)
+			if colon > 0 and who.strip_edges() == who.strip_edges().to_upper() and who.length() <= 24:
 				steps.append({
 					"t": "line",
 					"who": id_for_name(who),
 					"name": who.strip_edges(),
 					"text": line.substr(colon + 1).strip_edges(),
+					"expr": expr,
 				})
 			else:
 				steps.append({"t": "narrate", "text": line})

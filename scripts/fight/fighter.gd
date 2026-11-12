@@ -66,6 +66,11 @@ var side := 0                   # 0 = player side, 1 = enemy side
 var pull_source: Fighter        # who is pulling us (gravity status)
 var shots_fired := 0
 var pull_speed := 380.0
+# Visuals (shadow-anime rig)
+var costume: Dictionary = {}
+var sec := Vector2.ZERO          # secondary-motion lag for cloth and hair
+var _sec_vel := Vector2.ZERO
+var _trail: Array = []           # recent weapon-tip positions (world) for smears
 
 
 func setup(fighter_data: Dictionary) -> void:
@@ -79,6 +84,7 @@ func setup(fighter_data: Dictionary) -> void:
 	walk_speed = float(data.get("walk_speed", 430))
 	jump_vel = float(data.get("jump_velocity", 1300))
 	powers = data.get("powers", [])
+	costume = PortraitArt.look_for(char_id).get("fighter", {})
 	reset_for_round()
 
 
@@ -178,9 +184,39 @@ func _physics_process(delta: float) -> void:
 	if is_grounded() and state in [S.HURT, S.BLOCKSTUN, S.KO, S.FROZEN, S.WIN]:
 		vel.x = move_toward(vel.x, 0.0, PUSH_FRICTION * delta)
 	position.x = clampf(position.x, stage_left, stage_right)
+	_update_visual_motion(delta)
 	var target_alpha := 0.16 if is_veiled() else 1.0
 	modulate.a = move_toward(modulate.a, target_alpha, delta * 4.0)
 	queue_redraw()
+
+
+# ------------------------------------------------------------------ visual motion
+
+## Springy cloth/hair lag and the weapon smear trail.
+func _update_visual_motion(delta: float) -> void:
+	var target := Vector2(clampf(-vel.x * 0.05, -40.0, 40.0), clampf(-vel.y * 0.02, -30.0, 30.0))
+	target.x += sin(clock * 1.7) * 3.0
+	_sec_vel += (target - sec) * 90.0 * delta
+	_sec_vel *= exp(-9.0 * delta)
+	sec += _sec_vel * delta
+	var swinging := false
+	if state == S.ATTACK:
+		var tm := _move_times()
+		swinging = state_time >= tm.x * 0.9 and state_time <= tm.x + tm.y + 0.04
+	elif state == S.POWER and power_def.get("type", "") in ["dash", "lash", "burst"]:
+		swinging = true
+	if swinging and weapon != "none":
+		# record the blade tip and a point 40% down the blade (pairs) for a crescent smear
+		var pose := current_pose()
+		var j := FighterPainter.joints(pose, facing)
+		var tip := FighterPainter.weapon_tip(pose, facing, weapon)
+		_trail.append(position + tip)
+		_trail.append(position + j["hand_f"].lerp(tip, 0.4))
+		while _trail.size() > 12:
+			_trail.pop_front()
+	elif not _trail.is_empty():
+		_trail.pop_front()
+		_trail.pop_front()
 
 
 # ------------------------------------------------------------------ statuses
@@ -738,12 +774,21 @@ func _draw() -> void:
 			var a := clock * 1.5 + i * TAU / 12.0
 			draw_arc(Vector2(cos(a), sin(a)) * 95.0, 12.0, 0, TAU, 10, Color(0.15, 0.35, 0.12, 0.9), 4.0)
 		draw_set_transform(Vector2.ZERO)
-	FighterPainter.paint(self, current_pose(), facing, color, weapon, element, clock, flash, charged)
+	if costume.is_empty():
+		FighterPainter.paint(self, current_pose(), facing, color, weapon, element, clock, flash, charged)
+	else:
+		var local_trail := PackedVector2Array()
+		for wp in _trail:
+			local_trail.append(wp - position)
+		FighterArt.paint(self, current_pose(), facing, color, weapon, element, clock, flash, charged, costume, sec, local_trail)
 	if has_status("poison"):
 		# green drips rising off the body
 		for i in 6:
 			var ph := fmod(clock * 0.9 + i * 0.37, 1.0)
 			var px := -40.0 + fmod(i * 23.0, 80.0)
 			draw_circle(Vector2(px, -60.0 - ph * 200.0), 7.0 * (1.0 - ph) + 2.0, Color(0.45, 1.0, 0.35, 0.7 * (1.0 - ph)))
-	if invuln > 0.0 and state == S.POWER:
-		draw_rect(Rect2(-60, -280, 120, 280), Color(color.r, color.g, color.b, 0.12))
+	if invuln > 0.0 and state == S.POWER and power_def.get("type", "") == "dash":
+		# lightning-fast afterimage streaks behind a dash
+		for k in 4:
+			var x := -facing * (30.0 + k * 34.0)
+			draw_line(Vector2(x, -250 + k * 12), Vector2(x, -30), Color(color, 0.35 - k * 0.07), 10.0 - k * 2.0)
