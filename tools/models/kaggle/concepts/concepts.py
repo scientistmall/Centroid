@@ -19,6 +19,7 @@ def log(*a):
 
 def main():
     t = time.time()
+    os.environ["HF_HOME"] = "/kaggle/tmp/hf"  # keep model downloads out of the job output
     subprocess.run("pip install -q -U diffusers transformers accelerate bitsandbytes sentencepiece protobuf",
                    shell=True, check=True)
     import numpy as np

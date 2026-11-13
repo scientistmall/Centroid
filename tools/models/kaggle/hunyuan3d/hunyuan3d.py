@@ -33,18 +33,30 @@ def sh(cmd, cwd=None):
     return r.stdout
 
 
+MISSING = ["rembg", "onnxruntime", "xatlas", "trimesh", "pymeshlab", "einops", "omegaconf", "pygltflib",
+           "accelerate", "diffusers", "pybind11", "ninja"]
+
+
 def setup():
+    """Install only what Kaggle's image lacks, pinned to its existing versions
+    (a blanket requirements.txt install breaks Kaggle's numpy/OpenCV)."""
+    import importlib.metadata as md
+    import importlib.util
     t = time.time()
     os.makedirs("/kaggle/tmp", exist_ok=True)
+    # big model downloads stay out of /kaggle/working (everything there becomes job output)
+    os.environ["HF_HOME"] = "/kaggle/tmp/hf"
+    os.environ["HY3DGEN_MODELS"] = "/kaggle/tmp/hf"
     if not os.path.isdir(SRC):
         sh(f"git clone --depth 1 https://github.com/Tencent/Hunyuan3D-2 {SRC}")
-    # the Kaggle image already has torch/torchvision; install the rest without touching torch
-    reqs = [l.strip() for l in open(f"{SRC}/requirements.txt") if l.strip() and not l.startswith("#")]
-    reqs = [r for r in reqs if not r.lower().startswith(("torch", "torchvision", "gradio", "fastapi", "uvicorn"))]
-    sh("pip install -q " + " ".join(f"'{r}'" for r in reqs))
-    sh("pip install -q .", cwd=SRC)
-    sh("pip install -q --no-build-isolation .", cwd=f"{SRC}/hy3dgen/texgen/custom_rasterizer")
-    sh("bash compile_mesh_painter.sh", cwd=f"{SRC}/hy3dgen/texgen/differentiable_renderer")
+    pins = sorted(f"{d.metadata['Name']}=={d.version}" for d in md.distributions() if d.metadata["Name"])
+    open("/kaggle/tmp/constraints.txt", "w").write("\n".join(pins))
+    need = [p for p in MISSING if importlib.util.find_spec(p.replace("-", "_")) is None]
+    if need:
+        sh("pip install -q -c /kaggle/tmp/constraints.txt " + " ".join(need))
+    sh("pip install -q --no-deps -e .", cwd=SRC)
+    sh("python3 setup.py install", cwd=f"{SRC}/hy3dgen/texgen/custom_rasterizer")
+    sh("python3 setup.py install", cwd=f"{SRC}/hy3dgen/texgen/differentiable_renderer")
     sys.path.insert(0, SRC)
     log("setup done in %.0fs" % (time.time() - t))
 
