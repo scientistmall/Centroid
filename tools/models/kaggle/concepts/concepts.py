@@ -1,6 +1,6 @@
-# Kaggle GPU job: character concept images with FLUX.1-schnell (Apache-2.0).
+# Kaggle GPU job: character concept images with FLUX.2 [klein] 4B (Apache-2.0, not gated).
+# (FLUX.1-schnell is now gated on Hugging Face, so it can't be downloaded anonymously here.)
 # Pushed and run by tools/models/kaggle_run.py, which fills in JOBS below.
-# 4-bit quantized so the 12B model fits a 16 GB T4 and Kaggle's ~29 GB RAM.
 # Outputs: /kaggle/working/<name>_k<i>.png, log lines prefixed "CENTROID".
 import os
 import random
@@ -10,6 +10,7 @@ import traceback
 
 JOBS = []  # filled in by kaggle_run.py: [{"name": "darin", "prompt": "...", "n": 2}, ...]
 WIDTH, HEIGHT, STEPS = 832, 1216, 4
+REPO = "black-forest-labs/FLUX.2-klein-4B"
 WORK = "/kaggle/working"
 
 
@@ -17,42 +18,50 @@ def log(*a):
     print("CENTROID", *a, flush=True)
 
 
+def load(dtype):
+    import torch  # noqa: F401
+    from diffusers import Flux2KleinPipeline
+    pipe = Flux2KleinPipeline.from_pretrained(REPO, torch_dtype=dtype)
+    pipe.enable_model_cpu_offload()
+    return pipe
+
+
+def render(pipe, prompt, seed):
+    import torch
+    return pipe(prompt=prompt, width=WIDTH, height=HEIGHT, num_inference_steps=STEPS, guidance_scale=1.0,
+                generator=torch.Generator("cpu").manual_seed(seed)).images[0]
+
+
 def main():
     t = time.time()
     os.environ["HF_HOME"] = "/kaggle/tmp/hf"  # keep model downloads out of the job output
-    subprocess.run("pip install -q -U diffusers transformers accelerate bitsandbytes sentencepiece protobuf",
-                   shell=True, check=True)
+    subprocess.run("pip install -q -U diffusers transformers accelerate", shell=True, check=True)
     import numpy as np
     import torch
-    from diffusers import BitsAndBytesConfig as DBnb
-    from diffusers import FluxPipeline, FluxTransformer2DModel
-    from transformers import BitsAndBytesConfig as TBnb
-    from transformers import T5EncoderModel
+    log("GPUs:", [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())])
 
-    repo = "black-forest-labs/FLUX.1-schnell"
     dtype = torch.bfloat16
-    q_d = DBnb(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=dtype)
-    q_t = TBnb(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=dtype)
-    transformer = FluxTransformer2DModel.from_pretrained(repo, subfolder="transformer",
-                                                         quantization_config=q_d, torch_dtype=dtype)
-    t5 = T5EncoderModel.from_pretrained(repo, subfolder="text_encoder_2", quantization_config=q_t, torch_dtype=dtype)
-    pipe = FluxPipeline.from_pretrained(repo, transformer=transformer, text_encoder_2=t5, torch_dtype=dtype)
-    pipe.enable_model_cpu_offload()
-    log("loaded in %.0fs" % (time.time() - t))
+    pipe = load(dtype)
+    # T4s have no native bf16: if the first image comes out blank, switch to fp16
+    probe = render(pipe, JOBS[0]["prompt"], 1) if JOBS else None
+    if probe is not None and np.asarray(probe).std() < 2:
+        log("bf16 gave a blank image, reloading in fp16")
+        del pipe
+        torch.cuda.empty_cache()
+        dtype = torch.float16
+        pipe = load(dtype)
+    log("ready (%s) in %.0fs" % (dtype, time.time() - t))
 
     for job in JOBS:
         for i in range(job.get("n", 2)):
             seed = random.randint(1, 2_000_000_000)
             try:
                 t1 = time.time()
-                img = pipe(job["prompt"], width=WIDTH, height=HEIGHT, num_inference_steps=STEPS,
-                           guidance_scale=0.0, max_sequence_length=256,
-                           generator=torch.Generator("cpu").manual_seed(seed)).images[0]
-                if np.asarray(img).std() < 2:  # black / NaN image
+                img = render(pipe, job["prompt"], seed)
+                if np.asarray(img).std() < 2:
                     log("blank image", job["name"], i + 1)
                     continue
-                path = f"{WORK}/{job['name']}_k{i + 1}.png"
-                img.save(path)
+                img.save(f"{WORK}/{job['name']}_k{i + 1}.png")
                 log("concept ok", job["name"], i + 1, "seed", seed, "%.0fs" % (time.time() - t1))
             except Exception:
                 log("concept FAILED", job["name"], traceback.format_exc()[-1500:])

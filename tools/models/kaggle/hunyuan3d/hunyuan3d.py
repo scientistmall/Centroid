@@ -40,7 +40,7 @@ MISSING = ["rembg", "onnxruntime", "xatlas", "trimesh", "pymeshlab", "einops", "
 def setup():
     """Install only what Kaggle's image lacks, pinned to its existing versions
     (a blanket requirements.txt install breaks Kaggle's numpy/OpenCV)."""
-    import importlib.metadata as md
+    import importlib
     import importlib.util
     t = time.time()
     os.makedirs("/kaggle/tmp", exist_ok=True)
@@ -49,11 +49,23 @@ def setup():
     os.environ["HY3DGEN_MODELS"] = "/kaggle/tmp/hf"
     if not os.path.isdir(SRC):
         sh(f"git clone --depth 1 https://github.com/Tencent/Hunyuan3D-2 {SRC}")
-    pins = sorted(f"{d.metadata['Name']}=={d.version}" for d in md.distributions() if d.metadata["Name"])
+    # pin only the core packages a careless install would break (pinning everything leaves
+    # no installable rembg); everything else resolves freely
+    # pin to the version each module actually imports as (Kaggle's image has stray duplicate
+    # dist-infos, e.g. two numpys, which make metadata-based pins contradict each other)
+    core = {"numpy": "numpy", "torch": "torch", "torchvision": "torchvision", "torchaudio": "torchaudio",
+            "scipy": "scipy", "pillow": "PIL"}
+    pins = []
+    for dist, mod in core.items():
+        try:
+            pins.append(f"{dist}=={importlib.import_module(mod).__version__}")
+        except Exception:
+            pass
     open("/kaggle/tmp/constraints.txt", "w").write("\n".join(pins))
+    log("pinned:", ", ".join(pins))
     need = [p for p in MISSING if importlib.util.find_spec(p.replace("-", "_")) is None]
-    if need:
-        sh("pip install -q -c /kaggle/tmp/constraints.txt " + " ".join(need))
+    for p in need:  # one at a time, so one bad package names itself
+        sh(f"pip install -q -c /kaggle/tmp/constraints.txt {p}")
     sh("pip install -q --no-deps -e .", cwd=SRC)
     sh("python3 setup.py install", cwd=f"{SRC}/hy3dgen/texgen/custom_rasterizer")
     sh("python3 setup.py install", cwd=f"{SRC}/hy3dgen/texgen/differentiable_renderer")
