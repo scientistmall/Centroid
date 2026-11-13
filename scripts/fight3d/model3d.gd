@@ -24,6 +24,8 @@ const SHADER := preload("res://assets/shaders/character.gdshader")
 const BLEND := {"idle": 0.18, "walk_forward": 0.15, "walk_back": 0.15, "block": 0.08, "jump": 0.1}
 
 static var _lib: AnimationLibrary
+static var _weapon_specs := {}  # owner char_id -> spec from assets/weapons/weapons.json
+const WEAPONS_JSON := "res://assets/weapons/weapons.json"
 
 var fighter: Fighter
 var stage: Stage3D
@@ -117,7 +119,14 @@ func _build_weapon(rig: Node3D, kind: String, col: Color) -> void:
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color("1b1d24")
 	var w := Node3D.new()
+	var spec := _weapon_spec(fighter.char_id)
+	var reach_override := -1.0
+	if not spec.is_empty():
+		reach_override = _glb_weapon(w, spec)
+		kind = "glb"
 	match kind:
+		"glb":
+			pass
 		"sword", "flex_blade", "twin_swords", "crystal_blades":
 			_part(w, _boxm(Vector3(0.045, 0.82, 0.01)), steel, Vector3(0, 0.5, 0))
 			_part(w, _boxm(Vector3(0.012, 0.82, 0.013)), glow, Vector3(0.02, 0.5, 0))
@@ -139,6 +148,8 @@ func _build_weapon(rig: Node3D, kind: String, col: Color) -> void:
 		_:
 			return
 	var reach: float = {"axe": 0.7, "spear": 1.37, "whip": 0.1, "daggers": 0.37}.get(kind, 0.92)
+	if reach_override > 0.0:
+		reach = reach_override
 	_tip = Node3D.new()
 	_tip.position = Vector3(0, reach, 0)
 	w.add_child(_tip)
@@ -155,6 +166,37 @@ func _build_weapon(rig: Node3D, kind: String, col: Color) -> void:
 	w.basis = (hb.inverse() * want).scaled(Vector3.ONE / rig.scale.x)
 	# grip in the palm: a little way along the fingers (+Y of Mixamo hand bones)
 	w.position = Vector3(0, 0.07 / rig.scale.x, 0.02 / rig.scale.x)
+
+
+## The designed weapon for this character, if its 3D model exists (see tools/models/weapon_grip.py).
+static func _weapon_spec(char_id: String) -> Dictionary:
+	if _weapon_specs.is_empty() and FileAccess.file_exists(WEAPONS_JSON):
+		var data = JSON.parse_string(FileAccess.get_file_as_string(WEAPONS_JSON))
+		if data is Dictionary:
+			for wid in data:
+				var sp: Dictionary = data[wid]
+				if ResourceLoader.exists(sp.get("file", "")):
+					_weapon_specs[sp.get("owner", "")] = sp
+	return _weapon_specs.get(char_id, {})
+
+
+## Put the weapon model under `w` with its grip at the origin, blade along +Y, edge along +X,
+## scaled to its real length. Returns the grip-to-tip distance in metres.
+static func _glb_weapon(w: Node3D, spec: Dictionary) -> float:
+	var inst: Node3D = (load(spec["file"]) as PackedScene).instantiate()
+	var axis := _v3(spec["axis"]).normalized()
+	var side := _v3(spec["side"])
+	side = (side - axis * side.dot(axis)).normalized()
+	var src := Basis(side, axis, side.cross(axis))  # columns: where +X, +Y, +Z of the holder point
+	var k: float = float(spec["metres"]) / float(spec["length"])
+	var r := src.transposed().scaled(Vector3.ONE * k)
+	inst.transform = Transform3D(r, -(r * _v3(spec["grip"])))
+	w.add_child(inst)
+	return float(spec["tip_from_grip"]) * k
+
+
+static func _v3(a: Array) -> Vector3:
+	return Vector3(a[0], a[1], a[2])
 
 
 static func _boxm(size: Vector3) -> Mesh:
