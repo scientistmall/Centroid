@@ -27,6 +27,8 @@ def sh(cmd, cwd=None):
     log("$", cmd)
     r = subprocess.run(cmd, shell=True, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     tail = "\n".join(r.stdout.splitlines()[-25:])
+    if "versions:" in r.stdout:
+        log(r.stdout.strip().splitlines()[-1])
     if r.returncode != 0:
         log("FAILED", r.returncode, "\n" + tail)
         raise SystemExit(1)
@@ -66,6 +68,13 @@ def setup():
     need = [p for p in MISSING if importlib.util.find_spec(p.replace("-", "_")) is None]
     for p in need:  # one at a time, so one bad package names itself
         sh(f"pip install -q -c /kaggle/tmp/constraints.txt {p}")
+    # Hunyuan3D-2's checkpoints use the transformers 4.x DINOv2 weight names
+    # (5.x renamed attention.query/key/value to q_proj/k_proj/v_proj)
+    # ...and a diffusers/huggingface_hub of the same generation, resolved together
+    sh("pip install -q -c /kaggle/tmp/constraints.txt 'transformers>=4.48,<5' 'diffusers>=0.32,<0.36' "
+       "'huggingface_hub>=0.30,<1.0'")
+    sh("python3 -c \"import transformers, diffusers, huggingface_hub as h; "
+       "print('versions: transformers', transformers.__version__, 'diffusers', diffusers.__version__, 'hub', h.__version__)\"")
     sh("pip install -q --no-deps -e .", cwd=SRC)
     sh("python3 setup.py install", cwd=f"{SRC}/hy3dgen/texgen/custom_rasterizer")
     sh("python3 setup.py install", cwd=f"{SRC}/hy3dgen/texgen/differentiable_renderer")
