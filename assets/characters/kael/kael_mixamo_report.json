@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/kael/raw/kael.glb",
+  "zip": "/home/user/centroid/assets/characters/kael/kael_mixamo.zip",
+  "height_m": 1.78,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "kael.obj",
+    "kael.obj.mtl",
+    "material_0.png"
+  ],
+  "zip_mb": 4.66
+}
