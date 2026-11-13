@@ -11,6 +11,8 @@ import time
 import traceback
 
 JOBS = []  # filled in by kaggle_run.py: [{"name": "kael", "image": "kael_1.png"}, ...]
+#   multi-view: {"name": "kael", "image": "front.png", "views": {"front": f, "back": f, "left": f, "right": f}}
+#   "faces": per-job face budget (default FACES), e.g. 20000 for weapons
 OCTREE = 256
 STEPS = 30
 FACES = 60000
@@ -100,31 +102,45 @@ def main():
     from hy3dgen.texgen import Hunyuan3DPaintPipeline
 
     rembg = BackgroundRemover()
-    images = {}
+    images = {}   # name -> front image (also the texture reference)
+    mviews = {}   # name -> {view: image} for multi-view jobs
     for job in JOBS:
-        img = Image.open(find_image(job["image"])).convert("RGBA")
-        images[job["name"]] = rembg(img.convert("RGB"))
+        img = Image.open(find_image(job["image"])).convert("RGB")
+        images[job["name"]] = rembg(img)
+        if job.get("views"):
+            mviews[job["name"]] = {v: rembg(Image.open(find_image(f)).convert("RGB"))
+                                   for v, f in job["views"].items()}
 
     # ---- stage 1: shapes (then free the GPU for texturing)
     t = time.time()
-    shape = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained("tencent/Hunyuan3D-2",
-                                                             subfolder="hunyuan3d-dit-v2-0")
     meshes = {}
-    for name, img in images.items():
-        try:
-            m = shape(image=img, num_inference_steps=STEPS, octree_resolution=OCTREE,
-                      generator=torch.manual_seed(1234))[0]
-            m = FloaterRemover()(m)
-            m = DegenerateFaceRemover()(m)
-            m = FaceReducer()(m, max_facenum=FACES)
-            m.export(f"{WORK}/{name}_shape.glb")
-            meshes[name] = m
-            log("shape ok", name, len(m.faces), "faces")
-        except Exception:
-            log("shape FAILED", name, traceback.format_exc()[-1500:])
-    del shape
-    gc.collect()
-    torch.cuda.empty_cache()
+
+    def post(name, m, job):
+        m = FloaterRemover()(m)
+        m = DegenerateFaceRemover()(m)
+        m = FaceReducer()(m, max_facenum=job.get("faces", FACES))
+        m.export(f"{WORK}/{name}_shape.glb")
+        meshes[name] = m
+        log("shape ok", name, len(m.faces), "faces", "(multi-view)" if name in mviews else "")
+
+    groups = [("tencent/Hunyuan3D-2mv", "hunyuan3d-dit-v2-mv", [j for j in JOBS if j["name"] in mviews]),
+              ("tencent/Hunyuan3D-2", "hunyuan3d-dit-v2-0", [j for j in JOBS if j["name"] not in mviews])]
+    for repo, sub, jobs in groups:
+        if not jobs:
+            continue
+        shape = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(repo, subfolder=sub)
+        for job in jobs:
+            name = job["name"]
+            try:
+                inp = mviews.get(name) or images[name]
+                m = shape(image=inp, num_inference_steps=STEPS, octree_resolution=OCTREE,
+                          generator=torch.manual_seed(1234))[0]
+                post(name, m, job)
+            except Exception:
+                log("shape FAILED", name, traceback.format_exc()[-1500:])
+        del shape
+        gc.collect()
+        torch.cuda.empty_cache()
     log("shapes done in %.0fs" % (time.time() - t))
 
     # ---- stage 2: textures
