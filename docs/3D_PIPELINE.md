@@ -1,22 +1,21 @@
 # THE CENTROID — Making the 3D Characters (step by step)
 
-You create the character **models** with an AI 3D tool, and Mixamo adds the **skeleton**
-and **motion-captured fight animations**. I then import everything into the game,
-connect it to the fight system, and add effects, lighting and camera work.
+**Claude makes the character models.** Concept art and textured 3D models are generated
+on your free **Kaggle** GPUs:
+- **FLUX.2 [klein]** makes the concept art;
+- Tencent's **Hunyuan3D-2** turns each concept into a textured 3D model;
+- each model is converted to a **Mixamo-ready ZIP**.
 
-**Start with the pilot: Kael, Rhex, and the animation pack (Part 3).** Send those
-first. Once they look right in the game, we do the rest.
+**Your step is Mixamo** (mixamo.com, free with an Adobe account). It adds the
+**skeleton** and the **motion-captured fight animations**. I then import everything into
+the game, connect it to the fight system, and add effects, lighting and camera work.
 
-You need:
-- **Tencent Hunyuan3D** (3d.hunyuan.tencent.com), free with a daily quota. It makes the
-  3D model from your image.
-- **Mixamo** (mixamo.com), free with an Adobe account. It adds the skeleton and the
-  animations.
-- Optionally, an AI image tool (any you like) for concept art.
+Where things are:
+- every character's ZIP is at `assets/characters/<name>/<name>_mixamo.zip`, with a
+  4-view preview next to it (`<name>_preview.png`);
+- the cast overview is `docs/ref/cast_concepts.png`.
 
-**Don't worry about file formats or file sizes.** Whatever Hunyuan3D gives you, Part 1
-shows where it goes. If it's in a format Mixamo doesn't accept, or it's too heavy, I
-convert and slim it for you.
+**Start with the pilot: Kael, Rhex, and the animation pack (Part 3).**
 
 ---
 
@@ -172,55 +171,45 @@ to laugh at you.
 
 ---
 
-## Part 1 — Make one character model (repeat per character)
+## Part 1 — How the models are made (done by Claude)
 
-### Step 1. Concept image (recommended — gives far better models)
-In any AI image tool, generate a **front view, full body, A-pose** image on a plain
-light-grey background. Use the character brief from Part 4 and add:
+```
+python3 tools/models/kaggle_run.py concepts --missing --n 2   # 2 concept candidates per character
+python3 tools/models/kaggle_run.py model kael rhex            # textured GLBs -> assets/characters/<name>/raw/
+python3 tools/models/prepare_for_mixamo.py assets/characters/kael/raw/kael.glb --name kael --height 1.78
+```
 
-> full body, front view, A-pose (arms angled down ~45°), standing straight, plain light grey background, character design sheet, stylized realistic, game character, even lighting, no shadows, no weapon in hands
+The steps:
+1. **Concept:** a full-body, front-view A-pose image, made from the design prompts in
+   `tools/models/generate_character.py`. Claude picks the best of two candidates. The
+   pick is kept as `assets/characters/<name>/concepts/<name>_1.png`.
+2. **3D model:** Hunyuan3D-2 runs on Kaggle, about 4 minutes per character.
+   - Background removal, then shape, then texture.
+   - Output: `raw/<name>.glb` (textured) and `raw/<name>_shape.glb`.
+3. **Check:** a 4-view render (front, ¾, side, back), checked by eye.
+4. **Convert:** the model is put on the ground, scaled to the character's height and
+   reduced to about 30,000 triangles with its texture. The result is
+   `<name>_mixamo.zip` (OBJ + MTL + PNG).
 
-Pick the best result. Make sure the hands are open, the feet are visible and nothing
-overlaps the body.
+Known limit: the AI only sees the front of the concept, so **the back of the outfit
+comes out greyer** than the front. It's barely visible in the side-on fight camera, and
+it can be fixed later with a back-view concept.
 
-### Step 2. Image to 3D with Tencent Hunyuan3D
-1. Open **3d.hunyuan.tencent.com** and sign in.
-2. Choose **Image to 3D** (图生3D) and upload your concept image from Step 1.
-   - No concept image yet? You can upload `docs/ref/kael_reference.png` or
-     `docs/ref/rhex_reference.png` to try, but a full-body A-pose image works much
-     better.
-   - **Text to 3D** (文生3D) also works: paste the brief from Part 4 plus "A-pose, full
-     body, game character".
-3. Settings, if offered (names vary; pick the closest):
-   - **Texture / 纹理:** on, at the highest quality.
-   - **Face count / 面数 / low-poly:** pick a **lower** option if there is one. If not,
-     that's fine: I'll slim it down.
-   - **Symmetry:** on, if offered.
-4. Generate. Rotate the preview and check:
-   - [ ] two separate arms and two separate legs;
-   - [ ] hands not fused to the hips or body;
-   - [ ] roughly an A-pose (arms angled down, away from the body);
-   - [ ] the face, hair and outfit match the design sheet in Part 0.
+**Licence:** Hunyuan3D-2 uses the Tencent Hunyuan Community License.
+- It does not cover the EU, UK or South Korea.
+- Products with over 1M monthly users need a separate licence from Tencent.
 
-   If something is wrong, regenerate. A new image with arms clearly away from the body
-   fixes most problems.
-5. **Download** the model. Pick the option by format:
+FLUX.2 [klein] 4B is Apache-2.0.
 
-   | What you can download | What to do next |
-   |---|---|
-   | **FBX** | Go straight to **Step 3** (Mixamo). |
-   | **OBJ** (+ texture image, maybe a `.mtl` file) | Put the `.obj`, the `.mtl` and the texture image(s) into **one ZIP** and upload that ZIP to Mixamo in **Step 3**. |
-   | **GLB / GLTF only**, *or* the file is very big (over about **20 MB**), *or* Mixamo rejects it | Upload the downloaded file to the repo folder **`assets/characters/<name>/raw/`** (e.g. `assets/characters/kael/raw/kael.glb`) and tell me. I'll convert it and send back a **Mixamo-ready ZIP** (`kael_mixamo.zip`) that you then upload in **Step 3**. |
+### Making one yourself instead (optional)
+You can also use **3d.hunyuan.tencent.com**: choose Image to 3D with the concept PNG and
+download the result. Upload whatever it gives you to `assets/characters/<name>/raw/` and
+I'll convert it.
 
-6. **Weapons:** make each weapon as its own model the same way (Text to 3D works well:
-   "single-edged curved sword, game asset, isolated, plain background"). Download it in
-   any format and upload it to `assets/characters/<name>/`, e.g.
-   `assets/characters/kael/kael_weapon.glb`. Weapons **don't** go to Mixamo; I attach
-   them to the hand in the game.
+## Your step — rig each character on Mixamo
 
-### Step 3. Rig it on Mixamo
-1. On mixamo.com, click **Upload Character** and choose your **FBX**, your **ZIP**, or the
-   `<name>_mixamo.zip` I sent you.
+1. On mixamo.com, click **Upload Character** and choose `<name>_mixamo.zip`
+   (from `assets/characters/<name>/`, or the copy I sent you).
 2. In the auto-rigger, place the markers on the **chin, wrists, elbows, knees and
    groin**. Leave Skeleton LOD at **Standard**.
 3. Check the preview animates correctly, then press **Next**.
@@ -246,13 +235,12 @@ overlaps the body.
 The files go into the repository **scientistmall/Centroid**:
 
 ```
-assets/characters/kael/kael.fbx           (rigged model from Mixamo)
-assets/characters/kael/kael_weapon.glb    (weapon model — any format: .glb / .fbx / .obj)
-assets/characters/kael/raw/kael.glb       (the original Hunyuan3D download — always upload this too)
-assets/characters/kael/concept.png        (your concept image, optional)
+assets/characters/kael/kael.fbx           (rigged model downloaded from Mixamo)
 assets/animations/idle.fbx                (animation pack, Part 3)
 ...
 ```
+
+Everything else (concepts, raw models, ZIPs, previews) is already in the repository.
 
 **On a PC:**
 1. Open the repository on github.com and go to the `assets` folder.
