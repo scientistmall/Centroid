@@ -140,3 +140,28 @@ SETTINGS = {
 
 PANEL_SIZE = {"wide": (1344, 768), "action": (1344, 768), "square": (1024, 1024), "tall": (768, 1152),
               "strip": (1536, 512), "splash": (1536, 688)}
+
+# ----------------------------------------------------------------------------- power cut-in splash art
+SPLASH_STYLE = ("dynamic full colour manga splash illustration, anime key art, dramatic low camera angle, "
+                "intense expression, motion lines and energy, cinematic rim lighting, the character large in frame "
+                "from the waist up, dark background lit by the power. No text, no letters, no watermark, no frame")
+
+# (character, power index 1-based) -> what the art shows
+SPLASH = {
+    ("kael", 1): "Kael thrusting his sword forward as a crackling bolt of blue-white lightning blasts from its tip",
+    ("kael", 2): "Kael dashing forward in a blur, his body wrapped in blue lightning, afterimages streaking behind him",
+    ("rhex", 1): "Rhex slamming his battle axe down, unleashing a roaring wave of black flames with ember-red edges",
+    ("rhex", 2): "Rhex roaring with his axe raised as a dome of black fire explodes around him, embers flying",
+    ("tala", 1): "Tala with her spear held across her body, her amber eyes glowing green as a ring of wind blows the mist away",
+    ("tala", 2): "Tala lunging and thrusting her spear as a spiralling green wind lance tears forward with leaves",
+    ("vaska", 1): "Vaska fading into swirling grey mist, only her eyes and twin blades visible through the fog",
+    ("vaska", 2): "Vaska stepping out of the mist beside a ghostly mirror image of herself, both with twin blades raised",
+    ("darin", 1): "Darin slamming his stone gauntlets into the ground as a massive wall of rock erupts before him",
+    ("darin", 2): "Darin punching the ground with a stone gauntlet, cracks and rock spikes racing forward, dust exploding",
+    ("mael", 1): "Mael raising one hand as a black sphere of crushing gravity forms, rocks orbiting it, purple light",
+    ("mael", 2): "Mael hurling glowing purple boulders that rise and launch from the shattered ground",
+    ("mira", 1): "Mira with her eyes closed, bathed in a pillar of soft pink-white moonlight, crescent symbols glowing around her",
+    ("mira", 2): "Mira whipping her segmented silver blade like a ribbon of pink moonlight across the frame",
+    ("nyra", 1): "Nyra cracking her long whip which drips glowing green venom, a cruel smile",
+    ("nyra", 2): "Nyra reaching out with a clawed hand as dark green curse tendrils drain glowing energy toward her",
+}

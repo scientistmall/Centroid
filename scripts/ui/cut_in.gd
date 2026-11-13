@@ -11,6 +11,8 @@ var from_left := true
 var t := 0.0
 const DURATION := 0.9
 
+var power_index := 0          # 1-based; picks assets/cutins/cutin_<char>_<n>.webp
+var art: Texture2D            # power splash illustration (Kaggle), if it exists
 var look: Dictionary = {}
 var _mask: BandMask
 var _face: Face
@@ -21,6 +23,9 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	look = PortraitArt.look_for(char_id).get("portrait", {})
+	var path := "res://assets/cutins/cutin_%s_%d.webp" % [char_id, power_index]
+	if power_index > 0 and ResourceLoader.exists(path):
+		art = load(path)
 	_mask = BandMask.new()
 	_mask.cut = self
 	_mask.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
@@ -63,7 +68,7 @@ func shift() -> float:
 func band() -> PackedVector2Array:
 	var w := size.x
 	var h := size.y
-	var bh := h * 0.30
+	var bh := h * (0.46 if art else 0.30)
 	var cy := h * 0.42
 	var skew := h * 0.12
 	var s := shift()
@@ -96,6 +101,14 @@ class Face extends Control:
 	var cut: CutIn
 
 	func _draw() -> void:
+		if cut.art:
+			# the splash art fills the band (clipped by it), drifting slowly against the slide
+			var bh := size.y * 0.46 + size.y * 0.24
+			var aw := bh * float(cut.art.get_width()) / float(cut.art.get_height())
+			var drift := (cut.t / CutIn.DURATION) * size.x * 0.04 * (1.0 if cut.from_left else -1.0)
+			var x0 := (size.x - aw) / 2.0 + cut.shift() * 0.6 + drift
+			draw_texture_rect(cut.art, Rect2(x0, size.y * 0.42 - bh / 2.0, aw, bh), false)
+			return
 		if cut.look.is_empty():
 			return
 		var h := size.y
@@ -126,5 +139,9 @@ class TextLayer extends Control:
 		var tw := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var tx := (size.x * 0.42 if cut.from_left else size.x * 0.58 - tw) + cut.shift()
 		var ty := h * 0.42 + fs * 0.35
+		if cut.art:
+			# with art the name sits on the band's lower edge so it never covers the face
+			tx = (size.x * 0.06 if cut.from_left else size.x * 0.94 - tw) + cut.shift()
+			ty = h * 0.42 + h * 0.19
 		draw_string_outline(font, Vector2(tx, ty), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 14, Color(0, 0, 0, 0.9))
 		draw_string(font, Vector2(tx, ty), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, cut.accent.lightened(0.35))

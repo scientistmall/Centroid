@@ -138,7 +138,7 @@ def download(user: str, slug: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("kind", choices=["concepts", "model", "views", "art", "panels"])
+    ap.add_argument("kind", choices=["concepts", "model", "views", "art", "panels", "splash"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--missing", action="store_true", help="concepts: every character without a concept yet")
     ap.add_argument("--n", type=int, default=2)
@@ -154,7 +154,7 @@ def main():
         sys.exit("no characters given")
     print("characters:", " ".join(names))
 
-    if a.kind in ("concepts", "views", "art", "panels"):
+    if a.kind in ("concepts", "views", "art", "panels", "splash"):
         dest = {}   # out prefix -> folder
         refs = []
         if a.kind == "concepts":
@@ -169,6 +169,19 @@ def main():
                     jobs.append({"out": f"{n}_{v}", "prompt": prompt, "refs": [os.path.basename(ref)],
                                  "w": w, "h": h, "n": a.n})
                     dest[f"{n}_{v}"] = os.path.join(CHARS, n, "views")
+        elif a.kind == "splash":
+            jobs = []
+            for (c, i), what in ap_.SPLASH.items():
+                if names and names != ["all"] and c not in names:
+                    continue
+                ref = char_ref(c)
+                if ref not in refs:
+                    refs.append(ref)
+                out_id = f"cutin_{c}_{i}"
+                jobs.append({"out": out_id, "prompt": f"{ap_.SPLASH_STYLE}. {what}. Character: {ap_.LOOKS[c]} "
+                             f"(reference image 1), keep the face, hair and outfit exactly like the reference.",
+                             "refs": [os.path.basename(ref)], "w": 1344, "h": 768, "n": a.n})
+                dest[out_id] = os.path.join(ROOT, "assets", "cutins", "candidates")
         elif a.kind == "panels":
             jobs = []
             only = {int(x) for x in a.only.split(",") if x.strip()} if a.only else set()

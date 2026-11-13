@@ -53,6 +53,7 @@ def fg_mask(img):
     border = np.concatenate([img[:8].reshape(-1, 3), img[-8:].reshape(-1, 3), img[:, :8].reshape(-1, 3),
                              img[:, -8:].reshape(-1, 3)]).astype(np.float32)
     bg = np.median(border, axis=0)
+    fg_mask.last_bg = bg
     d = np.linalg.norm(cv2.GaussianBlur(img, (5, 5), 0).astype(np.float32) - bg, axis=2)
     m = (d > 22).astype(np.uint8)
     m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
@@ -60,9 +61,16 @@ def fg_mask(img):
     if n > 1:
         keep = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
         m = (lab == keep).astype(np.uint8)
-    cnts, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    full = np.zeros_like(m)
-    cv2.drawContours(full, cnts, -1, 1, -1)
+    # fill only small holes (specks inside clothing); real gaps between legs/arms stay background
+    inv = (1 - m).astype(np.uint8)
+    n2, lab2, stats2, _ = cv2.connectedComponentsWithStats(inv)
+    full = m.copy()
+    limit = 0.002 * h * w
+    for i in range(1, n2):
+        x, y, bw, bh, area = stats2[i]
+        touches = x == 0 or y == 0 or x + bw >= w or y + bh >= h
+        if not touches and area < limit:
+            full[lab2 == i] = 1
     return full.astype(bool)
 
 
@@ -76,6 +84,7 @@ class View:
         self.right = -right if mirror else right
         self.h, self.w = img.shape[:2]
         self.mask = fg_mask(img)
+        self.bg = fg_mask.last_bg
         # sample only well inside the drawing, so edge texels never pick up background
         self.inner = cv2.erode(self.mask.astype(np.uint8), np.ones((7, 7), np.uint8)).astype(bool)
         v = mesh.vertices
@@ -246,6 +255,10 @@ def main():
         if not os.path.exists(p):
             continue
         v = make_view(name, p, mesh)
+        need = 0.6 if name in ("front", "back") else 0.55
+        if v.iou < need and name != "front":
+            print(f"view {name}: fit IoU {v.iou:.3f} too low, skipped")
+            continue
         views[name] = v
         zb, _ = v.occluder_depth()
         px, py = v.to_px(pos @ v.right, pos[:, 1])
@@ -254,8 +267,13 @@ def main():
         depth = pos @ v.toward
         visible = inside & (zb[iy, ix] - depth < eps) & v.inner[iy, ix]
         facing = np.clip(nrm @ v.toward, 0, 1) ** POWER
-        w = facing * visible * (FRONT_BOOST if name == "front" else 1.0)
+        if name in ("left", "right"):
+            # side views drift most on the head (profiles): keep them off it
+            top = mesh.vertices[:, 1].max()
+            facing = facing * np.clip((top - 0.15 * H - pos[:, 1]) / (0.03 * H), 0, 1)
         col = sample(v.img, px, py)
+        not_bg = np.linalg.norm(col - v.bg, axis=1) > 30.0
+        w = facing * visible * not_bg * (FRONT_BOOST if name == "front" else 1.0)
         acc += col * w[:, None]
         wsum += w
         print(f"view {name}: fit IoU {v.iou:.3f}, scale {v.s:.1f}px/u, covers {(w > 0.05).mean() * 100:.1f}% of texels")
@@ -268,7 +286,7 @@ def main():
         face_img = np.asarray(Image.open(fp).convert("RGB"))
         score, (cx0, cy0, f, loc), (hx0, hy0, hx1, hy1) = face_mapping(views["front"], face_img, mesh)
         print(f"face close-up match {score:.2f} (scale x{f:.1f})")
-        if score > 0.45:
+        if score >= 0.6:
             v = views["front"]
             px, py = v.to_px(pos @ v.right, pos[:, 1])
             zb, _ = v.occluder_depth()
@@ -280,10 +298,10 @@ def main():
             fy = (py - cy0) * f + loc[1]
             ok = vis & (fx >= 0) & (fx < face_img.shape[1] - 1) & (fy >= 0) & (fy < face_img.shape[0] - 1)
             # feather toward the head-box edges so the close-up blends into the body texture
-            ex = np.minimum(px - hx0, hx1 - px) / max(1.0, 0.12 * (hx1 - hx0))
-            ey = np.minimum(py - hy0, hy1 - py) / max(1.0, 0.12 * (hy1 - hy0))
+            ex = np.minimum(px - hx0, hx1 - px) / max(1.0, 0.08 * (hx1 - hx0))
+            ey = np.minimum(py - hy0, hy1 - py) / max(1.0, 0.08 * (hy1 - hy0))
             feather = np.clip(np.minimum(ex, ey), 0, 1)
-            wf = (facing ** 1.5) * ok * feather
+            wf = np.clip((facing - 0.55) / 0.3, 0, 1) * ok * feather
             fcol = sample(face_img, fx, fy)
             cur = acc / np.maximum(wsum, 1e-6)[:, None]
             blend = np.where(wsum[:, None] > 1e-6, cur, base_up[ys, xs])

@@ -306,6 +306,9 @@ func _on_power(f: Fighter, power_name: String) -> void:
 	cut.char_id = f.char_id
 	cut.accent = f.color
 	cut.power_name = power_name
+	for i in f.powers.size():
+		if String(f.powers[i].get("name", "")) == power_name:
+			cut.power_index = i + 1
 	cut.from_left = f.side == 0
 	ui_layer.add_child(cut)
 	AudioManager.sfx("cutin", -2.0)
