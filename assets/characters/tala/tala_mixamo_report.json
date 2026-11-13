@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/tala/raw/tala.glb",
+  "zip": "/home/user/centroid/assets/characters/tala/tala_mixamo.zip",
+  "height_m": 1.75,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "material_0.png",
+    "tala.obj",
+    "tala.obj.mtl"
+  ],
+  "zip_mb": 4.67
+}
