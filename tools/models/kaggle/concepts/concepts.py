@@ -13,6 +13,7 @@ import traceback
 #                               "w": 832, "h": 1216, "n": 2}, ...]
 JOBS = []
 STEPS = 4
+REF_MAX = 640
 REPO = "black-forest-labs/FLUX.2-klein-4B"
 WORK = "/kaggle/working"
 
@@ -38,7 +39,14 @@ def find(fname):
 def render(pipe, job, seed):
     import torch
     from PIL import Image
-    refs = [Image.open(find(r)).convert("RGB") for r in job.get("refs", [])]
+    refs = []
+    for r in job.get("refs", []):
+        im = Image.open(find(r)).convert("RGB")
+        # small references keep attention memory within a 16 GB T4 (identity survives at 640 px)
+        k = REF_MAX / max(im.size)
+        if k < 1:
+            im = im.resize((int(im.width * k) // 16 * 16, int(im.height * k) // 16 * 16), Image.LANCZOS)
+        refs.append(im)
     kw = dict(prompt=job["prompt"], width=job.get("w", 832), height=job.get("h", 1216),
               num_inference_steps=STEPS, guidance_scale=1.0,
               generator=torch.Generator("cpu").manual_seed(seed))
@@ -80,7 +88,8 @@ def main():
                 img.save(f"{WORK}/{job['out']}_k{i + 1}.png")
                 log("image ok", job["out"], i + 1, "seed", seed, "%.0fs" % (time.time() - t1))
             except Exception:
-                log("image FAILED", job["out"], traceback.format_exc()[-1500:])
+                log("image FAILED", job["out"], traceback.format_exc()[-1500:].replace("\n", " | "))
+                torch.cuda.empty_cache()
     log("outputs:", sorted(os.listdir(WORK)))
 
 

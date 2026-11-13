@@ -72,7 +72,7 @@ bind/21/name = &"mixamorig_RightForeArm"
 bind/21/bone = -1
 bind/21/pose = Transform3D(0.33180723, 0.28362462, 0.8997005, -0.32103, -0.86285776, 0.3904052, 0.8870421, -0.4183701, -0.19525044, -0.0014297582, 0.008976246, 0.007218886)
 
-[node name="Rhex" type="Node3D" unique_id=1537902949]
+[node name="Rhex" type="Node3D" unique_id=2055214045]
 
 [node name="rhex" type="Node3D" parent="." unique_id=1566546487]
 transform = Transform3D(99.99707, 0, 0, 0, 99.99707, 0, 0, 0, 99.99707, 0, 5.506925e-05, 0)

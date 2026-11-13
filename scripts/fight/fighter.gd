@@ -15,7 +15,7 @@ enum S { IDLE, WALK, AIR, ATTACK, BLOCK, BLOCKSTUN, HURT, KO, POWER, WIN, FROZEN
 
 const GRAVITY := 3400.0
 const MAX_ENERGY := 100.0
-const BODY_HALF_W := 40.0
+const BODY_HALF_W := 52.0  # 3D bodies are wider than the old silhouettes
 const BODY_H := 285.0
 const PASSIVE_ENERGY := 2.5      # per second
 const PUSH_FRICTION := 2600.0
@@ -71,6 +71,8 @@ var costume: Dictionary = {}
 var sec := Vector2.ZERO          # secondary-motion lag for cloth and hair
 var _sec_vel := Vector2.ZERO
 var _trail: Array = []           # recent weapon-tip positions (world) for smears
+## Set by a 3D model: returns [tip, mid] of the real weapon, relative to `position` (2D px).
+var tip_source: Callable
 var _emitter: CPUParticles2D     # element particles when charged
 var render_3d := false           # true when a 3D puppet draws the body
 
@@ -213,7 +215,9 @@ func _update_visual_motion(delta: float) -> void:
 	if _emitter:
 		var charged := state == S.POWER or energy >= MAX_ENERGY * 0.999 or (state == S.ATTACK and move_kind == "heavy")
 		_emitter.emitting = charged and state != S.KO
-		if weapon != "none":
+		if tip_source.is_valid():
+			_emitter.position = tip_source.call()[0]
+		elif weapon != "none":
 			_emitter.position = FighterPainter.weapon_tip(current_pose(), facing, weapon) * 0.85
 	var swinging := false
 	if state == S.ATTACK:
@@ -223,11 +227,16 @@ func _update_visual_motion(delta: float) -> void:
 		swinging = true
 	if swinging and weapon != "none":
 		# record the blade tip and a point 40% down the blade (pairs) for a crescent smear
-		var pose := current_pose()
-		var j := FighterPainter.joints(pose, facing)
-		var tip := FighterPainter.weapon_tip(pose, facing, weapon)
-		_trail.append(position + tip)
-		_trail.append(position + j["hand_f"].lerp(tip, 0.4))
+		if tip_source.is_valid():
+			var tm3: Array = tip_source.call()
+			_trail.append(position + tm3[0])
+			_trail.append(position + tm3[1])
+		else:
+			var pose := current_pose()
+			var j := FighterPainter.joints(pose, facing)
+			var tip := FighterPainter.weapon_tip(pose, facing, weapon)
+			_trail.append(position + tip)
+			_trail.append(position + j["hand_f"].lerp(tip, 0.4))
 		while _trail.size() > 12:
 			_trail.pop_front()
 	elif not _trail.is_empty():

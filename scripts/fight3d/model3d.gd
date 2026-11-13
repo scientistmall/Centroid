@@ -19,6 +19,9 @@ const POWER_CLIP := {
 	"burst": "cast_2", "wall": "cast_2", "summon": "cast_2", "buff": "buff", "dash": "dash",
 }
 const TURN := 0.38  # radians the body turns toward the camera from pure profile
+const SHADER := preload("res://assets/shaders/character.gdshader")
+## crossfade time when switching into each kind of clip
+const BLEND := {"idle": 0.18, "walk_forward": 0.15, "walk_back": 0.15, "block": 0.08, "jump": 0.1}
 
 static var _lib: AnimationLibrary
 
@@ -26,9 +29,15 @@ var fighter: Fighter
 var stage: Stage3D
 var _ap: AnimationPlayer
 var _mesh: MeshInstance3D
-var _flash_mat: StandardMaterial3D
+var _mat: ShaderMaterial
 var _clip := ""
 var _yaw := 0.0
+var _tip: Node3D            # weapon tip / mid markers (for trails and particles)
+var _mid: Node3D
+var _sp_pos := Vector3.ZERO  # secondary-motion spring (world metres)
+var _sp_vel := Vector3.ZERO
+var _t := 0.0
+var _last_state := -1
 
 
 static func available(char_id: String) -> bool:
@@ -51,12 +60,16 @@ func setup(f: Fighter, s: Stage3D) -> void:
 	_ap = AnimationPlayer.new()
 	rig.add_child(_ap)  # root_node ".." -> tracks "Skeleton3D:mixamorig_*" resolve
 	_ap.add_animation_library("", _lib)
-	_flash_mat = StandardMaterial3D.new()
-	_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_flash_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	_flash_mat.albedo_color = Color(0, 0, 0, 0)
-	_mesh.material_overlay = _flash_mat
+	_ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	# one shader for texture, rim, hit flash and hair / cloth motion
+	var src := _mesh.get_active_material(0) as BaseMaterial3D
+	_mat = ShaderMaterial.new()
+	_mat.shader = SHADER
+	_mat.set_shader_parameter("albedo_tex", src.albedo_texture if src else null)
+	_mat.set_shader_parameter("use_flex", (_mesh.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_COLOR) != 0)
+	_mat.set_shader_parameter("model_height", _mesh.mesh.get_aabb().size.y)
+	_mat.set_shader_parameter("flash_color", f.color.lerp(Color.WHITE, 0.6))
+	_mesh.material_override = _mat
 	_build_weapon(rig, f.weapon, f.color)
 	# coloured back-light and soft fill, as for the mannequin
 	var col := f.color
@@ -73,7 +86,15 @@ func setup(f: Fighter, s: Stage3D) -> void:
 	fill.position = Vector3(0, 1.4, 1.4)
 	add_child(fill)
 	_yaw = _target_yaw()
+	if _tip:
+		f.tip_source = _tip_2d
 	sync()
+
+
+## The weapon tip and mid-blade in the fighter's 2D space (for trails and element particles).
+func _tip_2d() -> Array:
+	var base := fighter.position
+	return [stage.to_logic(_tip.global_position) - base, stage.to_logic(_mid.global_position) - base]
 
 
 ## Simple weapon held in the right hand until real weapon models exist. Built in metres with the
@@ -117,6 +138,13 @@ func _build_weapon(rig: Node3D, kind: String, col: Color) -> void:
 			_part(w, _cylm(0.014, 0.2), glow, Vector3.ZERO)
 		_:
 			return
+	var reach: float = {"axe": 0.7, "spear": 1.37, "whip": 0.1, "daggers": 0.37}.get(kind, 0.92)
+	_tip = Node3D.new()
+	_tip.position = Vector3(0, reach, 0)
+	w.add_child(_tip)
+	_mid = Node3D.new()
+	_mid.position = Vector3(0, reach * 0.45, 0)
+	w.add_child(_mid)
 	var att := BoneAttachment3D.new()
 	att.bone_name = "mixamorig_RightHand"
 	sk.add_child(att)
@@ -223,22 +251,57 @@ func _timeline(clip: String, t: float, su: float, ac: float, re: float) -> float
 func sync() -> void:
 	if fighter == null or not is_instance_valid(fighter):
 		return
+	var dt := get_process_delta_time()
+	if dt <= 0.0:
+		dt = 1.0 / 60.0
+	_t += dt
 	position = stage.to_world(fighter.position)
 	_yaw = lerp_angle(_yaw, _target_yaw(), 0.35)
 	rotation.y = _yaw
+	_animate(dt)
+	_secondary(dt)
+	_mat.set_shader_parameter("flash", clampf(fighter.flash, 0.0, 1.0) * 0.45)
+	_mesh.transparency = 1.0 - fighter.modulate.a
+
+
+## Drive the AnimationPlayer by hand so every switch crossfades, even for time-mapped attacks.
+func _animate(dt: float) -> void:
 	var pick := _choose()
 	var clip: String = pick[0]
 	var time: float = pick[1]
+	var new_state := fighter.state != _last_state
+	_last_state = fighter.state
+	var length := _lib.get_animation(clip).length
+	if clip != _clip or (new_state and time >= 0.0 and time < _ap.current_animation_position - 0.05):
+		_ap.play(clip, BLEND.get(clip, 0.07))
+		if time >= 0.0:
+			_ap.seek(clampf(time, 0.0, length), false)
+		_clip = clip
 	if time < 0.0:
-		_ap.speed_scale = 1.0
-		if clip != _clip:
-			_ap.play(clip, 0.15)
+		var rate := 1.0
+		if fighter.state == Fighter.S.WALK:
+			rate = clampf(absf(fighter.vel.x) / maxf(fighter.walk_speed, 1.0), 0.6, 1.5)
+		_ap.advance(dt * rate)
 	else:
-		_ap.speed_scale = 0.0
-		if clip != _clip:
-			_ap.play(clip, 0.0)
-		_ap.seek(clampf(time, 0.0, _lib.get_animation(clip).length), true)
-	_clip = clip
-	# hit flash (additive white) and veil transparency
-	_flash_mat.albedo_color = Color(1, 1, 1, clampf(fighter.flash, 0.0, 1.0) * 0.55)
-	_mesh.transparency = 1.0 - fighter.modulate.a
+		var d := clampf(time, 0.0, length) - _ap.current_animation_position
+		if d < -0.001 or d > 0.6:
+			_ap.seek(clampf(time, 0.0, length), false)
+			d = 0.0
+		_ap.advance(maxf(d, 0.0))
+
+
+## Spring that lags behind movement; the shader bends coats and hair by it.
+func _secondary(dt: float) -> void:
+	var v := Vector3(fighter.vel.x, -fighter.vel.y, 0.0) / Stage3D.PPM
+	var target := Vector3(-v.x * 0.07, -v.y * 0.035, 0.0)
+	if fighter.state == Fighter.S.HURT:
+		target.x += fighter.facing * 0.12
+	if target.length() > 0.28:
+		target = target.normalized() * 0.28
+	var acc := (target - _sp_pos) * 70.0 - _sp_vel * 9.0
+	_sp_vel += acc * dt
+	_sp_pos += _sp_vel * dt
+	var to_local := _mesh.global_transform.basis.inverse()
+	_mat.set_shader_parameter("sway", to_local * _sp_pos)
+	_mat.set_shader_parameter("wind", (to_local * Vector3(0.012, 0, 0)).length())
+	_mat.set_shader_parameter("time_s", _t)

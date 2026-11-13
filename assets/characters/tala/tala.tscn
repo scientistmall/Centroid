@@ -72,7 +72,7 @@ bind/21/name = &"mixamorig_LeftShoulder"
 bind/21/bone = -1
 bind/21/pose = Transform3D(-0.069704264, -0.22200467, -0.97255087, 0.9085429, -0.41671273, 0.030006511, -0.41193593, -0.8815126, 0.2307474, 0.002311561, 0.005204544, 0.012264454)
 
-[node name="Tala" type="Node3D" unique_id=1067019577]
+[node name="Tala" type="Node3D" unique_id=524886651]
 
 [node name="tala" type="Node3D" parent="." unique_id=1601491526]
 transform = Transform3D(99.97088, 0, 0, 0, 99.97088, 0, 0, 0, 99.97088, 0, 0.00023232245, 0)

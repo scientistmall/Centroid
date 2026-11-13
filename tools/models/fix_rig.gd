@@ -118,6 +118,7 @@ func _fix(name: String) -> bool:
 
 	arrays[Mesh.ARRAY_BONES] = bones
 	arrays[Mesh.ARRAY_WEIGHTS] = weights
+	arrays[Mesh.ARRAY_COLOR] = _flex_mask(verts, bones, weights, nb, bind_of, bpos, H)
 	var am := ArrayMesh.new()
 	var flags := Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0
 	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
@@ -150,6 +151,66 @@ func _fix(name: String) -> bool:
 	print("RIGFIX %s: verts=%d head=%d hand=%d height=%.2fm scale=%.2f -> %s" % [name, verts.size(), n_head, n_hand, target, s, out])
 	wrapper.free()
 	return true
+
+
+## Secondary-motion mask in vertex colour, read by assets/shaders/character.gdshader:
+##   R = cloth flex: below the hips and not bound to the legs (coat tails, skirts, capes),
+##       or hanging well away from the leg bones; grows toward the hem.
+##   G = hair flex: head-bound vertices away from the scalp (spikes, long hair).
+static func _flex_mask(verts: PackedVector3Array, bones: PackedInt32Array, weights: PackedFloat32Array, nb: int,
+		bind_of: Dictionary, bpos: Dictionary, H: float) -> PackedColorArray:
+	var cols := PackedColorArray()
+	cols.resize(verts.size())
+	var legs := []
+	var segs := []
+	for s in ["Left", "Right"]:
+		for b in ["UpLeg", "Leg", "Foot", "ToeBase"]:
+			var key := "mixamorig_%s%s" % [s, b]
+			if bind_of.has(key):
+				legs.append(bind_of[key])
+		if bpos.has("mixamorig_%sUpLeg" % s) and bpos.has("mixamorig_%sFoot" % s):
+			segs.append([bpos["mixamorig_%sUpLeg" % s], bpos["mixamorig_%sLeg" % s], bpos["mixamorig_%sFoot" % s]])
+	var head_set := []
+	for k in ["mixamorig_Head", "mixamorig_HeadTop_End"]:
+		if bind_of.has(k):
+			head_set.append(bind_of[k])
+	var hips_y: float = bpos.get("mixamorig_Hips", Vector3(0, H * 0.5, 0)).y
+	var head_c: Vector3 = (bpos["mixamorig_Head"] + bpos.get("mixamorig_HeadTop_End", bpos["mixamorig_Head"])) * 0.5
+	for v in verts.size():
+		var p := verts[v]
+		var o := v * nb
+		var legw := 0.0
+		var headw := 0.0
+		for k in nb:
+			if bones[o + k] in legs:
+				legw += weights[o + k]
+			elif bones[o + k] in head_set:
+				headw += weights[o + k]
+		var cloth := 0.0
+		var top := hips_y - 0.03 * H
+		if p.y < top:
+			var depth := clampf((top - p.y) / (0.38 * H), 0.0, 1.0)
+			cloth = depth * (1.0 - legw)
+			if p.y < 0.09 * H and legw > 0.3:
+				cloth = 0.0
+			var dmin := 1e9
+			for sg in segs:
+				dmin = minf(dmin, minf(_seg_dist(p, sg[0], sg[1]), _seg_dist(p, sg[1], sg[2])))
+			# (not near the floor: toes stick out past the foot bone but must stay rigid)
+			if dmin > 0.075 * H and p.y > 0.09 * H:
+				cloth = maxf(cloth, depth * clampf((dmin - 0.075 * H) / (0.05 * H), 0.0, 1.0))
+		var hair := 0.0
+		if headw > 0.5:
+			hair = clampf((p.distance_to(head_c) - 0.07 * H) / (0.05 * H), 0.0, 1.0)
+		cols[v] = Color(cloth, hair, 0.0, 1.0)
+	return cols
+
+
+static func _seg_dist(p: Vector3, a: Vector3, b: Vector3) -> float:
+	var ab := b - a
+	var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 1e-12), 0.0, 1.0)
+	var q := a + ab * t
+	return Vector2(p.x - q.x, p.z - q.z).length()
 
 
 ## Move a vertex's weights toward 100% on `bone` by factor t (0 = unchanged, 1 = rigid).

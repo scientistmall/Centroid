@@ -55,6 +55,11 @@ func to_world(px: Vector2) -> Vector3:
 	return Vector3((px.x - _vp_size.x / 2.0) / PPM, (_ground_px - px.y) / PPM, 0.0)
 
 
+## Inverse of to_world (depth is ignored): a 3D point -> logic / 2D world pixels.
+func to_logic(w: Vector3) -> Vector2:
+	return Vector2(w.x * PPM + _vp_size.x / 2.0, _ground_px - w.y * PPM)
+
+
 ## Follow-and-zoom camera (MCOC-style framing). `focus_x` is the logic x the
 ## screen centre looks at, `zoom` scales the fighters' plane, `shake` is in px.
 ## Returns the Transform2D the 2D world layer must use so 2D effects stay aligned.

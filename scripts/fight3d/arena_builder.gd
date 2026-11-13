@@ -79,8 +79,9 @@ static func environment(root: Node3D, sky_top: Color, horizon: Color, fog_col: C
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = ambient
-	env.ambient_light_energy = 0.6
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.ambient_light_energy = 0.85
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_white = 6.0
 	env.fog_enabled = true
 	env.fog_light_color = fog_col
 	env.fog_density = fog_density
