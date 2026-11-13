@@ -147,35 +147,69 @@ static func floor_plane(root: Node3D, m: Material, size := Vector2(80, 60)) -> v
 	add_mesh(root, p, Vector3(0, 0, -size.y / 2 + 6), m)
 
 
-static func build(id: String, root: Node3D) -> void:
+## Where each painting's horizon sits, as a fraction of its height from the bottom.
+const HORIZON := {"training_ground": 0.40, "silent_forest": 0.30, "broken_pass": 0.22,
+				  "underground_sanctuary": 0.32, "solar_altar": 0.24}
+
+
+static func build(id: String, root: Node3D, cam_y := 2.0) -> void:
+	if ResourceLoader.exists(backdrop_path(id)):
+		_painted(root, id, cam_y)
+		return
 	match id:
 		"silent_forest": _forest(root)
 		"broken_pass": _pass(root)
 		"underground_sanctuary": _sanctuary(root)
 		_: _training_ground(root)
-	backdrop(root, id)
 
 
-## Painted panorama far behind the arena (assets/backdrops/<id>.png, made on Kaggle), if one
-## exists. Unshaded and fog-free so the painting keeps its own light; the 3D set in front
-## blends into it through the scene fog.
-static func backdrop(root: Node3D, id: String) -> void:
-	var path := "res://assets/backdrops/%s.png" % id
-	if not ResourceLoader.exists(path):
-		return
-	var tex: Texture2D = load(path)
+static func backdrop_path(id: String) -> String:
+	return "res://assets/backdrops/%s.png" % id
+
+
+## An arena built around its painted backdrop (assets/backdrops/<id>.png, made on Kaggle):
+## sky, fog, ambient and floor colours are sampled from the painting so the 3D floor the
+## fighters stand on continues the painted ground, and the painting's horizon is put at the
+## camera's eye level so the perspective agrees.
+static func _painted(root: Node3D, id: String, cam_y: float) -> void:
+	var tex: Texture2D = load(backdrop_path(id))
+	var img := tex.get_image()
+	if img.is_compressed():
+		img.decompress()
+	var hf: float = HORIZON.get(id, 0.33)
+	var sky := _avg_rows(img, 0.0, 0.25)
+	var horizon := _avg_rows(img, 1.0 - hf - 0.04, 1.0 - hf + 0.02)
+	var ground := _avg_rows(img, 1.0 - hf + 0.04, 1.0 - hf * 0.45)
+	environment(root, sky, horizon, horizon.lerp(ground, 0.4), 0.007, sky.lerp(ground, 0.5).lightened(0.1))
+	lights(root, sky.lerp(Color.WHITE, 0.55), horizon.lightened(0.25), 1.35)
+	floor_plane(root, noise_mat(ground, ground.darkened(0.22), 0.05, 0.92))
+	# the painting, its horizon at eye level
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_texture = tex
 	m.disable_fog = true
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	var dist := 34.0
 	var h := 36.0
 	var w := h * float(tex.get_width()) / float(tex.get_height())
 	var q := QuadMesh.new()
 	q.size = Vector2(w, h)
-	var mi := add_mesh(root, q, Vector3(0, 4.0, -dist), m)
+	var y_bottom := cam_y - hf * h
+	var mi := add_mesh(root, q, Vector3(0, y_bottom + h * 0.5, -dist), m)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+static func _avg_rows(img: Image, from: float, to: float) -> Color:
+	var h := img.get_height()
+	var w := img.get_width()
+	var y0 := clampi(int(from * h), 0, h - 1)
+	var y1 := clampi(int(to * h), y0 + 1, h)
+	var acc := Color(0, 0, 0, 0)
+	var n := 0
+	for y in range(y0, y1, maxi(1, (y1 - y0) / 24)):
+		for x in range(0, w, maxi(1, w / 64)):
+			acc += img.get_pixel(x, y)
+			n += 1
+	return Color(acc.r / n, acc.g / n, acc.b / n)
 
 
 # ------------------------------------------------------------------ locations
