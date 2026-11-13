@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/kael/raw/kael_v2.glb",
+  "zip": "assets/characters/kael/kael_v2_mixamo.zip",
+  "height_m": 1.78,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "kael_v2.obj",
+    "kael_v2.obj.mtl",
+    "material_0.png"
+  ],
+  "zip_mb": 10.47
+}
