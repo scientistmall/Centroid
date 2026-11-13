@@ -181,8 +181,9 @@ static func _painted(root: Node3D, id: String, cam_y: float) -> void:
 	var horizon := _avg_rows(img, 1.0 - hf - 0.04, 1.0 - hf + 0.02)
 	var ground := _avg_rows(img, 1.0 - hf + 0.04, 1.0 - hf * 0.45)
 	environment(root, sky, horizon, horizon.lerp(ground, 0.4), 0.007, sky.lerp(ground, 0.5).lightened(0.1))
-	lights(root, sky.lerp(Color.WHITE, 0.55), horizon.lightened(0.25), 1.35)
-	floor_plane(root, noise_mat(ground, ground.darkened(0.22), 0.05, 0.92))
+	lights(root, sky.lerp(Color.WHITE, 0.55), horizon.lightened(0.25), 1.05)
+	var fl := ground.darkened(0.35)
+	floor_plane(root, noise_mat(fl, fl.darkened(0.3), 0.05, 0.95))
 	# the painting, its horizon at eye level
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED

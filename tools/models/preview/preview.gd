@@ -21,9 +21,14 @@ func _ready() -> void:
 	_fix_materials(model)
 	# fit: feet on the ground, ~1.8 units tall, centred
 	var aabb := _aabb(model, Transform3D.IDENTITY)
-	var s := 1.8 / maxf(aabb.size.y, 0.001)
+	# characters: fit the height, feet on the ground; long objects (weapons): fit the longest side, centred
+	var longest := maxf(aabb.size.y, maxf(aabb.size.x, aabb.size.z))
+	var s := 1.8 / maxf(longest, 0.001)
 	model.scale = Vector3.ONE * s
-	model.position = -Vector3(aabb.get_center().x, aabb.position.y, aabb.get_center().z) * s
+	if aabb.size.y >= longest * 0.99:
+		model.position = -Vector3(aabb.get_center().x, aabb.position.y, aabb.get_center().z) * s
+	else:
+		model.position = -aabb.get_center() * s + Vector3(0, 0.95, 0)
 	var pivot := Node3D.new()
 	add_child(pivot)
 	pivot.add_child(model)

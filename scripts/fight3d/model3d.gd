@@ -16,7 +16,7 @@ const FALLBACK := {
 }
 const POWER_CLIP := {
 	"projectile": "cast_1", "lash": "cast_1", "drain": "cast_1", "pull": "cast_1",
-	"burst": "cast_2", "wall": "cast_2", "summon": "cast_2", "buff": "buff", "dash": "dash",
+	"burst": "cast_2", "wall": "cast_2", "summon": "cast_2", "buff": "buff", "dash": "light_2",
 }
 const TURN := 0.38  # radians the body turns toward the camera from pure profile
 const SHADER := preload("res://assets/shaders/character.gdshader")

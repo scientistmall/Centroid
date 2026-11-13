@@ -1,0 +1,90 @@
+{
+ "kael_sword": {
+  "grip": [
+   0.81152,
+   0.00501,
+   -0.00464
+  ],
+  "axis": [
+   -1.0,
+   -0.0024,
+   0.00051
+  ],
+  "side": [
+   0.00239,
+   -0.99986,
+   -0.01629
+  ],
+  "length": 1.9857,
+  "tip_from_grip": 1.80699,
+  "file": "res://assets/weapons/kael_sword.glb",
+  "metres": 1.0,
+  "owner": "kael"
+ },
+ "mira_blade": {
+  "grip": [
+   0.85129,
+   -0.00309,
+   -0.00376
+  ],
+  "axis": [
+   -1.0,
+   -0.00147,
+   -0.00034
+  ],
+  "side": [
+   0.0002,
+   0.09482,
+   -0.99549
+  ],
+  "length": 1.9856,
+  "tip_from_grip": 1.84661,
+  "file": "res://assets/weapons/mira_blade.glb",
+  "metres": 1.05,
+  "owner": "mira"
+ },
+ "rhex_axe": {
+  "grip": [
+   0.75105,
+   -0.00993,
+   -0.00351
+  ],
+  "axis": [
+   -1.0,
+   0.00016,
+   -0.00091
+  ],
+  "side": [
+   0.00016,
+   1.0,
+   0.002
+  ],
+  "length": 1.98392,
+  "tip_from_grip": 1.74585,
+  "file": "res://assets/weapons/rhex_axe.glb",
+  "metres": 1.05,
+  "owner": "rhex"
+ },
+ "tala_spear": {
+  "grip": [
+   0.2357,
+   0.10854,
+   -0.09804
+  ],
+  "axis": [
+   -0.99973,
+   -0.02195,
+   0.00793
+  ],
+  "side": [
+   0.01734,
+   -0.47162,
+   0.88163
+  ],
+  "length": 1.98637,
+  "tip_from_grip": 1.23155,
+  "file": "res://assets/weapons/tala_spear.glb",
+  "metres": 1.95,
+  "owner": "tala"
+ }
+}

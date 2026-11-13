@@ -314,6 +314,39 @@ def purify():
     return norm(reverb(chime, 0.6, 0.45), 0.6)
 
 
+# ------------------------------------------------------------------ manga story
+def page_turn():
+    """Paper page flip: a crisp rustle that sweeps up, then a soft settle."""
+    d = 0.55
+    n = noise(d)
+    rustle = moving_bp(n, 900, 5200, q=0.6) * env(len(n), 0.02, d, 3.0)
+    flap = bp(noise(0.12), 300, 1400) * env(int(SR * 0.12), 0.002, 0.12, 6.0)
+    flap = np.concatenate([np.zeros(int(SR * 0.33)), flap])
+    flap = np.pad(flap, (0, len(rustle) - len(flap))) if len(flap) < len(rustle) else flap[:len(rustle)]
+    return norm(reverb(pad(rustle * 0.8 + flap * 0.6, 0.15), 0.12, 0.15), 0.7)
+
+
+def panel_in():
+    """Soft airy whoosh as a panel slides in."""
+    d = 0.32
+    x = moving_bp(noise(d), 500, 2600, q=0.7) * env(int(SR * d), 0.06, d, 2.5)
+    return norm(pad(x, 0.1), 0.5)
+
+
+def bubble():
+    """Short rounded pop for a speech bubble."""
+    t = t_axis(0.09)
+    f = 520 + 380 * np.exp(-t * 40)
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(t), 0.002, 0.09, 6.0)
+    return norm(pad(lp(x, 2500), 0.05), 0.45)
+
+
+def caption_tick():
+    """Very quiet paper tick when advancing text."""
+    x = bp(noise(0.03), 1800, 6000) * env(int(SR * 0.03), 0.001, 0.03, 8.0)
+    return norm(pad(x, 0.02), 0.35)
+
+
 SOUNDS = {
     "swing_light": swing_light, "swing_heavy": swing_heavy, "hit_light": hit_light, "hit_heavy": hit_heavy,
     "block": block, "lightning": lightning, "bolt_cast": bolt_cast, "fire_burst": fire_burst,
@@ -321,6 +354,7 @@ SOUNDS = {
     "ui_click": ui_click, "ui_confirm": ui_confirm, "ui_back": ui_back, "jump": jump, "land": land,
     "wind": wind, "mist": mist, "stone": stone, "gravity": gravity, "whip": whip, "poison": poison,
     "curse": curse, "purify": purify,
+    "page_turn": page_turn, "panel_in": panel_in, "bubble": bubble, "caption_tick": caption_tick,
 }
 
 

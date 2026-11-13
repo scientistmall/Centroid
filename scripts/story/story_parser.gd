@@ -19,6 +19,15 @@ extends RefCounted
 ##   NAME [angry]: spoken line                  dialogue with an expression
 ##                                              (neutral, angry, determined, sad, shocked, smile)
 ##   > narration text                           stage direction / narration
+##
+## Manga direction (read by the manga player and by the panel-art generator):
+##   @page                                      start a new manga page
+##   @panel shape | cast | direction            a panel; shape = wide, tall, square, strip,
+##                                              splash or action; cast = character ids left to
+##                                              right (comma separated, "-" for none); direction =
+##                                              what the panel shows (shot, action, mood). The
+##                                              lines that follow are its bubbles and captions.
+##   @fx TEXT [| sound]                         sound-effect lettering on the current panel
 
 const CHARACTERS_PATH := "res://data/characters.json"
 
@@ -53,11 +62,17 @@ static func load_file(path: String) -> Dictionary:
 	if f == null:
 		push_error("Story file not found: %s" % path)
 		return {"steps": [], "next": {"type": "menu"}}
-	return parse(f.get_as_text())
+	return parse(f.get_as_text(), path.get_file().get_basename())
 
 
-static func parse(text: String) -> Dictionary:
+## Art for panel n of a scene (made by tools/models/kaggle_run.py panels).
+static func panel_art(scene: String, n: int) -> String:
+	return "res://assets/manga/%s/%s_p%02d.png" % [scene, scene, n]
+
+
+static func parse(text: String, scene := "") -> Dictionary:
 	var steps: Array = []
+	var panel_n := 0
 	var next := {"type": "menu"}
 	var line_no := 0
 	for raw in text.split("\n"):
@@ -93,6 +108,24 @@ static func parse(text: String) -> Dictionary:
 					steps.append({"t": "sfx", "id": arg})
 				"wait":
 					steps.append({"t": "wait", "sec": float(arg)})
+				"page":
+					steps.append({"t": "page"})
+				"panel":
+					var parts := arg.split("|")
+					panel_n += 1
+					var cast: Array = []
+					if parts.size() > 1:
+						for c in parts[1].split(","):
+							var cid := c.strip_edges().to_lower()
+							if cid != "" and cid != "-":
+								cast.append(cid)
+					steps.append({"t": "panel", "n": panel_n, "scene": scene,
+						"shape": parts[0].strip_edges().to_lower() if parts.size() > 0 else "wide",
+						"cast": cast, "dir": parts[2].strip_edges() if parts.size() > 2 else ""})
+				"fx":
+					var fp := arg.split("|")
+					steps.append({"t": "fx", "text": fp[0].strip_edges(),
+						"sound": fp[1].strip_edges() if fp.size() > 1 else ""})
 				"next":
 					var n := arg.split(" ", false)
 					next = {"type": n[0] if n.size() > 0 else "menu"}
