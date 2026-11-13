@@ -65,15 +65,23 @@ def main():
     for j in JOBS:  # backwards compatible: {"name": ...} means out = name
         j.setdefault("out", j.get("name", "img"))
 
-    dtype = torch.bfloat16
-    pipe = load(dtype)
-    # T4s have no native bf16: if the first image comes out blank, switch to fp16
-    if JOBS and np.asarray(render(pipe, dict(JOBS[0], refs=[]), 1)).std() < 2:
-        log("bf16 gave a blank image, reloading in fp16")
+    # Reference editing needs much more attention memory. A T4 only has memory-efficient
+    # attention in fp16, so try fp16 first there; keep it only if it doesn't render blank.
+    has_refs = any(j.get("refs") for j in JOBS)
+    order = [torch.float16, torch.bfloat16] if has_refs else [torch.bfloat16, torch.float16]
+    pipe, dtype = None, None
+    probe = dict(JOBS[0], refs=[], w=512, h=512) if JOBS else None
+    for dt in order:
+        pipe = load(dt)
+        if probe is None or np.asarray(render(pipe, probe, 1)).std() >= 2:
+            dtype = dt
+            break
+        log(f"{dt} gave a blank image, trying the next precision")
         del pipe
         torch.cuda.empty_cache()
-        dtype = torch.float16
-        pipe = load(dtype)
+    if dtype == torch.bfloat16 and has_refs:
+        pipe.enable_sequential_cpu_offload()  # slower, but fits reference editing in bf16
+        log("bf16 + sequential offload for reference editing")
     log("ready (%s) in %.0fs" % (dtype, time.time() - t))
 
     for job in JOBS:

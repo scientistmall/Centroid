@@ -153,6 +153,29 @@ static func build(id: String, root: Node3D) -> void:
 		"broken_pass": _pass(root)
 		"underground_sanctuary": _sanctuary(root)
 		_: _training_ground(root)
+	backdrop(root, id)
+
+
+## Painted panorama far behind the arena (assets/backdrops/<id>.png, made on Kaggle), if one
+## exists. Unshaded and fog-free so the painting keeps its own light; the 3D set in front
+## blends into it through the scene fog.
+static func backdrop(root: Node3D, id: String) -> void:
+	var path := "res://assets/backdrops/%s.png" % id
+	if not ResourceLoader.exists(path):
+		return
+	var tex: Texture2D = load(path)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_texture = tex
+	m.disable_fog = true
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	var dist := 34.0
+	var h := 36.0
+	var w := h * float(tex.get_width()) / float(tex.get_height())
+	var q := QuadMesh.new()
+	q.size = Vector2(w, h)
+	var mi := add_mesh(root, q, Vector3(0, 4.0, -dist), m)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 # ------------------------------------------------------------------ locations
