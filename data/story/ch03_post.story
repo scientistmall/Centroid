@@ -66,7 +66,7 @@ DARIN: Promise me...
 > Kael looks away.
 DARIN: Look after each other.
 @hide left
-@panel strip | kael, mira | Darin's great gauntleted hand falling still on the stones; Mira weeping over him; Kael standing motionless behind them in the dark pass
+@panel strip | kael, mira, darin | Darin lying still on the stones, his great gauntleted hand falling still; Mira weeping over him; Kael standing motionless behind them in the dark pass
 > Darin's hand falls still.
 > Mira begins crying.
 > Kael stands motionless.

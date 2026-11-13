@@ -703,7 +703,11 @@ class PanelView extends Control:
 		else:
 			x = clampf(sx * rect.size.x - b.size.x / 2.0, pad, rect.size.x - b.size.x - pad)
 			col_key = "l" if sx < 0.5 else "r"
+		# one reading order: every bubble / caption stacks below the previous one
+		col_key = "all"
 		var y: float = _cursor.get(col_key, pad + (font_px * 0.6 if speaker != "" else 0.0))
+		if speaker != "" and _cursor.has(col_key):
+			y += font_px * 0.6   # room for the name tag
 		if y + b.size.y > rect.size.y * 0.66 and not _items.is_empty():
 			# full: clear older bubbles so the panel stays readable
 			for it in _items:
@@ -716,11 +720,15 @@ class PanelView extends Control:
 			y = pad + (font_px * 0.6 if speaker != "" else 0.0)
 		b.position = Vector2(x, y)
 		if style != "caption":
+			var cast_n: int = (spec.get("cast", []) as Array).size()
 			if sx < 0.0:
 				b.tail_to = Vector2(rect.size.x + 40.0, y + b.size.y * 1.4) - b.position
+			elif cast_n <= 1:
+				# one character in the panel: a short tail straight down (their position in the art is unknown)
+				b.tail_to = Vector2(b.size.x * 0.5, b.size.y + font_px * 2.2)
 			else:
 				b.tail_to = Vector2(sx * rect.size.x, rect.size.y * 0.42) - b.position
-		_cursor[col_key] = y + b.size.y + font_px * (0.9 if speaker != "" else 0.5)
+		_cursor[col_key] = y + b.size.y + font_px * 0.45
 		add_child(b)
 		move_child(b, -2)   # under the border
 		_items.append(b)

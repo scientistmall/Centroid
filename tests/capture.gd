@@ -119,13 +119,13 @@ func _shot_cutin() -> void:
 	a.enemy.controller = null
 	a.player.energy = 100.0
 	a.player._try_power(0)
-	for i in 12:
+	for i in 3:
 		await get_tree().process_frame
 	await _save("cutin_player")
 	await get_tree().create_timer(1.5, true, false, true).timeout
 	a.enemy.energy = 100.0
 	a.enemy._try_power(1)
-	for i in 14:
+	for i in 3:
 		await get_tree().process_frame
 	await _save("cutin_enemy")
 	a.queue_free()

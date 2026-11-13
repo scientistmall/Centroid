@@ -103,11 +103,14 @@ class Face extends Control:
 	func _draw() -> void:
 		if cut.art:
 			# the splash art fills the band (clipped by it), drifting slowly against the slide
-			var bh := size.y * 0.46 + size.y * 0.24
-			var aw := bh * float(cut.art.get_width()) / float(cut.art.get_height())
+			var asp := float(cut.art.get_width()) / float(cut.art.get_height())
+			# cover the whole slanted band: at least its height (plus the slant) and the full width
+			var aw := maxf((size.y * 0.70) * asp, size.x * 1.02)
+			var bh := aw / asp
+			# faces sit in the upper third of the splash art: put that at the band's centre
 			var drift := (cut.t / CutIn.DURATION) * size.x * 0.04 * (1.0 if cut.from_left else -1.0)
 			var x0 := (size.x - aw) / 2.0 + cut.shift() * 0.6 + drift
-			draw_texture_rect(cut.art, Rect2(x0, size.y * 0.42 - bh / 2.0, aw, bh), false)
+			draw_texture_rect(cut.art, Rect2(x0, size.y * 0.42 - bh * 0.34, aw, bh), false)
 			return
 		if cut.look.is_empty():
 			return

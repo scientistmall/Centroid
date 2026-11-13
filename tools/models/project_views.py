@@ -128,6 +128,50 @@ class View:
         self.iou = best[0]
         return best[1], best[2], best[3]
 
+    def refine_head(self, H):
+        """Fit the head on its own (drawings often place the head slightly differently from the
+        body); stores self.head = (s, ox, oy). Texels on the head use it, blended at the neck."""
+        top = self.y.max()
+        sel = self.y > top - 0.17 * H
+        fsel = self.faces[np.all(sel[self.faces], axis=1)]
+        self.head = (self.s, self.ox, self.oy)
+        if len(fsel) < 50:
+            return
+        px, py = self.to_px(self.u[sel], self.y[sel])
+        pad = 0.25 * (px.max() - px.min())
+        x0, x1 = int(max(0, px.min() - pad)), int(min(self.w, px.max() + pad))
+        y0, y1 = int(max(0, py.min() - pad)), int(min(self.h, py.max() + pad))
+        target = self.mask[y0:y1, x0:x1]
+        hw = px.max() - px.min()
+        best = (-1.0, self.head)
+        for ds in np.linspace(0.92, 1.08, 9):
+            s = self.s * ds
+            # keep the neck where it was: scale about the head's bottom-centre
+            cx, cy = (px.min() + px.max()) / 2, py.max()
+            for dx in np.linspace(-0.12, 0.12, 13) * hw:
+                for dy in np.linspace(-0.12, 0.12, 13) * hw:
+                    ox = cx + dx - (cx - self.ox) * ds
+                    oy = cy + dy - (cy - self.oy) * ds
+                    hx, hy = self.u * s + ox, -self.y * s + oy
+                    pts = np.stack([hx - x0, hy - y0], 1)[fsel].round().astype(np.int32)
+                    m = np.zeros(target.shape, np.uint8)
+                    cv2.fillPoly(m, list(pts), 1)
+                    m = m.astype(bool)
+                    iou = (m & target).sum() / max((m | target).sum(), 1)
+                    if iou > best[0]:
+                        best = (iou, (s, ox, oy))
+        self.head = best[1]
+        self.head_iou = best[0]
+
+    def px_blend(self, pos, H):
+        """Image coordinates of 3D points: body fit, head fit on the head, blended at the neck."""
+        bx, by = self.to_px(pos @ self.right, pos[:, 1])
+        s, ox, oy = getattr(self, "head", (self.s, self.ox, self.oy))
+        hx, hy = (pos @ self.right) * s + ox, -pos[:, 1] * s + oy
+        top = self.y.max()
+        t = np.clip((pos[:, 1] - (top - 0.2 * H)) / (0.04 * H), 0, 1)
+        return bx * (1 - t) + hx * t, by * (1 - t) + hy * t
+
     def occluder_depth(self):
         """Per-pixel depth of the nearest surface (painter's algorithm, far to near)."""
         px, py = self.to_px(self.u, self.y)
@@ -208,7 +252,7 @@ def face_mapping(front, face_img, mesh):
     v = mesh.vertices
     H = v[:, 1].max() - v[:, 1].min()
     head = v[v[:, 1] > v[:, 1].max() - 0.13 * H]
-    px, py = front.to_px(head @ front.right, head[:, 1])
+    px, py = front.px_blend(head, H)
     x0, x1, y0, y1 = px.min(), px.max(), py.min(), py.max()
     pad = 0.15 * (x1 - x0)
     x0, x1 = int(max(0, x0 - pad)), int(min(front.w, x1 + pad))
@@ -261,16 +305,28 @@ def main():
             continue
         views[name] = v
         zb, _ = v.occluder_depth()
-        px, py = v.to_px(pos @ v.right, pos[:, 1])
+        if name in ("front", "back"):
+            v.refine_head(H)
+            print(f"view {name}: head fit IoU {getattr(v, 'head_iou', 0):.3f}")
+            px, py = v.px_blend(pos, H)
+        else:
+            px, py = v.to_px(pos @ v.right, pos[:, 1])
         inside = (px >= 0) & (px < v.w - 1) & (py >= 0) & (py < v.h - 1)
         ix, iy = np.clip(px.astype(int), 0, v.w - 1), np.clip(py.astype(int), 0, v.h - 1)
         depth = pos @ v.toward
         visible = inside & (zb[iy, ix] - depth < eps) & v.inner[iy, ix]
-        facing = np.clip(nrm @ v.toward, 0, 1) ** POWER
+        # only surfaces that face the camera well (grazing surfaces smear features sideways)
+        facing = np.clip((nrm @ v.toward - 0.4) / 0.45, 0, 1) ** 2
+        # on the head only surfaces facing almost straight at the camera take the drawing: drawn
+        # faces are often wider than the model's head, and their edges would land on the cheeks
+        top_y = mesh.vertices[:, 1].max()
+        head_t = np.clip((pos[:, 1] - (top_y - 0.2 * H)) / (0.04 * H), 0, 1)
+        strict = np.clip((nrm @ v.toward - 0.78) / 0.17, 0, 1) ** 2
+        facing = facing * (1 - head_t) + strict * head_t
         if name in ("left", "right"):
             # side views drift most on the head (profiles): keep them off it
             top = mesh.vertices[:, 1].max()
-            facing = facing * np.clip((top - 0.15 * H - pos[:, 1]) / (0.03 * H), 0, 1)
+            facing = facing * np.clip((top - 0.24 * H - pos[:, 1]) / (0.03 * H), 0, 1)
         col = sample(v.img, px, py)
         not_bg = np.linalg.norm(col - v.bg, axis=1) > 30.0
         w = facing * visible * not_bg * (FRONT_BOOST if name == "front" else 1.0)
@@ -288,7 +344,7 @@ def main():
         print(f"face close-up match {score:.2f} (scale x{f:.1f})")
         if score >= 0.6:
             v = views["front"]
-            px, py = v.to_px(pos @ v.right, pos[:, 1])
+            px, py = v.px_blend(pos, H)
             zb, _ = v.occluder_depth()
             ix, iy = np.clip(px.astype(int), 0, v.w - 1), np.clip(py.astype(int), 0, v.h - 1)
             in_head = (px >= hx0) & (px < hx1) & (py >= hy0) & (py < hy1)

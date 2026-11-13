@@ -153,7 +153,7 @@ SERAN: Controlling what?
 @panel square | veyr | Close-up of Veyr's fingers carefully rotating the black stone on the green pedestal so its dark marking faces down, his eyes reflected in its surface
 > Veyr rotates it so the dark mark aligns with the pedestal.
 @bg research_dark
-@panel splash | auren, veyr, seran | The chamber suddenly plunges into darkness: through the window the daylight drains away into an unnatural black sky; Auren, Veyr and Seran startled, lit only by the faint glow of the stone
+@panel splash | auren, veyr, seran | Exactly three men in the research chamber as it suddenly plunges into darkness: through the window the daylight drains away into an unnatural black sky; Auren, Veyr and Seran startled, lit only by the faint glow of the black stone on the green pedestal
 > The chamber suddenly darkens. Outside, the daylight begins to vanish.
 @fx VMMMMN | gravity
 > Auren immediately turns the stone back.
@@ -216,7 +216,7 @@ SERAN: He's brilliant. Nobody understands the Centroid better than him.
 AUREN: That's not what I asked.
 > Seran pauses.
 SERAN: He thinks too much about what we could control and too little about what we should.
-@panel square | auren, seran | Silhouettes of Auren and Seran against the last light of the sunset, quiet and heavy
+@panel square | auren, seran | Two different men side by side at the balcony railing seen from behind against the last light of the sunset: white-bearded Auren in pale robes and Seran in his dark grey coat, quiet and heavy
 AUREN: And you?
 SERAN: I think we should have left that thing in the crater.
 > Auren looks back toward the training ground.
@@ -319,11 +319,11 @@ AUREN: Veyr... I trusted you with the Centroid because I believed you would see 
 VEYR: Then you trusted the wrong man.
 
 @page
-@panel action | veyr, auren | Veyr lunging with his blade at Auren, who blocks the strike with his forearm guard, sparks flying, dynamic clash
+@panel action | veyr, auren | Veyr lunging with his long blade at the white-bearded Auren, who blocks the strike with his forearm, sparks flying, dynamic clash, only these two men
 > He strikes.
 @fx CLANG | block
 > Auren blocks the first attack but refuses to deliver a killing blow.
-@panel splash | veyr, auren | Tragic dramatic silhouette scene: Veyr's blade striking Auren against the dark glow of the Centroid, Auren's robes swirling as he falls, no gore, heavy shadows
+@panel splash | veyr, auren | Tragic dramatic scene, only two men: standing Veyr thrusting his blade toward the white-bearded Auren, who staggers backward and falls, his pale robes swirling, against the dark glow of the stone on its altar, no gore, heavy shadows
 > Veyr uses that hesitation to stab him.
 @fx SHK | hit_heavy
 @hide left
@@ -347,12 +347,12 @@ THE VOICE: He is not yours to destroy.
 > Seran tries to break it, but the structure disappears before he can reach Veyr.
 
 @page
-@panel wide | thane | Seven figures fleeing down a torch-lit corridor of the fortress; among them Thane glances back over his shoulder
+@panel wide | thane | Several hooded figures in dark cloaks running away down a torch-lit stone corridor, seen from behind; at the back of the group Thane, unhooded, glances back over his shoulder
 > The seven traitors flee.
 > Kael looks toward the escaping fighters. He sees his older brother Thane among them.
 @show left kael
 KAEL [shocked]: Thane!
-@panel wide | kael, thane | The two brothers facing each other down the corridor: younger Kael anguished and furious on the left, Thane on the right turning back, conflicted
+@panel wide | kael, thane | The two brothers facing each other in a torch-lit stone corridor: younger Kael anguished and furious on the left, his older brother Thane on the right turning back, conflicted
 > Thane turns.
 @show right thane
 THANE: Come with us, Kael.
@@ -364,17 +364,17 @@ KAEL: Then explain it!
 @hide right
 
 @page
-@panel wide | kael, auren | Young Kael kneeling on the chamber floor holding the hand of the dying Auren, the Centroid's glow fading behind them
+@panel wide | kael, auren | The white-bearded Auren lying on his back on the stone floor, gravely wounded; young Kael kneeling beside him, holding his hand with both of his, the stone's glow fading behind them
 > Kael kneels beside Auren. The dying founder struggles to speak.
 @show right auren
 AUREN: Kael...
 KAEL: Don't move. Seran will help you.
 AUREN: Listen to him.
 KAEL [sad]: Please...
-@panel square | auren | Close-up of the dying Auren's gentle face, a faint peaceful smile, eyes on Kael
+@panel square | auren | Close-up of the dying Auren lying on the stone floor, his head resting on the stones, a faint peaceful smile, looking up
 AUREN: Don't let what happened here become everything you are.
 @hide right
-@panel strip | kael | Kael kneeling with head bowed, still holding Auren's hand, tears falling, the chamber silent and dark
+@panel strip | kael, auren | Kael kneeling with his head bowed beside the still body of the white-bearded Auren lying on the floor, still holding his hand, tears falling, the chamber silent and dark
 > Auren dies.
 > Kael remains holding his hand.
 @hide all
@@ -401,7 +401,7 @@ KAEL [determined]: We can still save the stone!
 @show right seran
 SERAN: We can replace a stone. We can't replace all of you.
 KAEL: They're going to bring Veyr back!
-@panel square | seran | Close-up of Seran shoving Kael away, fierce and protective, firelight on his face
+@panel square | seran, kael | Seran shoving Kael away with one arm, fierce and protective, firelight on both faces, burning fortress behind
 SERAN: Then live long enough to stop him!
 @hide all
 @panel tall | seran | Seran standing alone with his sword raised in the burning hall, facing seven dark silhouettes closing in, his last stand

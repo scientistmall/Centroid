@@ -77,8 +77,10 @@ BACKDROPS = {
 # ----------------------------------------------------------------------------- manga panels
 PANEL_STYLE = ("full colour manga panel, modern anime and webtoon key art style, clean confident ink line art, "
                "cel shading with soft painted gradients, cinematic composition and lighting, expressive faces, "
-               "detailed background, high quality illustration. No text, no letters, no speech bubbles, no captions, "
-               "no sound effects, no watermark, no signature, no panel borders, no frame")
+               "detailed background, high quality illustration. One single continuous image (not a comic page, not "
+               "split into several panels, no mirrored halves); every named character appears exactly once. No text, "
+               "no letters, no writing or signs on objects, no speech bubbles, no captions, no sound effects, no "
+               "watermark, no signature, no panel borders, no frame")
 
 # short identity lines (the concept image of each character is also passed as a reference)
 LOOKS = {
