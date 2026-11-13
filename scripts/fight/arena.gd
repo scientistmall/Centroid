@@ -255,7 +255,8 @@ func _add_puppet(f: Fighter) -> void:
 	if stage3d == null or _puppets.has(f):
 		return
 	f.render_3d = true
-	var p := Puppet3D.new()
+	# the real rigged character when its model exists, otherwise the stand-in mannequin
+	var p: Node3D = Model3D.new() if Model3D.available(f.char_id) else Puppet3D.new()
 	stage3d.world_root.add_child(p)
 	p.setup(f, stage3d)
 	_puppets[f] = p

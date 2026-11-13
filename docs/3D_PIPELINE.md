@@ -217,7 +217,16 @@ I'll convert it.
    - **Format:** FBX Binary (.fbx)
    - **Pose:** T-pose
    - **Skin:** With Skin
-5. Rename the file to the character's name, e.g. `kael.fbx`.
+5. Rename the file to the character's name, e.g. `kael.fbx`, and upload it to
+   `assets/characters/<name>/` (or just `assets/`, and I'll move it).
+
+**Good to know:**
+- Set **Skeleton LOD = No Fingers**. AI models have fused fingers, and finger bones
+  stretch them.
+- **Use Symmetry** on or off both work.
+- If the face or hands still warp in Mixamo's preview, that's fine. When importing, I
+  make the head move as one solid piece and the hands too, with
+  `tools/models/fix_rig.gd`.
 
 ### If something goes wrong
 | Problem | Fix |
