@@ -73,3 +73,70 @@ BACKDROPS = {
                     "stone pillars with golden sun carvings, rays of warm sunrise light breaking through, stars "
                     "fading in the deep blue sky" + _BG, 1664, 704),
 }
+
+# ----------------------------------------------------------------------------- manga panels
+PANEL_STYLE = ("full colour manga panel, modern anime and webtoon key art style, clean confident ink line art, "
+               "cel shading with soft painted gradients, cinematic composition and lighting, expressive faces, "
+               "detailed background, high quality illustration. No text, no letters, no speech bubbles, no captions, "
+               "no sound effects, no watermark, no signature, no panel borders, no frame")
+
+# short identity lines (the concept image of each character is also passed as a reference)
+LOOKS = {
+    "kael": "Kael, a lean young man of 19 with spiky dark navy-black hair, light blue eyes, a fitted navy jacket "
+            "with light-blue trim and split coat tails, a pale blue-white scarf",
+    "rhex": "Rhex, a tall muscular young man of 25 with a dark red spiky mohawk and shaved sides, a scar on his "
+            "cheek, red eyes, a sleeveless black vest with red V-neck trim and one riveted steel pauldron",
+    "mira": "Mira, a slender young woman of 18 with long straight dark violet hair, a silver crescent-moon hair "
+            "clip, pink eyes, a dark navy coat-dress with soft pink trim and a white sash",
+    "tala": "Tala, a tall athletic woman of 30 with dark brown skin, a high black ponytail, amber eyes, a "
+            "sleeveless green wrap tunic with mint trim and a jade-green scarf",
+    "darin": "Darin, a very big strong man of 28 with brown skin, a shaved head, a short dark beard and massive "
+             "stone-plated gauntlets",
+    "iren": "Iren, a slim young man of 20 with messy orange-brown hair, freckles and a light grey hooded jacket "
+            "with an orange scarf",
+    "lyra": "Lyra, a slim young woman of 20 with long silver-white hair, ice-blue eyes and a white and ice-blue "
+            "archer outfit with a short cape",
+    "oren": "Oren, a young man of 22 with short sandy-blond hair, brass goggles on his forehead, a dark utility "
+            "vest and mechanical glowing resonance gloves",
+    "auren": "Auren, a tall dignified elderly man of 70 with long white hair and a long white beard, wise kind "
+             "eyes, cream and gold robes with a golden sun emblem",
+    "seran": "Seran, a man of 50 with swept-back dark hair streaked with grey, a neat short beard and a long dark "
+             "grey officer coat with sage-green trim",
+    "veyr": "Veyr, a tall lean man of 45 with long straight black hair with one silver streak, pale skin, cold "
+            "violet eyes and a long violet-black high-collared coat embroidered with glowing constellations",
+    "thane": "Thane, a tall muscular man of 25, Kael's older brother, with long spiky dark navy-black hair swept "
+             "back, a confident smirk and a black and deep purple armoured long coat",
+    "vaska": "Vaska, a slim young woman of 22 in a deep grey-blue hooded cloak with a ragged misty hem and a sheer "
+             "veil over the lower half of her face",
+    "mael": "Mael, a tall heavily muscled man of 35 with olive skin, a short dark military haircut, a black "
+            "martial-arts gi with a purple sash and iron knuckle plates",
+    "nyra": "Nyra, a tall elegant woman of 24, Mira's older sister, with long dark violet hair in one long braid, "
+            "venom-green eyes and a black leather coat with toxic-green trim",
+    "zerin": "Zerin, a lean young man of 20 with spiky golden-blond hair and a sleeveless black jacket with "
+             "glowing yellow lightning trim",
+    "corvin": "Corvin, a tall thin man of 35 with swept-back silver-blue hair, cold cyan eyes and a long dark teal "
+              "coat with glowing cyan crystal growths on the shoulders",
+}
+
+# where each story backdrop id is (added to panel prompts for consistent places)
+SETTINGS = {
+    "training_ground": "an abandoned stone training courtyard of a mountain fortress, cracked flagstones, wooden "
+                       "training posts, stone pillars, eternal night under a black sky",
+    "hq_night": "the organization's mountain fortress headquarters at night, stone terraces, warm lanterns",
+    "hq_siege": "the mountain fortress headquarters under attack at night, fire and smoke",
+    "crater": "a smoking meteor impact crater in a dark forest at night",
+    "research_chamber": "a stone research chamber full of scrolls, books and instruments, daylight from tall windows",
+    "research_dark": "a stone research chamber at night lit only by eerie glows",
+    "balcony_sunset": "a stone fortress balcony overlooking a training yard at golden sunset",
+    "forbidden_chamber": "a hidden underground stone chamber with arcane markings",
+    "centroid_chamber": "the vaulted chamber that holds the Centroid stone on an altar of glowing green Asterite",
+    "solar_altar": "the Solar Altar, a ring of ancient sun-carved stone pillars on a mountain plateau above the clouds",
+    "graves": "a lonely hillside with memorial stones under a black sky, lit by torches",
+    "silent_forest": "a silent ancient forest of giant mossy trees at night, blue-grey mist drifting between the trunks",
+    "broken_pass": "a broken mountain pass with shattered cliffs and floating rock fragments under violet storm clouds",
+    "underground_sanctuary": "an underground sanctuary cavern with carved pillars, glowing green crystal veins and "
+                             "still water pools",
+}
+
+PANEL_SIZE = {"wide": (1344, 768), "action": (1344, 768), "square": (1024, 1024), "tall": (768, 1152),
+              "strip": (1536, 512), "splash": (1536, 688)}

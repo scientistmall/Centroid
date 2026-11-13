@@ -67,7 +67,7 @@ static func load_file(path: String) -> Dictionary:
 
 ## Art for panel n of a scene (made by tools/models/kaggle_run.py panels).
 static func panel_art(scene: String, n: int) -> String:
-	return "res://assets/manga/%s/%s_p%02d.png" % [scene, scene, n]
+	return "res://assets/manga/%s/%s_p%02d.webp" % [scene, scene, n]
 
 
 static func parse(text: String, scene := "") -> Dictionary:

@@ -43,6 +43,42 @@ def picked_concept(name: str) -> str:
     return files[0]
 
 
+def story_panels(scene: str) -> list:
+    """The @panel lines of a story file with their running @bg and panel number."""
+    path = os.path.join(ROOT, "data", "story", scene + ".story")
+    out, bg, n = [], "black", 0
+    for raw in open(path, encoding="utf-8"):
+        line = raw.strip()
+        if line.startswith("@bg "):
+            bg = line[4:].strip()
+        elif line.startswith("@panel"):
+            n += 1
+            parts = [x.strip() for x in line[len("@panel"):].split("|")]
+            cast = [c.strip().lower() for c in parts[1].split(",")] if len(parts) > 1 else []
+            cast = [c for c in cast if c and c != "-"]
+            out.append({"n": n, "shape": parts[0].lower() if parts else "wide", "cast": cast,
+                        "dir": parts[2] if len(parts) > 2 else "", "bg": bg})
+    return out
+
+
+def char_ref(c: str) -> str:
+    """Reference image for a character: the turnaround front view if made, else the picked concept."""
+    v = os.path.join(CHARS, c, "views", f"{c}_front.png")
+    return v if os.path.exists(v) else picked_concept(c)
+
+
+def panel_job(scene: str, p: dict, n_images: int) -> tuple:
+    w, h = ap_.PANEL_SIZE.get(p["shape"], (1344, 768))
+    cast = [c for c in p["cast"] if c in ap_.LOOKS][:3]
+    who = "; ".join(f"{ap_.LOOKS[c]} (reference image {i + 1})" for i, c in enumerate(cast))
+    prompt = f"{ap_.PANEL_STYLE}. Scene: {p['dir']}. Setting: {ap_.SETTINGS.get(p['bg'], p['bg'].replace('_', ' '))}."
+    if who:
+        prompt += f" Characters: {who}. Keep each character's face, hair and outfit exactly like their reference image."
+    refs = [char_ref(c) for c in cast]
+    return {"out": f"{scene}_p{p['n']:02d}", "prompt": prompt, "refs": [os.path.basename(r) for r in refs],
+            "w": w, "h": h, "n": n_images}, refs
+
+
 def upload_inputs(user: str, names: list, files: list = None) -> None:
     """Private dataset with the given files (default: the picked concept of each character)."""
     files = files or [picked_concept(n) for n in names]
@@ -102,10 +138,11 @@ def download(user: str, slug: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("kind", choices=["concepts", "model", "views", "art"])
+    ap.add_argument("kind", choices=["concepts", "model", "views", "art", "panels"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--missing", action="store_true", help="concepts: every character without a concept yet")
     ap.add_argument("--n", type=int, default=2)
+    ap.add_argument("--only", default="", help="panels: comma separated panel numbers (one scene)")
     ap.add_argument("--user", default=os.environ.get("KAGGLE_USERNAME", ""))
     a = ap.parse_args()
     if not a.user:
@@ -117,7 +154,7 @@ def main():
         sys.exit("no characters given")
     print("characters:", " ".join(names))
 
-    if a.kind in ("concepts", "views", "art"):
+    if a.kind in ("concepts", "views", "art", "panels"):
         dest = {}   # out prefix -> folder
         refs = []
         if a.kind == "concepts":
@@ -132,6 +169,21 @@ def main():
                     jobs.append({"out": f"{n}_{v}", "prompt": prompt, "refs": [os.path.basename(ref)],
                                  "w": w, "h": h, "n": a.n})
                     dest[f"{n}_{v}"] = os.path.join(CHARS, n, "views")
+        elif a.kind == "panels":
+            jobs = []
+            only = {int(x) for x in a.only.split(",") if x.strip()} if a.only else set()
+            for scene in names:
+                for p in story_panels(scene):
+                    if only and p["n"] not in only:
+                        continue
+                    final = os.path.join(ROOT, "assets", "manga", scene, f"{scene}_p{p['n']:02d}.webp")
+                    if a.missing and os.path.exists(final):
+                        continue
+                    job, rf = panel_job(scene, p, a.n)
+                    jobs.append(job)
+                    refs += [r for r in rf if r not in refs]
+                    dest[job["out"]] = os.path.join(ROOT, "assets", "manga", scene, "candidates")
+            print(len(jobs), "panels")
         else:  # art: weapons / props / backdrops by id (or all)
             table = {}
             for k, (owner, prompt) in ap_.WEAPONS.items():
@@ -159,6 +211,10 @@ def main():
             open(os.path.join(d, ".gdignore"), "a").close()
             shutil.copy(f, d)
             print("saved", os.path.join(d, os.path.basename(f)))
+            if a.kind == "panels" and f.endswith("_k1.png"):
+                from PIL import Image
+                final = os.path.join(os.path.dirname(d), os.path.basename(f).replace("_k1.png", ".webp"))
+                Image.open(f).convert("RGB").save(final, "WEBP", quality=90, method=6)
     else:
         # characters: multi-view if views/<name>_{front,back,left,right}.png are picked, else the concept;
         # *.png paths (weapon / prop concepts): single image, saved next to their concepts/ folder
