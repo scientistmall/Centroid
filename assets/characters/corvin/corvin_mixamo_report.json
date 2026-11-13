@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/corvin/raw/corvin.glb",
+  "zip": "/home/user/centroid/assets/characters/corvin/corvin_mixamo.zip",
+  "height_m": 1.83,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "corvin.obj",
+    "corvin.obj.mtl",
+    "material_0.png"
+  ],
+  "zip_mb": 4.0
+}

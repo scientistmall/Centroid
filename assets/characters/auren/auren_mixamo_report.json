@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/auren/raw/auren.glb",
+  "zip": "/home/user/centroid/assets/characters/auren/auren_mixamo.zip",
+  "height_m": 1.8,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "auren.obj",
+    "auren.obj.mtl",
+    "material_0.png"
+  ],
+  "zip_mb": 5.03
+}

@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/vaska/raw/vaska.glb",
+  "zip": "/home/user/centroid/assets/characters/vaska/vaska_mixamo.zip",
+  "height_m": 1.65,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "material_0.png",
+    "vaska.obj",
+    "vaska.obj.mtl"
+  ],
+  "zip_mb": 4.28
+}

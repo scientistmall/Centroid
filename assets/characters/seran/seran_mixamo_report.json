@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/seran/raw/seran.glb",
+  "zip": "/home/user/centroid/assets/characters/seran/seran_mixamo.zip",
+  "height_m": 1.78,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "material_0.png",
+    "seran.obj",
+    "seran.obj.mtl"
+  ],
+  "zip_mb": 3.81
+}

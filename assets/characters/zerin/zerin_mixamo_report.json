@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/zerin/raw/zerin.glb",
+  "zip": "/home/user/centroid/assets/characters/zerin/zerin_mixamo.zip",
+  "height_m": 1.76,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "material_0.png",
+    "zerin.obj",
+    "zerin.obj.mtl"
+  ],
+  "zip_mb": 4.86
+}

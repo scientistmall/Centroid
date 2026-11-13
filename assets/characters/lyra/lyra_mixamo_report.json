@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/lyra/raw/lyra.glb",
+  "zip": "/home/user/centroid/assets/characters/lyra/lyra_mixamo.zip",
+  "height_m": 1.66,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "lyra.obj",
+    "lyra.obj.mtl",
+    "material_0.png"
+  ],
+  "zip_mb": 4.52
+}

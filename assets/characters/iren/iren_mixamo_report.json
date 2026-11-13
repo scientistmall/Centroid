@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/iren/raw/iren.glb",
+  "zip": "/home/user/centroid/assets/characters/iren/iren_mixamo.zip",
+  "height_m": 1.72,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "iren.obj",
+    "iren.obj.mtl",
+    "material_0.png"
+  ],
+  "zip_mb": 5.19
+}

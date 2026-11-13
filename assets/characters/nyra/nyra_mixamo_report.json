@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/nyra/raw/nyra.glb",
+  "zip": "/home/user/centroid/assets/characters/nyra/nyra_mixamo.zip",
+  "height_m": 1.72,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "material_0.png",
+    "nyra.obj",
+    "nyra.obj.mtl"
+  ],
+  "zip_mb": 3.69
+}

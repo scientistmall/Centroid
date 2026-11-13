@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/veyr/raw/veyr.glb",
+  "zip": "/home/user/centroid/assets/characters/veyr/veyr_mixamo.zip",
+  "height_m": 1.85,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "material_0.png",
+    "veyr.obj",
+    "veyr.obj.mtl"
+  ],
+  "zip_mb": 4.09
+}

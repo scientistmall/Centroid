@@ -1,0 +1,14 @@
+{
+  "source": "assets/characters/oren/raw/oren.glb",
+  "zip": "/home/user/centroid/assets/characters/oren/oren_mixamo.zip",
+  "height_m": 1.74,
+  "triangles_before": 60000,
+  "triangles_after": 30000,
+  "textured": true,
+  "files": [
+    "material_0.png",
+    "oren.obj",
+    "oren.obj.mtl"
+  ],
+  "zip_mb": 4.99
+}
