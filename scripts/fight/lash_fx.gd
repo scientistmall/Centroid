@@ -18,6 +18,8 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	if Vfx3D.on():
+		return
 	var k := clampf(t / (LIFE * 0.4), 0.0, 1.0)      # extends quickly
 	var fade := 1.0 - clampf((t - LIFE * 0.4) / (LIFE * 0.6), 0.0, 1.0)
 	var end := from.lerp(to, k)

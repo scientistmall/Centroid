@@ -28,6 +28,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _draw() -> void:
+	if Vfx3D.on():
+		return
 	var rise := clampf(t / 0.15, 0.0, 1.0)
 	var fade := clampf((life - t) / 0.3, 0.0, 1.0)
 	var h := H * rise

@@ -291,7 +291,12 @@ func _separate() -> void:
 
 
 ## Anime cut-in banner + a short dramatic slow-down when a power fires.
+var cutins_enabled := true   # tests turn the power cut-in banner off
+
+
 func _on_power(f: Fighter, power_name: String) -> void:
+	if not cutins_enabled:
+		return
 	if ui_layer == null:
 		return
 	for c in ui_layer.get_children():

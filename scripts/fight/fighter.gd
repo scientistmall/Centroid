@@ -472,6 +472,7 @@ func _power_update(_delta: float) -> void:
 		"pull":
 			if t >= startup and not power_fired:
 				power_fired = true
+				Vfx3D.on_power(self, power_def)
 				if opponent and not opponent.has_status("anchored"):
 					opponent.add_status("gravity", power_def.get("duration", 1.4))
 					opponent.pull_source = self
@@ -486,9 +487,13 @@ func _power_update(_delta: float) -> void:
 		"wall":
 			if t >= startup and not power_fired:
 				power_fired = true
+				Vfx3D.on_power(self, power_def)
 				add_status("anchored", power_def.get("duration", 3.0))
 				_spawn_wall()
 		"dash":
+			if t >= startup and not power_fired:
+				power_fired = true
+				Vfx3D.on_power(self, power_def)
 			if t >= startup and t < startup + active:
 				invuln = 0.05
 				vel.x = facing * float(power_def.get("speed", 2200))
@@ -504,6 +509,7 @@ func _power_update(_delta: float) -> void:
 		"buff":
 			if t >= startup and not power_fired:
 				power_fired = true
+				Vfx3D.on_power(self, power_def)
 				var status: String = power_def.get("status", "")
 				for c in power_def.get("cleanse", []):
 					statuses.erase(c)
@@ -559,12 +565,14 @@ func _power_update(_delta: float) -> void:
 		"summon":
 			if t >= startup and not power_fired:
 				power_fired = true
+				Vfx3D.on_power(self, power_def)
 				if not (opponent and opponent.has_status("clear_sight")):
 					_spawn_clone()
 				_spawn_burst(120.0)
 		"burst":
 			if t >= startup and not power_fired:
 				power_fired = true
+				Vfx3D.on_power(self, power_def)
 				var r: float = power_def.get("radius", 250.0)
 				_spawn_burst(r)
 				if opponent and absf(opponent.position.x - position.x) <= r and absf(opponent.position.y - position.y) < 260:
@@ -610,6 +618,7 @@ func _apply_on_hit(target: Fighter) -> void:
 func _spawn_lash(to: Vector2) -> void:
 	if effects_parent == null:
 		return
+	Vfx3D.on_lash(self, position + Vector2(facing * 40.0, -190.0), to)
 	var l := LashFx.new()
 	l.from = position + Vector2(facing * 40.0, -190.0)
 	l.to = to
@@ -659,6 +668,9 @@ func _spawn_burst(r: float) -> void:
 
 func _spawn_spark(at: Vector2, blocked: bool, heavy: bool) -> void:
 	if effects_parent == null:
+		return
+	if Vfx3D.on():
+		Vfx3D.on_hit(at, color, blocked, heavy, element)
 		return
 	var s := HitSpark.new()
 	s.position = at

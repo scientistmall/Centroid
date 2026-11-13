@@ -8,6 +8,8 @@ extends SubViewportContainer
 ## scenery at z < 0 gets real perspective and parallax.
 
 const PPM := 154.0          # pixels per metre on the fighters' plane
+## The stage of the fight in progress (for 3D power effects), or null.
+static var current: Stage3D
 const FOV := 40.0
 
 var viewport: SubViewport
@@ -19,6 +21,8 @@ var _ground_px := 890.0
 
 
 func setup(id: String, vp_size: Vector2, ground_px: float) -> void:
+	current = self
+	tree_exiting.connect(func(): if current == self: current = null)
 	arena_id = id
 	_vp_size = vp_size
 	_ground_px = ground_px

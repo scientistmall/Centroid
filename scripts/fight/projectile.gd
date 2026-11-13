@@ -32,6 +32,10 @@ func setup(from: Fighter, to: Fighter, p: Dictionary, col: Color) -> void:
 	add_to_group("projectiles")
 
 
+func _ready() -> void:
+	Vfx3D.on_projectile(self)
+
+
 func rect() -> Rect2:
 	return Rect2(position - Vector2(size.x / 2, size.y / 2), size)
 
@@ -60,6 +64,7 @@ func _physics_process(delta: float) -> void:
 	if can_hit and target and target.is_alive() and rect().intersects(target.hurtbox()):
 		var res := target.receive_hit(owner_fighter, params)
 		if res != "miss":
+			Vfx3D.on_projectile_end(self, true)
 			var s := HitSpark.new()
 			s.position = position
 			s.color = color if res == "hit" else Color(0.8, 0.85, 1.0)
@@ -69,6 +74,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _pop() -> void:
+	Vfx3D.on_projectile_end(self, false)
 	var s := HitSpark.new()
 	s.position = position
 	s.color = color
@@ -77,6 +83,8 @@ func _pop() -> void:
 
 
 func _draw() -> void:
+	if Vfx3D.on():
+		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(life * 40.0)
 	match fx:

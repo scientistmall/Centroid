@@ -16,6 +16,8 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	if Vfx3D.on():
+		return
 	var k := t / 0.45
 	var r := radius * (0.3 + 0.7 * k)
 	var a := 1.0 - k
