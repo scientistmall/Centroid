@@ -33,6 +33,7 @@ func _ready() -> void:
 	if _want("sanctuary"): await _shot_fight("fight04", "sanctuary")
 	if _want("cutin"): await _shot_cutin()
 	if _want("impact"): await _shot_impact()
+	if _want("hand"): await _shot_hand()
 	if _want("chapters"): await _shot_scene("res://scenes/ui/chapter_select.tscn", "chapters", true)
 	if _want("settings"): await _shot_settings()
 	if _want("vs"): await _shot_vs()
@@ -126,6 +127,41 @@ func _shot_cutin() -> void:
 	a.enemy._try_power(1)
 	await get_tree().create_timer(0.35, true, false, true).timeout
 	await _save("cutin_enemy")
+	a.queue_free()
+
+
+## Close-up of the player's weapon hand (checks the grip of VRM fighters).
+func _shot_hand() -> void:
+	SceneRouter.current = {"type": "fight", "id": "fight01", "no_briefing": true}
+	var a = load("res://scenes/fight/arena.tscn").instantiate()
+	add_child(a)
+	var t := 0
+	while a.phase != "fight" and t < 600:
+		await get_tree().physics_frame
+		t += 1
+	for i in 20:
+		await get_tree().process_frame
+	a.process_mode = Node.PROCESS_MODE_DISABLED
+	var m: Node3D = a._puppets.get(a.player)
+	var sk: Skeleton3D = m.find_children("*", "Skeleton3D", true, false)[0]
+	var hb := sk.find_bone("RightHand")
+	if hb < 0:
+		hb = sk.find_bone("mixamorig_RightHand")
+	var at: Vector3 = sk.global_transform * sk.get_bone_global_pose(hb).origin
+	var hips := sk.find_bone("Hips")
+	if hips < 0:
+		hips = sk.find_bone("mixamorig_Hips")
+	var scale_m: float = (sk.global_transform * sk.get_bone_global_pose(hips).origin).distance_to(at)
+	print("hand ", at, " hips-hand ", scale_m)
+	var cam: Camera3D = a.stage3d.camera
+	cam.fov = 30.0
+	cam.near = 0.01
+	for side in [["hand_front", Vector3(0.0, 0.15, 1.0)], ["hand_side", Vector3(0.9, 0.2, 0.35)]]:
+		cam.global_position = at + side[1] * scale_m * 3.0
+		cam.look_at(at, Vector3.UP)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		await _save(side[0])
 	a.queue_free()
 
 

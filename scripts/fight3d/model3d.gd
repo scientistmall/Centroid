@@ -2,7 +2,10 @@ class_name Model3D
 extends Node3D
 ## A fighter drawn as the real rigged 3D character (Mixamo skeleton + shared animation library).
 ## Same interface as Puppet3D: setup(fighter, stage) once, sync() every frame.
-## Used when assets/characters/<id>/<id>.tscn exists (made by tools/models/fix_rig.gd).
+## Used when assets/characters/<id>/<id>.vrm exists (VRoid Studio export; preferred) or
+## assets/characters/<id>/<id>.tscn (Mixamo rig made by tools/models/fix_rig.gd).
+## A VRM body gets the same clips retargeted onto its humanoid skeleton (VrmRetarget), its own
+## spring-bone hair and cloth, anime (MToon) shading, and fingers closed around the weapon.
 ##
 ## Attacks and powers are not played at clip speed: each clip's strike moment (measured by
 ## tools/models/build_anims.gd) is lined up with the move's hit frame, so the animation always
@@ -24,6 +27,21 @@ const SHADER := preload("res://assets/shaders/character.gdshader")
 const BLEND := {"idle": 0.18, "walk_forward": 0.15, "walk_back": 0.15, "block": 0.08, "jump": 0.1}
 
 static var _lib: AnimationLibrary
+## fighters stand this tall (metres), as the Mixamo models do
+const HEIGHT := 1.78
+const OVERLAY := """
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_back, shadows_disabled;
+uniform vec4 color : source_color = vec4(1.0);
+uniform float flash = 0.0;
+uniform float rim = 0.3;
+void fragment() {
+	float f = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.5);
+	ALBEDO = color.rgb * (flash + rim * f);
+}
+"""
+## weapon-hand finger curl (degrees) for proximal / intermediate / distal joints
+const CURL := [72.0, 88.0, 55.0]
 static var _weapon_specs := {}  # owner char_id -> spec from assets/weapons/weapons.json
 const WEAPONS_JSON := "res://assets/weapons/weapons.json"
 
@@ -40,10 +58,20 @@ var _sp_pos := Vector3.ZERO  # secondary-motion spring (world metres)
 var _sp_vel := Vector3.ZERO
 var _t := 0.0
 var _last_state := -1
+var _vrm := false
+var _meshes: Array[MeshInstance3D] = []
+var _overlay: ShaderMaterial
+var _sk: Skeleton3D
+var _grip: Array = []        # [[bone, pose rotation]] holding the weapon
 
 
 static func available(char_id: String) -> bool:
-	return char_id != "" and ResourceLoader.exists(scene_path(char_id)) and ResourceLoader.exists(LIB_PATH)
+	return char_id != "" and ResourceLoader.exists(LIB_PATH) \
+		and (ResourceLoader.exists(vrm_path(char_id)) or ResourceLoader.exists(scene_path(char_id)))
+
+
+static func vrm_path(char_id: String) -> String:
+	return "res://assets/characters/%s/%s.vrm" % [char_id, char_id]
 
 
 static func scene_path(char_id: String) -> String:
@@ -55,24 +83,10 @@ func setup(f: Fighter, s: Stage3D) -> void:
 	stage = s
 	if _lib == null:
 		_lib = load(LIB_PATH)
-	var model: Node3D = (load(scene_path(f.char_id)) as PackedScene).instantiate()
-	add_child(model)
-	var rig: Node3D = model.get_child(0)  # the scaled node that holds Skeleton3D
-	_mesh = model.find_children("*", "MeshInstance3D", true, false)[0]
-	_ap = AnimationPlayer.new()
-	rig.add_child(_ap)  # root_node ".." -> tracks "Skeleton3D:mixamorig_*" resolve
-	_ap.add_animation_library("", _lib)
-	_ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
-	# one shader for texture, rim, hit flash and hair / cloth motion
-	var src := _mesh.get_active_material(0) as BaseMaterial3D
-	_mat = ShaderMaterial.new()
-	_mat.shader = SHADER
-	_mat.set_shader_parameter("albedo_tex", src.albedo_texture if src else null)
-	_mat.set_shader_parameter("use_flex", (_mesh.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_COLOR) != 0)
-	_mat.set_shader_parameter("model_height", _mesh.mesh.get_aabb().size.y)
-	_mat.set_shader_parameter("flash_color", f.color.lerp(Color.WHITE, 0.6))
-	_mesh.material_override = _mat
-	_build_weapon(rig, f.weapon, f.color)
+	if ResourceLoader.exists(vrm_path(f.char_id)):
+		_setup_vrm(f)
+	else:
+		_setup_mixamo(f)
 	# coloured back-light and soft fill, as for the mannequin
 	var col := f.color
 	var rim := OmniLight3D.new()
@@ -93,6 +107,106 @@ func setup(f: Fighter, s: Stage3D) -> void:
 	sync()
 
 
+func _setup_mixamo(f: Fighter) -> void:
+	var model: Node3D = (load(scene_path(f.char_id)) as PackedScene).instantiate()
+	add_child(model)
+	var rig: Node3D = model.get_child(0)  # the scaled node that holds Skeleton3D
+	_mesh = model.find_children("*", "MeshInstance3D", true, false)[0]
+	_ap = AnimationPlayer.new()
+	rig.add_child(_ap)  # root_node ".." -> tracks "Skeleton3D:mixamorig_*" resolve
+	_ap.add_animation_library("", _lib)
+	_ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	# one shader for texture, rim, hit flash and hair / cloth motion
+	var src := _mesh.get_active_material(0) as BaseMaterial3D
+	_mat = ShaderMaterial.new()
+	_mat.shader = SHADER
+	_mat.set_shader_parameter("albedo_tex", src.albedo_texture if src else null)
+	_mat.set_shader_parameter("use_flex", (_mesh.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_COLOR) != 0)
+	_mat.set_shader_parameter("model_height", _mesh.mesh.get_aabb().size.y)
+	_mat.set_shader_parameter("flash_color", f.color.lerp(Color.WHITE, 0.6))
+	_mesh.material_override = _mat
+	_meshes = [_mesh]
+	_build_weapon(rig, f.weapon, f.color)
+
+
+## A VRoid / VRM body: scaled to fighter height, clips retargeted onto its skeleton.
+func _setup_vrm(f: Fighter) -> void:
+	_vrm = true
+	var path := vrm_path(f.char_id)
+	var model: Node3D = (load(path) as PackedScene).instantiate()
+	add_child(model)
+	_sk = model.find_children("*", "Skeleton3D", true, false)[0]
+	for m in model.find_children("*", "MeshInstance3D", true, false):
+		_meshes.append(m)
+	_mesh = _meshes[0]
+	# height from the meshes, before any animation
+	var top := 0.0
+	for m in _meshes:
+		var bb: AABB = m.mesh.get_aabb()
+		top = maxf(top, (model.global_transform.affine_inverse() * m.global_transform * bb).end.y)
+	model.scale = Vector3.ONE * (HEIGHT / maxf(top, 0.3))
+	# the shared clips, moved onto this skeleton
+	var ref: Node3D = (load(scene_path("kael")) as PackedScene).instantiate() if ResourceLoader.exists(scene_path("kael")) else null
+	var src: Skeleton3D = ref.find_children("*", "Skeleton3D", true, false)[0] if ref else null
+	var lib := VrmRetarget.library(path, _lib, src, _sk) if src else _lib
+	if ref:
+		ref.free()
+	_ap = AnimationPlayer.new()
+	_sk.get_parent().add_child(_ap)   # root_node ".." -> tracks "<Skeleton>:Bone" resolve
+	_ap.add_animation_library("", lib)
+	_ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	# hit flash and a rim in the fighter's colour on top of the anime shading
+	_overlay = ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = OVERLAY
+	_overlay.shader = sh
+	_overlay.set_shader_parameter("color", f.color.lerp(Color.WHITE, 0.5))
+	for m in _meshes:
+		m.material_overlay = _overlay
+	_build_weapon_vrm(f.weapon, f.color)
+
+
+## The weapon in the right fist: the handle runs across the palm where the curled fingers
+## close, the blade out of the thumb side.
+func _build_weapon_vrm(kind: String, col: Color) -> void:
+	var hand := _sk.find_bone("RightHand")
+	var mid := _sk.find_bone("RightMiddleProximal")
+	if hand < 0 or kind in ["gauntlets", ""]:
+		return
+	var w := _weapon_node(kind, col)
+	if w == null:
+		return
+	var att := BoneAttachment3D.new()
+	att.bone_name = "RightHand"
+	_sk.add_child(att)
+	att.add_child(w)
+	var hb := _sk.get_bone_global_rest(hand)
+	var want := Basis(Vector3.UP, Vector3.FORWARD * -1.0, Vector3.RIGHT)  # blade +Z (forward), edge up
+	w.basis = hb.basis.orthonormalized().inverse() * want
+	var grip := hb.origin
+	if mid >= 0:
+		var knuckle := _sk.get_bone_global_rest(mid).origin
+		grip = hb.origin + (knuckle - hb.origin) * 0.75 + Vector3(0, -0.028, 0)
+	w.position = hb.affine_inverse() * grip
+	# fingers closed around the handle (rest pose: fingers along -X, palm down, thumb forward)
+	for finger in ["Index", "Middle", "Ring", "Little"]:
+		for k in 3:
+			var b := _sk.find_bone("Right%s%s" % [finger, ["Proximal", "Intermediate", "Distal"][k]])
+			if b >= 0:
+				_grip.append([b, _curl(b, Vector3.BACK, CURL[k])])
+	for k in 3:
+		var tb := _sk.find_bone("RightThumb%s" % ["Metacarpal", "Proximal", "Distal"][k])
+		if tb >= 0:
+			_grip.append([tb, _curl(tb, Vector3.RIGHT, [10.0, 35.0, 30.0][k])])
+
+
+## Rest rotation of bone `b` turned by `deg` about a skeleton-space axis.
+func _curl(b: int, axis: Vector3, deg: float) -> Quaternion:
+	var gb := _sk.get_bone_global_rest(b).basis.orthonormalized()
+	var local_axis := (gb.inverse() * axis).normalized()
+	return _sk.get_bone_rest(b).basis.get_rotation_quaternion() * Quaternion(local_axis, deg_to_rad(deg))
+
+
 ## The weapon tip and mid-blade in the fighter's 2D space (for trails and element particles).
 func _tip_2d() -> Array:
 	var base := fighter.position
@@ -107,6 +221,23 @@ func _build_weapon(rig: Node3D, kind: String, col: Color) -> void:
 	var hand := sk.find_bone("mixamorig_RightHand")
 	if hand < 0 or kind in ["gauntlets", ""]:
 		return
+	var w := _weapon_node(kind, col)
+	if w == null:
+		return
+	var att := BoneAttachment3D.new()
+	att.bone_name = "mixamorig_RightHand"
+	sk.add_child(att)
+	att.add_child(w)
+	# rest-pose hand frame (skeleton units); blade forward (+Z of the model), edge up
+	var hb := sk.get_bone_global_rest(hand).basis.orthonormalized()
+	var want := Basis(Vector3.UP, Vector3.FORWARD * -1.0, Vector3.RIGHT)  # x=up, y=+Z (forward), z=right
+	w.basis = (hb.inverse() * want).scaled(Vector3.ONE / rig.scale.x)
+	# grip in the palm: a little way along the fingers (+Y of Mixamo hand bones)
+	w.position = Vector3(0, 0.07 / rig.scale.x, 0.02 / rig.scale.x)
+
+
+## The weapon (designed GLB, or a stand-in built from boxes), with tip / mid markers set.
+func _weapon_node(kind: String, col: Color) -> Node3D:
 	var steel := StandardMaterial3D.new()
 	steel.albedo_color = Color("aab4c4")
 	steel.metallic = 0.9
@@ -146,7 +277,8 @@ func _build_weapon(rig: Node3D, kind: String, col: Color) -> void:
 		"whip":
 			_part(w, _cylm(0.014, 0.2), glow, Vector3.ZERO)
 		_:
-			return
+			w.free()
+			return null
 	var reach: float = {"axe": 0.7, "spear": 1.37, "whip": 0.1, "daggers": 0.37}.get(kind, 0.92)
 	if reach_override > 0.0:
 		reach = reach_override
@@ -156,16 +288,7 @@ func _build_weapon(rig: Node3D, kind: String, col: Color) -> void:
 	_mid = Node3D.new()
 	_mid.position = Vector3(0, reach * 0.45, 0)
 	w.add_child(_mid)
-	var att := BoneAttachment3D.new()
-	att.bone_name = "mixamorig_RightHand"
-	sk.add_child(att)
-	att.add_child(w)
-	# rest-pose hand frame (skeleton units); blade forward (+Z of the model), edge up
-	var hb := sk.get_bone_global_rest(hand).basis.orthonormalized()
-	var want := Basis(Vector3.UP, Vector3.FORWARD * -1.0, Vector3.RIGHT)  # x=up, y=+Z (forward), z=right
-	w.basis = (hb.inverse() * want).scaled(Vector3.ONE / rig.scale.x)
-	# grip in the palm: a little way along the fingers (+Y of Mixamo hand bones)
-	w.position = Vector3(0, 0.07 / rig.scale.x, 0.02 / rig.scale.x)
+	return w
 
 
 ## The designed weapon for this character, if its 3D model exists (see tools/models/weapon_grip.py).
@@ -301,9 +424,16 @@ func sync() -> void:
 	_yaw = lerp_angle(_yaw, _target_yaw(), 0.35)
 	rotation.y = _yaw
 	_animate(dt)
-	_secondary(dt)
-	_mat.set_shader_parameter("flash", clampf(fighter.flash, 0.0, 1.0) * 0.45)
-	_mesh.transparency = 1.0 - fighter.modulate.a
+	var flash := clampf(fighter.flash, 0.0, 1.0) * 0.45
+	if _vrm:
+		for g in _grip:
+			_sk.set_bone_pose_rotation(g[0], g[1])
+		_overlay.set_shader_parameter("flash", flash)
+	else:
+		_secondary(dt)
+		_mat.set_shader_parameter("flash", flash)
+	for m in _meshes:
+		m.transparency = 1.0 - fighter.modulate.a
 
 
 ## Drive the AnimationPlayer by hand so every switch crossfades, even for time-mapped attacks.
