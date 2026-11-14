@@ -139,7 +139,8 @@ def panel_job(scene: str, p: dict, n_images: int) -> tuple:
         prompt += f" Characters: {'; '.join(who)}. Keep each character's face, hair and outfit exactly like their reference image."
     if wield:
         prompt += (" Weapons: " + "; ".join(wield) + ". Each weapon appears once and at the correct size; a weapon "
-                   "that is held is gripped naturally in the hand.")
+                   "that is held is gripped naturally in the hand. No other weapons anywhere in the picture: no spare "
+                   "or extra weapons lying around, and anyone without a listed weapon is unarmed with empty hands.")
     return {"out": f"{scene}_p{p['n']:02d}", "prompt": prompt, "refs": [os.path.basename(r) for r in refs],
             "w": w, "h": h, "n": n_images}, refs
 

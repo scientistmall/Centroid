@@ -319,7 +319,7 @@ AUREN: Veyr... I trusted you with the Centroid because I believed you would see 
 VEYR: Then you trusted the wrong man.
 
 @page
-@panel action | veyr, auren | Veyr lunging with his long blade at the white-bearded Auren, who blocks the strike with his forearm, sparks flying, dynamic clash, only these two men
+@panel action | veyr, auren | Only these two men: Veyr lunging with his long blade at the white-bearded Auren, who is unarmed and blocks the strike with his bare forearm, sparks flying, dynamic clash
 > He strikes.
 @fx CLANG | block
 > Auren blocks the first attack but refuses to deliver a killing blow.
@@ -339,7 +339,7 @@ KAEL [shocked]: Auren!
 > Seran attacks Veyr. The two deputies clash, their disagreement turning into a fight neither imagined they would have.
 @fx KRANG | block
 > Seran eventually gains the advantage and prepares to kill Veyr.
-@panel splash | veyr, seran | Only these two men: black energy erupting from the Centroid and flooding the chamber; Veyr sinking waist-deep into the cracking stone floor as a supernatural stone tomb rises around him and drags him down; Seran standing at the edge, reaching for him in vain
+@panel splash | veyr | Black energy erupting from the Centroid and flooding the chamber; Veyr sinking waist-deep into the cracking stone floor as a supernatural stone tomb rises around him and drags him down; a single gloved hand reaches toward him from the edge of the frame
 > Suddenly, the Centroid resonates. Black energy floods the chamber.
 THE VOICE: He is not yours to destroy.
 > A supernatural stone tomb forms around Veyr and swallows him beneath the ground.

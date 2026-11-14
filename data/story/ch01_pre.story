@@ -31,7 +31,7 @@ RHEX: From someone who understands what strength is worth.
 @panel wide | kael, rhex | Medium two-shot, the two old friends arguing across the black firelight
 KAEL: Auren gave you everything you needed to become a great fighter.
 RHEX: Auren taught us to hold back.
-@panel action | kael | Kael drawing his slightly curved sword in one smooth motion, a thin light-blue lightning edge crackling along the blade, speed lines
+@panel action | kael | Kael drawing his one straight longsword in a single smooth motion, light-blue lightning crackling along the blade, speed lines, no other sword in the picture
 > Kael draws his sword.
 @fx SHHING | swing_light
 KAEL: He taught us when not to fight.

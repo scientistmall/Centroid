@@ -38,7 +38,7 @@ MIRA: Darin!
 @hide all
 
 @page
-@panel wide | mira, darin_gauntlets | Mira running through settling dust toward a fallen giant lying broken among the rubble in the foreground (only his stone-plated gauntlet and arm visible, human-sized)
+@panel wide | mira, darin_gauntlets | Mira, empty-handed, running through settling dust toward a fallen giant lying broken among the rubble in the foreground (only his one stone-plated gauntlet and arm visible, human-sized)
 > Mira runs to Darin.
 @show right mira
 MIRA: Darin! Darin, look at me!
