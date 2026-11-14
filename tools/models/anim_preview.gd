@@ -78,6 +78,12 @@ func _ready() -> void:
 
 
 func _load_fbx(path: String) -> Dictionary:
+	if path.ends_with(".json"):   # an AI clip (HY-Motion), with its skeleton.json beside it
+		var sk := AiClips.skeleton(path.get_base_dir())
+		var holder := Node3D.new()
+		holder.add_child(sk)
+		add_child(holder)
+		return {"root": holder, "anim": AiClips.animation(path, sk), "skeleton": sk}
 	var doc := FBXDocument.new()
 	var state := FBXState.new()
 	if doc.append_from_file(path, state) != OK:

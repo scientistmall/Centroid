@@ -25,6 +25,15 @@ const MIXAMO := {
 	"RightHandRing1": "RightRingProximal", "RightHandRing2": "RightRingIntermediate", "RightHandRing3": "RightRingDistal",
 	"RightHandPinky1": "RightLittleProximal", "RightHandPinky2": "RightLittleIntermediate", "RightHandPinky3": "RightLittleDistal",
 }
+## HY-Motion clips (SMPL-H body joints, named "smpl_<joint>" by tools/models/ai_clips.gd)
+const SMPL := {
+	"smpl_Pelvis": "Hips", "smpl_Spine1": "Spine", "smpl_Spine2": "Chest", "smpl_Spine3": "UpperChest",
+	"smpl_Neck": "Neck", "smpl_Head": "Head",
+	"smpl_L_Collar": "LeftShoulder", "smpl_L_Shoulder": "LeftUpperArm", "smpl_L_Elbow": "LeftLowerArm", "smpl_L_Wrist": "LeftHand",
+	"smpl_R_Collar": "RightShoulder", "smpl_R_Shoulder": "RightUpperArm", "smpl_R_Elbow": "RightLowerArm", "smpl_R_Wrist": "RightHand",
+	"smpl_L_Hip": "LeftUpperLeg", "smpl_L_Knee": "LeftLowerLeg", "smpl_L_Ankle": "LeftFoot", "smpl_L_Foot": "LeftToes",
+	"smpl_R_Hip": "RightUpperLeg", "smpl_R_Knee": "RightLowerLeg", "smpl_R_Ankle": "RightFoot", "smpl_R_Foot": "RightToes",
+}
 ## Where each humanoid bone points (its child), for aligning rest directions. Torso bones are
 ## left unaligned so the spine doesn't twist.
 const AIM := {
@@ -62,6 +71,8 @@ static func library(key: String, src_lib: AnimationLibrary, src: Skeleton3D, dst
 
 
 static func _humanoid(src_bone: String) -> String:
+	if SMPL.has(src_bone):
+		return SMPL[src_bone]
 	return MIXAMO.get(src_bone.trim_prefix("mixamorig_").trim_prefix("mixamorig:"), "")
 
 
@@ -98,7 +109,19 @@ static func _find_src(src: Skeleton3D, short: String) -> int:
 	for i in src.get_bone_count():
 		if src.get_bone_name(i).trim_prefix("mixamorig_").trim_prefix("mixamorig:") == short:
 			return i
+	# a skeleton with other names: find the bone that plays that part (Hips, Spine2 = top of spine)
+	var want: String = {"Hips": "Hips", "Spine2": "UpperChest"}.get(short, "")
+	for i in src.get_bone_count():
+		if want != "" and SMPL.get(src.get_bone_name(i), "") == want:
+			return i
 	return -1
+
+
+static func _lowest(sk: Skeleton3D) -> float:
+	var lo := INF
+	for i in sk.get_bone_count():
+		lo = minf(lo, sk.get_bone_global_rest(i).origin.y)
+	return lo
 
 
 ## Shortest rotation taking direction a onto b.
@@ -159,7 +182,9 @@ static func _convert(a: Animation, src: Skeleton3D, dst: Skeleton3D, plan: Dicti
 	if hips_pos >= 0 and d_hips >= 0 and src_hips >= 0:
 		hp = out.add_track(Animation.TYPE_POSITION_3D)
 		out.track_set_path(hp, NodePath("%s:Hips" % skel))
-		ratio = dst.get_bone_global_rest(d_hips).origin.y / maxf(src.get_bone_global_rest(src_hips).origin.y, 1e-6)
+		# hips height above the feet (a skeleton's origin may be at the hips or the floor)
+		ratio = (dst.get_bone_global_rest(d_hips).origin.y - _lowest(dst)) \
+			/ maxf(src.get_bone_global_rest(src_hips).origin.y - _lowest(src), 1e-6)
 	var frames := maxi(1, int(ceil(a.length * FPS)))
 	var s_glob: Array[Quaternion] = []
 	s_glob.resize(n_src)
