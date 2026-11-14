@@ -256,7 +256,7 @@ TITLE_PLATE = ("the sacred Solar Altar plateau high above a sea of clouds at nig
                "ancient stone pillars carved with golden suns standing far back on both sides, small fires and "
                "glowing crystals at the pillar bases, an EMPTY open flagstone floor in the centre and foreground (no "
                "altar, no statue, nothing in the middle), symmetrical composition, wide cinematic anime background "
-               "painting, no characters, no people, no text, highly detailed", 1664, 768)
+               "painting, no characters, no people, no text, highly detailed", 1536, 704)
 
 TITLE_ALTAR = ("the Solar Altar, an ancient round stone altar on three circular steps, worn pale marble with carved "
                "golden sun rays and runes, a shallow golden cradle on top, warm golden light falling on it from "

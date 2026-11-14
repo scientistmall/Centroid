@@ -3,6 +3,7 @@
 # private dataset). Pushed and run by tools/models/kaggle_run.py, which fills in JOBS below.
 # Outputs: /kaggle/working/<out>_k<i>.png, log lines prefixed "CENTROID".
 import glob
+import gc
 import os
 import random
 import subprocess
@@ -96,8 +97,22 @@ def main():
                 img.save(f"{WORK}/{job['out']}_k{i + 1}.png")
                 log("image ok", job["out"], i + 1, "seed", seed, "%.0fs" % (time.time() - t1))
             except Exception:
-                log("image FAILED", job["out"], traceback.format_exc()[-1500:].replace("\n", " | "))
+                tb = traceback.format_exc()
+                gc.collect()
                 torch.cuda.empty_cache()
+                if "OutOfMemory" not in tb:
+                    log("image FAILED", job["out"], tb[-1500:].replace("\n", " | "))
+                    continue
+                # out of GPU memory: free it and try once more at 85% size
+                small = dict(job, w=int(job.get("w", 1024) * 0.85) // 16 * 16, h=int(job.get("h", 1024) * 0.85) // 16 * 16)
+                try:
+                    img = render(pipe, small, seed)
+                    img.save(f"{WORK}/{job['out']}_k{i + 1}.png")
+                    log("image ok (smaller after OOM)", job["out"], i + 1, small["w"], small["h"])
+                except Exception:
+                    log("image FAILED", job["out"], traceback.format_exc()[-1500:].replace("\n", " | "))
+                    gc.collect()
+                    torch.cuda.empty_cache()
     log("outputs:", sorted(os.listdir(WORK)))
 
 
