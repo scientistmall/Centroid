@@ -82,6 +82,12 @@ def weapon_sheet(wid: str) -> str:
     return f
 
 
+def weapon_clause(c: str, n: int) -> str:
+    """The one way every prompt names an armed character's approved weapon (docs/WEAPONS.md)."""
+    look = ap_.WEAPON_SHEETS[WEAPON_OF[c]][1]
+    return f"{c.capitalize()}'s weapon is {look}, exactly like the weapon beside them in reference image {n}"
+
+
 def char_weapon_ref(c: str) -> str:
     """Character reference with their weapon sheet beside it, one image (views/<c>_armed.png)."""
     from PIL import Image
@@ -112,6 +118,9 @@ def panel_job(scene: str, p: dict, n_images: int) -> tuple:
     cast = [c for c in p["cast"] if c in ap_.LOOKS or c in ap_.WEAPON_SHEETS][:3]
     d = p["dir"]
     armed = (bool(WEAPON_WORDS.search(d)) or p["shape"] in ("action", "splash")) and not re.search(r"practice|wooden", d, re.I)
+    # a panel about one weapon on its own (cast entry = weapon id) doesn't arm the people in it
+    if any(c in ap_.WEAPON_SHEETS for c in cast):
+        armed = False
     who, refs, wield = [], [], []
     for i, c in enumerate(cast):
         n = i + 1
@@ -122,15 +131,15 @@ def panel_job(scene: str, p: dict, n_images: int) -> tuple:
         who.append(f"{ap_.LOOKS[c]} (reference image {n})")
         if armed and c in WEAPON_OF:
             refs.append(char_weapon_ref(c))
-            look = ap_.WEAPON_SHEETS[WEAPON_OF[c]][1]
-            wield.append(f"{c.capitalize()}'s weapon is {look}, exactly like the weapon beside them in reference image {n}")
+            wield.append(weapon_clause(c, n))
         else:
             refs.append(char_ref(c))
     prompt = f"{ap_.PANEL_STYLE}. Scene: {d}. Setting: {ap_.SETTINGS.get(p['bg'], p['bg'].replace('_', ' '))}."
     if who:
         prompt += f" Characters: {'; '.join(who)}. Keep each character's face, hair and outfit exactly like their reference image."
     if wield:
-        prompt += " Weapons: " + "; ".join(wield) + ". Each weapon appears once, held naturally in the hand, at the correct size."
+        prompt += (" Weapons: " + "; ".join(wield) + ". Each weapon appears once and at the correct size; a weapon "
+                   "that is held is gripped naturally in the hand.")
     return {"out": f"{scene}_p{p['n']:02d}", "prompt": prompt, "refs": [os.path.basename(r) for r in refs],
             "w": w, "h": h, "n": n_images}, refs
 
@@ -285,14 +294,15 @@ def main():
         elif a.kind == "splash":
             jobs = []
             for (c, i), what in ap_.SPLASH.items():
-                if names and names != ["all"] and c not in names:
+                if names and names != ["all"] and f"{c}_{i}" not in names and c not in names:
                     continue
-                ref = char_ref(c)
+                ref = char_weapon_ref(c) if c in WEAPON_OF else char_ref(c)
                 if ref not in refs:
                     refs.append(ref)
                 out_id = f"cutin_{c}_{i}"
+                wl = f" {weapon_clause(c, 1)}; it appears once, held naturally." if c in WEAPON_OF else ""
                 jobs.append({"out": out_id, "prompt": f"{ap_.SPLASH_STYLE}. {what}. Character: {ap_.LOOKS[c]} "
-                             f"(reference image 1), keep the face, hair and outfit exactly like the reference.",
+                             f"(reference image 1), keep the face, hair and outfit exactly like the reference.{wl}",
                              "refs": [os.path.basename(ref)], "w": 1344, "h": 768, "n": a.n})
                 dest[out_id] = os.path.join(ROOT, "assets", "cutins", "candidates")
         elif a.kind == "title":

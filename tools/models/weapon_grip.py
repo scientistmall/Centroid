@@ -61,7 +61,9 @@ def analyse(path, grip_frac):
 
 
 def main():
-    out = {}
+    # merge into the existing file: the weapon bible's sheet / look / name entries stay
+    jf = os.path.join(WEAPONS, "weapons.json")
+    out = json.load(open(jf)) if os.path.exists(jf) else {}
     for path in sorted(glob.glob(os.path.join(WEAPONS, "*.glb"))):
         wid = os.path.basename(path)[:-4]
         if wid.endswith("_shape") or wid not in SPEC:
@@ -69,7 +71,7 @@ def main():
         frac, metres = SPEC[wid]
         info = analyse(path, frac)
         info.update({"file": f"res://assets/weapons/{wid}.glb", "metres": metres, "owner": OWNER.get(wid, "")})
-        out[wid] = info
+        out.setdefault(wid, {}).update(info)
         print(wid, json.dumps(info))
     with open(os.path.join(WEAPONS, "weapons.json"), "w") as f:
         json.dump(out, f, indent=1)

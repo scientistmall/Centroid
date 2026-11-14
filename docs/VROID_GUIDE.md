@@ -1,5 +1,8 @@
 # VRoid fighter sheets
 
+> **Superseded.** VRoid Studio can't build our armour, pauldrons and gauntlets, so the fighters are now made with Tencent Hunyuan 3D: see `docs/HUNYUAN3D_GUIDE.md`. The game still loads `.vrm` files, so this guide stays for reference.
+
+
 How to build Kael, Rhex, Mira and Tala in VRoid Studio. You build bodies, hair, faces and outfits; the game adds weapons (fitted to the hand), animation, physics and anime shading. A visual version of this guide with images is published as an artifact.
 
 ## Shared settings

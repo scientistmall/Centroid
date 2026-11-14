@@ -231,21 +231,21 @@ SPLASH_STYLE = ("dynamic full colour manga splash illustration, anime key art, d
 
 # (character, power index 1-based) -> what the art shows
 SPLASH = {
-    ("kael", 1): "Kael thrusting his sword forward as a crackling bolt of blue-white lightning blasts from its tip",
+    ("kael", 1): "Kael thrusting his straight lightning longsword forward as a crackling bolt of blue-white lightning blasts from its tip",
     ("kael", 2): "Kael dashing forward in a blur, his body wrapped in blue lightning, afterimages streaking behind him",
-    ("rhex", 1): "Rhex slamming his battle axe down, unleashing a roaring wave of black flames with ember-red edges",
-    ("rhex", 2): "Rhex roaring with his axe raised as a dome of black fire explodes around him, embers flying",
-    ("tala", 1): "Tala with her spear held across her body, her amber eyes glowing green as a ring of wind blows the mist away",
-    ("tala", 2): "Tala lunging and thrusting her spear as a spiralling green wind lance tears forward with leaves",
-    ("vaska", 1): "Vaska fading into swirling grey mist, only her eyes and twin blades visible through the fog",
-    ("vaska", 2): "Vaska stepping out of the mist beside a ghostly mirror image of herself, both with twin blades raised",
+    ("rhex", 1): "Rhex slamming his heavy two-handed battle axe down with both hands, unleashing a roaring wave of black flames with ember-red edges",
+    ("rhex", 2): "Rhex roaring with his heavy two-handed battle axe raised high as a dome of black fire explodes around him, embers flying",
+    ("tala", 1): "Tala holding her long wind spear upright beside her in one hand, her amber eyes glowing green as a ring of wind blows the mist away",
+    ("tala", 2): "Tala lunging and thrusting her long wind spear with both hands, the leaf-shaped jade head leading, as a spiralling green wind lance tears forward with leaves",
+    ("vaska", 1): "Vaska fading into swirling grey mist, only her eyes and her two short curved blades, one in each hand, visible through the fog",
+    ("vaska", 2): "Vaska stepping out of the mist beside a ghostly translucent mirror image of herself, each holding a short curved blade in each hand",
     ("darin", 1): "Darin slamming his stone gauntlets into the ground as a massive wall of rock erupts before him",
     ("darin", 2): "Darin punching the ground with a stone gauntlet, cracks and rock spikes racing forward, dust exploding",
     ("mael", 1): "Mael raising one hand as a black sphere of crushing gravity forms, rocks orbiting it, purple light",
     ("mael", 2): "Mael hurling glowing purple boulders that rise and launch from the shattered ground",
     ("mira", 1): "Mira with her eyes closed, bathed in a pillar of soft pink-white moonlight, crescent symbols glowing around her",
-    ("mira", 2): "Mira whipping her segmented silver blade like a ribbon of pink moonlight across the frame",
-    ("nyra", 1): "Nyra cracking her long whip which drips glowing green venom, a cruel smile",
+    ("mira", 2): "Mira lashing her whip-sword in its extended whip form, a long chain of silver crescent plates on a glowing pink cable curving across the frame from the white hilt in her hand",
+    ("nyra", 1): "Nyra cracking her long black whip with the silver snake-head pommel, its barbed end dripping glowing green venom, a cruel smile",
     ("nyra", 2): "Nyra reaching out with a clawed hand as dark green curse tendrils drain glowing energy toward her",
 }
 
@@ -302,6 +302,7 @@ def title_pose(c: str) -> str:
     weapon = ""
     for wid, (owner, wlook, _p) in WEAPON_SHEETS.items():
         if owner == c:
-            weapon = f" Their weapon is {wlook}, exactly like the weapon beside them in reference image 1."
+            weapon = (f" {c.capitalize()}'s weapon is {wlook}, exactly like the weapon beside them in reference "
+                      f"image 1; it appears once, held naturally.")
     return (f"{_POSE}. {look}, {extra}, {turn}. Keep the face, hair and outfit exactly like reference image 1."
             f"{weapon}")
