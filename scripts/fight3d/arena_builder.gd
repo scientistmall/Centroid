@@ -102,6 +102,7 @@ static func lights(root: Node3D, moon: Color, rim: Color, key_energy := 1.2) -> 
 	key.light_energy = key_energy
 	key.rotation_degrees = Vector3(-35, 20, 0)
 	key.shadow_enabled = true
+	key.shadow_opacity = 0.55   # no sun: soft shadows, not black pools
 	root.add_child(key)
 	# strong rim light from behind — makes fighters pop from the background
 	var back := DirectionalLight3D.new()
@@ -188,13 +189,23 @@ static func _painted(root: Node3D, id: String, cam_y: float, cam_z: float) -> vo
 	var ground := _avg_rows(img, 1.0 - hf + 0.04, 1.0 - hf * 0.45)
 	environment(root, sky, horizon, horizon.lerp(ground, 0.4), 0.007, sky.lerp(ground, 0.5).lightened(0.1))
 	lights(root, sky.lerp(Color.WHITE, 0.55), horizon.lightened(0.25), 0.85)
-	var fl := ground.darkened(0.35)
-	floor_plane(root, noise_mat(fl, fl.darkened(0.3), 0.05, 0.95))
 	# the painting, its horizon at eye level
 	var dist := 34.0
 	var h := 32.0   # small enough that the eclipse shows above the fighters
 	var w := h * float(tex.get_width()) / float(tex.get_height())
 	var y_top := cam_y - hf * h + h
+	# the floor continues the painted ground (see painted_floor.gdshader)
+	var fm := ShaderMaterial.new()
+	fm.shader = load("res://assets/shaders/painted_floor.gdshader")
+	fm.set_shader_parameter("painting", tex)
+	fm.set_shader_parameter("cam", Vector3(0, cam_y, cam_z))
+	fm.set_shader_parameter("dist", dist)
+	fm.set_shader_parameter("paint_w", w)
+	fm.set_shader_parameter("paint_h", h)
+	fm.set_shader_parameter("y_top", y_top)
+	var fp := PlaneMesh.new()
+	fp.size = Vector2(80, dist + 8.0)
+	add_mesh(root, fp, Vector3(0, 0, -dist * 0.5 + 4.0), fm)
 	var dpath := "res://assets/backdrops/%s_depth.png" % id
 	var depth: Texture2D = load(dpath) if ResourceLoader.exists(dpath) else null
 	var m := ShaderMaterial.new()
