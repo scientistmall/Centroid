@@ -19,6 +19,15 @@ Where things are:
 
 ---
 
+> **Current path: VRoid Studio.** The fighters are now built by hand in VRoid Studio and
+> exported as VRM. Follow `docs/VROID_GUIDE.md` (per-fighter sheets, palettes, export
+> settings) and upload `assets/characters/<name>/<name>.vrm`. No Mixamo step is needed: the
+> game moves the fight clips onto the VRM skeleton itself (`scripts/fight3d/vrm_retarget.gd`),
+> uses the model's own hair and cloth physics and anime shading, and closes the right hand
+> around the weapon. Check a new model's grip with
+> `tests/capture.tscn -- <out> hand` (two close-ups of the weapon hand). The Hunyuan3D +
+> Mixamo route below still works and is what the game falls back to without a `.vrm`.
+
 ## Part 0 — Meet the pilot characters (what they must look like)
 
 Read this before generating anything. The descriptions tell you **what to ask the AI
