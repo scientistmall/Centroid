@@ -38,7 +38,7 @@ MIRA: Darin!
 @hide all
 
 @page
-@panel wide | mira | Mira running through settling dust toward a fallen giant lying broken among the rubble in the foreground (only his huge steel gauntlet and armoured shoulder visible)
+@panel wide | mira, darin_gauntlets | Mira running through settling dust toward a fallen giant lying broken among the rubble in the foreground (only his stone-plated gauntlet and arm visible, human-sized)
 > Mira runs to Darin.
 @show right mira
 MIRA: Darin! Darin, look at me!
@@ -54,7 +54,7 @@ DARIN: I know.
 > He tries to smile.
 
 @page
-@panel wide | kael, darin | Kael rushing up and kneeling beside Darin, urgent, trying to lift him
+@panel wide | darin, kael | Darin lying on his back among the rubble, badly hurt; Kael rushing up and kneeling beside him, urgently trying to lift his shoulders
 > Kael reaches them.
 @show right kael
 KAEL: Get up. We have to move.
@@ -76,7 +76,7 @@ DARIN: Look after each other.
 @bg graves
 
 @page
-@panel wide | mira | A torchlit hillside under the black sky: Mira sitting alone beside Darin's massive stone gauntlets laid on a fresh grave
+@panel wide | mira, darin_gauntlets | A torchlit hillside under the black sky: Mira sitting alone beside a fresh grave, Darin's pair of massive stone gauntlets laid on top of it
 > Mira sits beside Darin's gauntlets.
 @panel wide | kael, mira | Kael approaching and standing beside Mira, head lowered, guilt on his face
 > Kael approaches.

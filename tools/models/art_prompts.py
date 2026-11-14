@@ -47,6 +47,82 @@ WEAPONS = {
                    "pale ash wood shaft, green cloth ribbons tied below the spearhead, bronze butt cap" + _ASSET),
 }
 
+# manga-style design sheets: the look every story panel and title pose follows
+_SHEET = (", manga weapon design sheet, modern anime key art style, clean confident ink line art, cel shading with "
+          "soft painted gradients, the complete weapon drawn large across the sheet, plus a detailed close-up of the "
+          "grip and guard in one corner, plain warm off-white paper background, no people, no hands, no text, no "
+          "labels, no letters, no watermark, highly detailed, sharp")
+
+WEAPON_SHEETS = {
+    # id: (owner, short look used in panel prompts, sheet prompt)
+    "kael_sword": ("kael",
+        "a single-edged slightly curved longsword with a dark steel blade, a glowing light-blue lightning edge, a "
+        "round silver disc guard and a navy leather grip",
+        "Kael's sword: a single-edged, slightly curved longsword, the blade three times as long as the grip, dark "
+        "gunmetal steel with a bright light-blue glowing cutting edge and thin forked lightning engravings along the "
+        "flat, a round polished silver disc guard, a long grip wrapped in dark navy leather with light-blue cord, a "
+        "silver pommel shaped like a small lightning spark"),
+    "rhex_axe": ("rhex",
+        "a heavy two-handed battle axe with a large blackened-steel crescent blade, a glowing ember-red edge and a "
+        "long dark wooden haft wrapped in red leather",
+        "Rhex's battle axe: a heavy two-handed war axe, one large crescent blade of blackened steel with a glowing "
+        "ember-red cutting edge and black flame engravings, a short spike on the back, a long thick dark wooden haft "
+        "bound with iron rings and wrapped in red leather at the grip, an iron butt spike"),
+    "mira_blade": ("mira",
+        "a slim silver whip-sword made of crescent-moon plates with pink light in the seams, which can extend into a "
+        "long segmented whip, white hilt with a crescent guard",
+        "Mira's whip-sword drawn twice: at the top, its sword form, a slim straight elegant silver sword built from "
+        "overlapping crescent-moon shaped blade plates fitted tightly together with soft pink light glowing in the "
+        "seams; below it, the same sword extended into a long flexible whip of separated crescent plates linked by a "
+        "thin glowing pink cable, curving in an S shape; a white wrapped hilt with a small silver crescent-moon guard "
+        "and a short pink tassel"),
+    "tala_spear": ("tala",
+        "a long spear taller than her, with a broad leaf-shaped steel head inlaid with jade-green wind patterns, "
+        "green ribbons and a pale ash-wood shaft",
+        "Tala's wind spear: a long spear taller than a person, a broad leaf-shaped polished steel spearhead with "
+        "jade-green inlaid swirling wind patterns, a bronze collar with two green cloth ribbons fluttering, a "
+        "straight pale ash-wood shaft with dark leather grip bands, a bronze butt cap"),
+    "darin_gauntlets": ("darin",
+        "massive gauntlets up to the elbows made of pale grey cracked stone plates with gold trim, fingerless, "
+        "with matching stone knee guards",
+        "Darin's pair of stone gauntlets: massive armoured gauntlets covering the hand and forearm up to the elbow, "
+        "built from heavy pale grey stone plates with fine cracks across them, trimmed with thin gold edging, "
+        "fingerless with dark leather gloves underneath, thick stone knuckle blocks, leather straps; the pair shown "
+        "side by side, one from the front and one from the side"),
+    "mael_knuckles": ("mael",
+        "polished steel forearm bracers over fingerless black gloves with riveted steel knuckle plates",
+        "Mael's fighting gauntlets: a pair of polished steel forearm bracers with riveted steel knuckle plates over "
+        "fingerless black leather gloves, purple cloth wrapping at the wrists, a faint violet gravity glow on the "
+        "knuckles; the pair shown side by side"),
+    "vaska_blades": ("vaska",
+        "twin short curved blades of pale grey-blue steel that fade into mist at the edges, with grey tassels",
+        "Vaska's twin blades: a matching pair of short slim curved blades, each about as long as a forearm, pale "
+        "grey-blue steel that fades into translucent mist along the edges, dark grey wrapped grips, small hooked "
+        "guards, ragged grey cloth tassels; the pair crossed in an X"),
+    "nyra_whip": ("nyra",
+        "a long black whip with a braided black and toxic-green handle, the end of the lash barbed and dripping "
+        "glowing green venom",
+        "Nyra's venom whip: a long black leather whip laid in loose loops, a braided black and toxic-green handle "
+        "with a silver snake-head pommel, the last third of the lash studded with small green thorn barbs dripping "
+        "glowing green venom"),
+    "veyr_blade": ("veyr",
+        "a long single-edged katana-style sword with a violet-black blade dotted with tiny glowing stars and a "
+        "silver star-shaped guard",
+        "Veyr's sword: a long elegant single-edged katana-style sword, a mirror-dark violet-black steel blade with "
+        "tiny glowing star points along it like a constellation, a silver star-shaped guard, a black grip with "
+        "violet cord wrap; its matching black lacquered scabbard with silver constellation inlay drawn below it"),
+    "seran_sword": ("seran",
+        "a straight officer's sabre with a polished steel blade, a sage-green and brass basket hilt and a dark "
+        "leather grip",
+        "Seran's sword: a straight single-edged officer's sabre, a long polished steel blade with a narrow fuller, "
+        "a brass basket hilt with sage-green enamel inlay, a dark leather grip bound with brass wire, and its dark "
+        "grey leather scabbard with brass fittings drawn below it"),
+    "thane_swords": ("thane",
+        "twin straight black swords edged with deep purple smoky shadow, angular black guards",
+        "Thane's twin swords: a matching pair of straight double-edged swords with black blades edged in deep purple "
+        "smoky shadow, angular black guards, grips wrapped in dark purple leather; the pair crossed in an X"),
+}
+
 PROPS = {
     "centroid": ("the Centroid, a sacred floating star-shaped crystal stone with many sharp facets, glowing with "
                  "warm golden-white light from inside, faint orbiting sparks, isolated game asset, centered, plain "
@@ -172,3 +248,60 @@ SPLASH = {
     ("nyra", 1): "Nyra cracking her long whip which drips glowing green venom, a cruel smile",
     ("nyra", 2): "Nyra reaching out with a clawed hand as dark green curse tendrils drain glowing energy toward her",
 }
+
+# ----------------------------------------------------------------------------- title wallpaper
+# The title screen is built in layers: an empty plate, the altar, and one cut-out per character.
+TITLE_PLATE = ("the sacred Solar Altar plateau high above a sea of clouds at night during an eternal eclipse: a huge "
+               "black disc where the sun should be, ringed by a cold silver-white corona, dim stars, a wide ring of "
+               "ancient stone pillars carved with golden suns standing far back on both sides, small fires and "
+               "glowing crystals at the pillar bases, an EMPTY open flagstone floor in the centre and foreground (no "
+               "altar, no statue, nothing in the middle), symmetrical composition, wide cinematic anime background "
+               "painting, no characters, no people, no text, highly detailed", 1664, 768)
+
+TITLE_ALTAR = ("the Solar Altar, an ancient round stone altar on three circular steps, worn pale marble with carved "
+               "golden sun rays and runes, a shallow golden cradle on top, warm golden light falling on it from "
+               "above, front view, centered, isolated on a plain flat light grey background, anime key art style, "
+               "clean ink line art, cel shading, highly detailed, no text")
+
+_POSE = ("full colour anime key art, clean confident ink line art, cel shading with soft painted gradients, the "
+         "ENTIRE body visible from head to feet with space around, standing in a strong, confident heroic stance, "
+         "isolated on a plain flat light grey background, no floor shadow, no text, no other people")
+
+# per character: (side the light comes from, extra pose/weapon description for those without a design sheet)
+TITLE_CAST = {
+    # traitors stand left of the altar and face right; guardians stand right and face left
+    "veyr": ("right", "holding his sheathed sword at his hip, cold and commanding, a leader"),
+    "rhex": ("right", "resting his battle axe on his shoulder, smirking"),
+    "vaska": ("right", "a twin blade in each hand held low, half veiled in mist"),
+    "mael": ("right", "fists clenched in his gauntlets, small stones floating around him"),
+    "nyra": ("right", "her venom whip coiled in one hand, poised"),
+    "zerin": ("right", "holding a long storm spear crackling with yellow lightning"),
+    "corvin": ("right", "a curved cyan crystal blade in each hand, glowing crystal shards floating around him"),
+    "thane": ("right", "his twin black swords crossed in front of him, shadows curling off them"),
+    "seran": ("left", "one hand on the hilt of his sheathed sabre, steady and protective, a leader"),
+    "kael": ("left", "holding his lightning sword ready at his side, determined"),
+    "tala": ("left", "holding her long wind spear upright beside her"),
+    "darin": ("left", "massive stone gauntlets raised, calm and strong"),
+    "mira": ("left", "holding her whip-sword lowered, a ribbon of pink light curling from it"),
+    "iren": ("left", "a short dagger in each hand in a quick, low stance"),
+    "lyra": ("left", "holding a tall white and ice-blue bow with an arrow nocked, pointed down"),
+    "oren": ("left", "his glowing mechanical resonance gloves raised, faint sound-wave rings around them"),
+    "auren": ("front", "standing tall and serene facing the viewer, hands folded before him, a wise elder"),
+}
+
+
+def title_pose(c: str) -> str:
+    side, extra = TITLE_CAST[c]
+    if side == "front":
+        turn = "facing the viewer, warm golden light from below"
+    else:
+        other = "left" if side == "right" else "right"
+        turn = (f"body turned three-quarters toward the {side} of the picture, looking toward the {side}, warm golden "
+                f"rim light from the {side}, cool violet light from the {other}")
+    look = LOOKS[c]
+    weapon = ""
+    for wid, (owner, wlook, _p) in WEAPON_SHEETS.items():
+        if owner == c:
+            weapon = f" Their weapon is {wlook}, exactly like the weapon beside them in reference image 1."
+    return (f"{_POSE}. {look}, {extra}, {turn}. Keep the face, hair and outfit exactly like reference image 1."
+            f"{weapon}")

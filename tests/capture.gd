@@ -48,10 +48,20 @@ func _save(name: String) -> void:
 	print("saved ", name)
 
 
+## Boot: the loading ring part way, then done ("TAP TO START"), then the menu after the tap.
 func _shot_menu() -> void:
 	var m = load("res://scenes/main_menu.tscn").instantiate()
 	add_child(m)
-	for i in 10: await get_tree().process_frame
+	var t0 := Time.get_ticks_msec()
+	while m._ring and m._ring._shown < 0.45 and Time.get_ticks_msec() - t0 < 20000:
+		await get_tree().process_frame
+	await _save("boot_loading")
+	while m._ring and not (m._ring.done and m._ring._tap >= 1.0) and Time.get_ticks_msec() - t0 < 40000:
+		await get_tree().process_frame
+	await _save("boot_ready")
+	if m._ring:
+		m._enter()
+	for i in 40: await get_tree().process_frame
 	await _save("menu")
 	m.queue_free()
 

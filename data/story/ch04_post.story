@@ -64,7 +64,7 @@ KAEL: Did she tell you anything?
 > Mira shows him the map.
 MIRA: Enough to get us closer.
 KAEL: Do you trust her?
-@panel strip | mira, kael | Mira looking back toward the dark cave entrance, uncertain, Kael beside her, the long road ahead under the black sky
+@panel strip | mira, kael | Mira looking back toward the dark cave entrance, uncertain, Kael beside her, a rough rocky dirt trail winding ahead through the mountains under the black sky (no road)
 > Mira looks back at the chamber.
 MIRA: I don't know.
 @hide all

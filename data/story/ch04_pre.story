@@ -68,6 +68,6 @@ NYRA: Then I suppose we both came here hoping for something impossible.
 @panel action | mira | Mira drawing her flexible segmented silver blade, which uncoils like a ribbon with a soft pink moonlight glow
 > Mira draws her flexible blade.
 @fx SHIIING | swing_light
-@panel strip | mira, nyra | The two sisters squaring off across the glowing pool, pink moonlight blade against green venom whip, reflections rippling
+@panel strip | mira, nyra | The two sisters squaring off across the glowing pool, Mira on the left with her segmented pink-glowing whip-sword, Nyra on the right with her single long braid and green venom whip, reflections rippling
 @title FIGHT 04 | Mira vs. Nyra
 @next fight fight04

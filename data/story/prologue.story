@@ -208,7 +208,7 @@ SERAN: Iren and Zerin nearly destroyed the training floor yesterday.
 AUREN: Then they're enthusiastic.
 SERAN: That's one word for it.
 > Auren smiles.
-@panel square | auren | Close-up of Auren turning to Seran with a thoughtful, searching look, the sunset behind him
+@panel square | auren, seran | Close-up of Auren turning to Seran beside him with a thoughtful, searching look, the sunset behind them
 AUREN: What do you think of Veyr?
 > Seran looks surprised.
 @panel wide | seran | Seran gazing out at the setting sun, serious, choosing his words
@@ -323,7 +323,7 @@ VEYR: Then you trusted the wrong man.
 > He strikes.
 @fx CLANG | block
 > Auren blocks the first attack but refuses to deliver a killing blow.
-@panel splash | auren | Tragic dramatic scene: the white-bearded Auren in pale robes staggering backward and falling, his robes swirling, struck by a blade thrust from a black-gloved hand that enters from the edge of the frame (the attacker is not shown), the dark glow of the stone on its altar behind him, no gore, heavy shadows
+@panel splash | auren, veyr_blade | Tragic dramatic scene: the white-bearded Auren in pale robes staggering backward and falling, his robes swirling, struck by a blade thrust from a black-gloved hand that enters from the edge of the frame (the attacker is not shown), the dark glow of the stone on its altar behind him, no gore, heavy shadows
 > Veyr uses that hesitation to stab him.
 @fx SHK | hit_heavy
 @hide left
@@ -339,7 +339,7 @@ KAEL [shocked]: Auren!
 > Seran attacks Veyr. The two deputies clash, their disagreement turning into a fight neither imagined they would have.
 @fx KRANG | block
 > Seran eventually gains the advantage and prepares to kill Veyr.
-@panel splash | veyr, seran | Black energy erupting from the Centroid and flooding the chamber; a supernatural stone tomb rising around Veyr and dragging him beneath the cracking floor while Seran reaches in vain
+@panel splash | veyr, seran | Only these two men: black energy erupting from the Centroid and flooding the chamber; Veyr sinking waist-deep into the cracking stone floor as a supernatural stone tomb rises around him and drags him down; Seran standing at the edge, reaching for him in vain
 > Suddenly, the Centroid resonates. Black energy floods the chamber.
 THE VOICE: He is not yours to destroy.
 > A supernatural stone tomb forms around Veyr and swallows him beneath the ground.

@@ -12,6 +12,7 @@ KAGGLE_USERNAME set (or --user). Jobs: tools/models/kaggle/{concepts,hunyuan3d}/
 Outputs: assets/characters/<name>/concepts/<name>_k<i>.png and raw/<name>.glb (+ _shape.glb).
 """
 import argparse
+import re
 import glob
 import json
 import os
@@ -69,14 +70,67 @@ def char_ref(c: str) -> str:
     return v if os.path.exists(v) else picked_concept(c)
 
 
+WEAPON_WORDS = re.compile(r"sword|blade|axe|spear|whip|lash|gauntlet|knuckle|dagger|weapon|lance|scabbard", re.I)
+WEAPON_OF = {owner: wid for wid, (owner, _look, _p) in ap_.WEAPON_SHEETS.items()}
+
+
+def weapon_sheet(wid: str) -> str:
+    """The approved design sheet of a weapon (assets/weapons/sheets/sheet_<id>.png)."""
+    f = os.path.join(ROOT, "assets", "weapons", "sheets", f"sheet_{wid}.png")
+    if not os.path.exists(f):
+        raise SystemExit(f"{wid}: no approved sheet at {f}")
+    return f
+
+
+def char_weapon_ref(c: str) -> str:
+    """Character reference with their weapon sheet beside it, one image (views/<c>_armed.png)."""
+    from PIL import Image
+    out = os.path.join(CHARS, c, "views", f"{c}_armed.png")
+    sheet = weapon_sheet(WEAPON_OF[c])
+    body = char_ref(c)
+    if os.path.exists(out) and os.path.getmtime(out) > max(os.path.getmtime(sheet), os.path.getmtime(body)):
+        return out
+    a = Image.open(body).convert("RGB")
+    b = Image.open(sheet).convert("RGB")
+    h = 1024
+    a = a.resize((int(a.width * h / a.height), h))
+    b = b.resize((int(b.width * h / b.height), h))
+    canvas = Image.new("RGB", (a.width + b.width + 24, h), (236, 234, 230))
+    canvas.paste(a, (0, 0))
+    canvas.paste(b, (a.width + 24, 0))
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    open(os.path.join(os.path.dirname(out), ".gdignore"), "a").close()
+    canvas.save(out)
+    return out
+
+
 def panel_job(scene: str, p: dict, n_images: int) -> tuple:
+    """One panel's prompt and references. A cast entry may also be a weapon id (e.g. veyr_blade) for a
+    panel that shows a weapon without its owner. When the direction is about weapons (not practice ones)
+    or the panel is an action shot, armed characters are drawn from <c>_armed.png with their weapon."""
     w, h = ap_.PANEL_SIZE.get(p["shape"], (1344, 768))
-    cast = [c for c in p["cast"] if c in ap_.LOOKS][:3]
-    who = "; ".join(f"{ap_.LOOKS[c]} (reference image {i + 1})" for i, c in enumerate(cast))
-    prompt = f"{ap_.PANEL_STYLE}. Scene: {p['dir']}. Setting: {ap_.SETTINGS.get(p['bg'], p['bg'].replace('_', ' '))}."
+    cast = [c for c in p["cast"] if c in ap_.LOOKS or c in ap_.WEAPON_SHEETS][:3]
+    d = p["dir"]
+    armed = (bool(WEAPON_WORDS.search(d)) or p["shape"] in ("action", "splash")) and not re.search(r"practice|wooden", d, re.I)
+    who, refs, wield = [], [], []
+    for i, c in enumerate(cast):
+        n = i + 1
+        if c in ap_.WEAPON_SHEETS:
+            refs.append(weapon_sheet(c))
+            wield.append(f"the weapon is {ap_.WEAPON_SHEETS[c][1]}, exactly like the weapon design in reference image {n}")
+            continue
+        who.append(f"{ap_.LOOKS[c]} (reference image {n})")
+        if armed and c in WEAPON_OF:
+            refs.append(char_weapon_ref(c))
+            look = ap_.WEAPON_SHEETS[WEAPON_OF[c]][1]
+            wield.append(f"{c.capitalize()}'s weapon is {look}, exactly like the weapon beside them in reference image {n}")
+        else:
+            refs.append(char_ref(c))
+    prompt = f"{ap_.PANEL_STYLE}. Scene: {d}. Setting: {ap_.SETTINGS.get(p['bg'], p['bg'].replace('_', ' '))}."
     if who:
-        prompt += f" Characters: {who}. Keep each character's face, hair and outfit exactly like their reference image."
-    refs = [char_ref(c) for c in cast]
+        prompt += f" Characters: {'; '.join(who)}. Keep each character's face, hair and outfit exactly like their reference image."
+    if wield:
+        prompt += " Weapons: " + "; ".join(wield) + ". Each weapon appears once, held naturally in the hand, at the correct size."
     return {"out": f"{scene}_p{p['n']:02d}", "prompt": prompt, "refs": [os.path.basename(r) for r in refs],
             "w": w, "h": h, "n": n_images}, refs
 
@@ -142,7 +196,7 @@ def download(user: str, slug: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("kind", choices=["concepts", "model", "views", "art", "panels", "splash", "depth"])
+    ap.add_argument("kind", choices=["concepts", "model", "views", "art", "panels", "splash", "depth", "cutout", "title"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--missing", action="store_true", help="concepts: every character without a concept yet")
     ap.add_argument("--n", type=int, default=2)
@@ -179,7 +233,29 @@ def main():
             print("saved", os.path.join(bd, os.path.basename(f)))
         return
 
-    if a.kind in ("concepts", "views", "art", "panels", "splash"):
+    if a.kind == "cutout":
+        # image paths -> background removed (RGBA) next to them as <name>_cut.png, CPU kernel, images inline
+        import base64
+        import io
+        from PIL import Image
+        jobs, where = [], {}
+        for n in names:
+            im = Image.open(n).convert("RGB")
+            buf = io.BytesIO()
+            im.save(buf, "PNG")
+            key = os.path.basename(n)[:-4]
+            jobs.append({"name": key, "b64": base64.b64encode(buf.getvalue()).decode()})
+            where[key] = os.path.dirname(os.path.abspath(n))
+        push_and_wait(a.user, "cutout", jobs, use_dataset=False, slug="centroid-cutout", gpu=False)
+        out = download(a.user, "centroid-cutout")
+        for f in glob.glob(os.path.join(out, "*_cut.png")):
+            key = os.path.basename(f)[:-8]
+            if key in where:
+                shutil.copy(f, where[key])
+                print("saved", os.path.join(where[key], os.path.basename(f)))
+        return
+
+    if a.kind in ("concepts", "views", "art", "panels", "splash", "title"):
         dest = {}   # out prefix -> folder
         refs = []
         if a.kind == "concepts":
@@ -207,6 +283,26 @@ def main():
                              f"(reference image 1), keep the face, hair and outfit exactly like the reference.",
                              "refs": [os.path.basename(ref)], "w": 1344, "h": 768, "n": a.n})
                 dest[out_id] = os.path.join(ROOT, "assets", "cutins", "candidates")
+        elif a.kind == "title":
+            # the wallpaper: an empty plate (no refs) and one full-body pose per character (own reference)
+            jobs = []
+            tdir = os.path.join(ROOT, "assets", "title", "candidates")
+            for c in names:
+                if c == "plate":
+                    pr, w, h = ap_.TITLE_PLATE
+                    jobs.append({"out": "title_plate", "prompt": pr, "w": w, "h": h, "n": a.n})
+                    dest["title_plate"] = tdir
+                    continue
+                if c == "altar":
+                    jobs.append({"out": "title_altar", "prompt": ap_.TITLE_ALTAR, "w": 1216, "h": 832, "n": a.n})
+                    dest["title_altar"] = tdir
+                    continue
+                ref = char_weapon_ref(c) if c in WEAPON_OF else char_ref(c)
+                if ref not in refs:
+                    refs.append(ref)
+                jobs.append({"out": f"title_{c}", "prompt": ap_.title_pose(c), "refs": [os.path.basename(ref)],
+                             "w": 832, "h": 1216, "n": a.n})
+                dest[f"title_{c}"] = tdir
         elif a.kind == "panels":
             jobs = []
             # names are scenes, or scene:3,7,12 to pick panels per scene (several scenes, one run)
@@ -229,10 +325,14 @@ def main():
             table = {}
             for k, (owner, prompt) in ap_.WEAPONS.items():
                 table[k] = (prompt, 1216, 832, os.path.join(ROOT, "assets", "weapons", "concepts"))
+            for k, (owner, look, prompt) in ap_.WEAPON_SHEETS.items():
+                table["sheet_" + k] = (prompt + ap_._SHEET, 1344, 768, os.path.join(ROOT, "assets", "weapons", "sheets"))
             for k, (prompt, w, h) in ap_.PROPS.items():
                 table[k] = (prompt, w, h, os.path.join(ROOT, "assets", "props", "concepts"))
             for k, (prompt, w, h) in ap_.BACKDROPS.items():
                 table["bg_" + k] = (prompt, w, h, os.path.join(ROOT, "assets", "backdrops", "candidates"))
+            if names == ["sheets"]:
+                names = [k for k in table if k.startswith("sheet_")]
             ids = [i for i in names if i != "all"] or list(table)
             if "all" in names:
                 ids = list(table)
