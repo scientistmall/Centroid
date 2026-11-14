@@ -20,14 +20,16 @@
 			"threat": "venom_lash",
 			"answers": [
 				"power_1"
-			]
+			],
+			"tip": "Purify cleanses the poison and wards it off for 3 s."
 		},
 		{
 			"threat": "withering_curse",
 			"answers": [
 				"power_1",
 				"back"
-			]
+			],
+			"tip": "Purify lifts the curse. Stay out of reach until it's ready."
 		}
 	]
 }

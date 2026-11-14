@@ -21,14 +21,16 @@
 			"threat": "veil_of_mist",
 			"answers": [
 				"power_1"
-			]
+			],
+			"tip": "Clear Sight lifts the mist. She has nowhere to hide."
 		},
 		{
 			"threat": "mirror_double",
 			"answers": [
 				"power_1",
 				"attack_light"
-			]
+			],
+			"tip": "Clear Sight shows the real Vaska. One quick strike pops the clone."
 		}
 	]
 }

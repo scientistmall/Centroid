@@ -153,7 +153,15 @@ func _shot_briefing(id: String, name: String) -> void:
 	SceneRouter.current = {"type": "fight", "id": id}
 	var a = load("res://scenes/fight/arena.tscn").instantiate()
 	add_child(a)
-	await get_tree().create_timer(1.3).timeout
+	var t := 0.0
+	while t < 12.0 and a.find_children("*", "MangaBriefing", true, false).is_empty():
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	var bs: Array = a.find_children("*", "MangaBriefing", true, false)
+	await get_tree().create_timer(0.8, true, false, true).timeout
+	if not bs.is_empty():
+		bs[0]._t = 99.0   # as if the player tapped to read the whole page
+	await get_tree().create_timer(0.3, true, false, true).timeout
 	await _save(name)
 	a.queue_free()
 

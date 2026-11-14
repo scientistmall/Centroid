@@ -462,20 +462,22 @@ func _show_vs() -> VsScreen:
 	return v
 
 
-func _show_briefing() -> Briefing:
-	var b := Briefing.new()
-	var pd := player.data.duplicate()
-	var ed := enemy.data.duplicate()
-	b.player = pd
-	b.enemy = ed
+func _show_briefing(from_pause := false) -> MangaBriefing:
+	var b := MangaBriefing.new()
+	b.player = player.data.duplicate()
+	b.enemy = enemy.data.duplicate()
+	b.player_id = player.char_id
+	b.enemy_id = enemy.char_id
 	b.counters = fight.get("counters", [])
+	b.fight_title = String(fight.get("title", ""))
+	b.from_pause = from_pause
 	ui_layer.add_child(b)
 	return b
 
 
 func _pause_briefing() -> void:
 	overlay.visible = false
-	await _show_briefing().closed
+	await _show_briefing(true).closed
 	overlay.visible = true
 
 

@@ -20,9 +20,9 @@
 		"air": {"anim": "air", "startup": 0.07, "active": 0.12, "recovery": 0.15, "damage": 60, "reach": 175, "height": [-260, 10], "stun": 0.40, "knock": 200}
 	},
 	"powers": [
-		{"id": "arc_bolt", "sfx": "bolt_cast", "hit_sfx": "lightning", "name": "Arc Bolt", "short": "BOLT", "type": "projectile", "fx": "bolt", "anim": "cast",
+		{"id": "arc_bolt", "desc": "A fast bolt of lightning across the arena. Cheap and quick: punish slow attacks from range.", "sfx": "bolt_cast", "hit_sfx": "lightning", "name": "Arc Bolt", "short": "BOLT", "type": "projectile", "fx": "bolt", "anim": "cast",
 		 "cost": 30, "damage": 85, "speed": 1650, "startup": 0.16, "active": 0.05, "recovery": 0.28, "stun": 0.45, "knock": 260, "y": -175},
-		{"id": "thunder_step", "sfx": "dash", "hit_sfx": "lightning", "name": "Thunder Step", "short": "STEP", "type": "dash", "anim": "dash",
+		{"id": "thunder_step", "desc": "Kael becomes lightning and dashes straight through the enemy. Invulnerable while dashing.", "sfx": "dash", "hit_sfx": "lightning", "name": "Thunder Step", "short": "STEP", "type": "dash", "anim": "dash",
 		 "cost": 45, "damage": 140, "speed": 2400, "startup": 0.12, "active": 0.22, "recovery": 0.32, "stun": 0.6, "knock": 380}
 	]
 }

@@ -21,10 +21,10 @@
 		"air": {"anim": "air", "startup": 0.07, "active": 0.12, "recovery": 0.15, "damage": 58, "reach": 200, "height": [-260, 10], "stun": 0.40, "knock": 200}
 	},
 	"powers": [
-		{"id": "purify", "sfx": "purify", "name": "Purify", "short": "PURIFY", "type": "buff", "status": "purified", "ai_use": "cleanse", "anim": "cast",
+		{"id": "purify", "desc": "Cleanses poison, curses and gravity, heals 60, and wards them off for 3 s.", "sfx": "purify", "name": "Purify", "short": "PURIFY", "type": "buff", "status": "purified", "ai_use": "cleanse", "anim": "cast",
 		 "cleanse": ["poison", "cursed", "gravity"], "heal": 60,
 		 "cost": 30, "duration": 3.0, "radius": 170, "startup": 0.12, "active": 0.05, "recovery": 0.2},
-		{"id": "ribbon_lash", "sfx": "whip", "hit_sfx": "hit_heavy", "name": "Ribbon Lash", "short": "LASH", "type": "lash", "anim": "thrust", "pull_in": true,
+		{"id": "ribbon_lash", "desc": "A long whip-blade strike that reels the enemy in. It outreaches Nyra's whip.", "sfx": "whip", "hit_sfx": "hit_heavy", "name": "Ribbon Lash", "short": "LASH", "type": "lash", "anim": "thrust", "pull_in": true,
 		 "cost": 40, "damage": 80, "reach": 420, "height": [-260, -80], "startup": 0.14, "active": 0.12, "recovery": 0.3, "stun": 0.6, "knock": 0}
 	]
 }

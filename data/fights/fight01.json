@@ -21,14 +21,16 @@
 			"answers": [
 				"jump",
 				"power_2"
-			]
+			],
+			"tip": "It hugs the ground: jump over it, or Thunder Step straight through."
 		},
 		{
 			"threat": "hellfire_burst",
 			"answers": [
 				"block",
 				"back"
-			]
+			],
+			"tip": "You can't interrupt it. Block, or back away until the flames die."
 		}
 	]
 }

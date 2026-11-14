@@ -20,14 +20,16 @@
 			"threat": "gravity_well",
 			"answers": [
 				"power_1"
-			]
+			],
+			"tip": "Raise Stone Bulwark: an anchored wall can't be pulled."
 		},
 		{
 			"threat": "rising_stones",
 			"answers": [
 				"power_1",
 				"power_2"
-			]
+			],
+			"tip": "Bulwark stops the stones. Quake Fist knocks them out of the air."
 		}
 	]
 }
