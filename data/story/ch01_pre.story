@@ -39,7 +39,7 @@ KAEL: He taught us when not to fight.
 @page
 @panel action | rhex | Rhex roaring with fury, black flames flaring higher behind him, axe raised
 RHEX [angry]: Then he taught you how to die.
-@panel square | kael | Extreme close-up of Kael's determined eyes, reflection of black flames in them, lightning glinting
+@panel square | kael | Extreme close-up of Kael's determined light-blue eyes, no scars on his face, the reflection of black flames in them, lightning glinting
 KAEL [determined]: I'm not leaving without an answer. Where is the Centroid?
 @panel strip | kael, rhex | Both fighters in battle stances facing off across the courtyard, lightning sword versus black-flame axe, dust rising, the moment before the clash
 RHEX [smile]: Beat me, and perhaps I'll tell you.

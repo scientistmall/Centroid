@@ -10,7 +10,7 @@
 @show left mira
 @show right nyra
 NYRA: Finish it.
-@panel action | mira, nyra | Mira raising her pink-glowing blade high over her fallen sister; Nyra closing her eyes
+@panel action | mira, nyra | Nyra lying wounded on the cavern floor; Mira standing over her fallen sister, raising her pink-glowing blade high; Nyra closing her eyes
 > Mira raises her weapon.
 > Nyra closes her eyes.
 @panel wide | mira | Mira lowering the blade instead, trembling, tears in her eyes
@@ -60,7 +60,7 @@ KAEL: Is she dead?
 @show right mira
 MIRA: No.
 KAEL: Did she tell you anything?
-@panel square | - | Close-up of Mira holding up the worn map between them, its symbols catching faint light
+@panel square | - | Close-up of a worn map held up in a hand in a dark navy sleeve with pink trim, its symbols catching faint light; only the hand and map are visible
 > Mira shows him the map.
 MIRA: Enough to get us closer.
 KAEL: Do you trust her?

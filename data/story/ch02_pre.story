@@ -9,13 +9,13 @@
 > The guardians travel through an empty forest beneath the dark sky.
 @panel wide | - | Close view of withering leaves and grey dying ferns on the forest floor, colourless and drooping without sunlight
 > The trees are fading without sunlight.
-@panel tall | tala | Tala stopping abruptly on the path, raising her hand to halt the group, head tilted, listening intently, spear in her other hand
+@panel tall | tala | Tala alone in frame, stopping abruptly on the path and raising her hand to halt the companions behind her (out of frame), head tilted, listening intently, spear in her other hand
 > Tala suddenly stops.
 @show left tala
 TALA: Someone's following us.
 
 @page
-@panel wide | tala, kael | Kael beside Tala scanning the dark misty trees, seeing nothing; Tala staring calmly at one spot
+@panel wide | tala, kael | Kael and Tala standing a step apart scanning the dark misty trees; Kael sees nothing, Tala stares calmly at one spot
 @show right kael
 > Kael looks around.
 KAEL: I don't see anyone.
@@ -84,7 +84,7 @@ TALA: And how many people have you hurt to get it?
 > Vaska's expression changes. She draws her twin blades.
 @fx SHINK | swing_light
 VASKA: Don't make me answer that.
-@panel wide | tala, vaska | Tala raising her spear into guard, pleading and ready; Vaska with blades crossed, trembling slightly
+@panel wide | tala, vaska | Tala raising her single spear into a guard, pleading and ready; Vaska facing her with her twin short blades crossed in front of her, trembling slightly
 TALA: Then put down your weapons.
 VASKA: I can't go back.
 TALA: You can stop going forward.

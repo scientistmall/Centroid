@@ -5,6 +5,7 @@
   python3 tools/models/kaggle_run.py concepts --missing --n 2      # every character without a concept
   python3 tools/models/kaggle_run.py model kael rhex               # Hunyuan3D-2 textured GLBs
   python3 tools/models/kaggle_run.py depth training_ground         # arena depth maps (CPU)
+  python3 tools/models/kaggle_run.py panels ch01_post:2,4 ch02_pre:3 --n 2   # redo chosen panels
 
 Needs: pip install kaggle ; a Kaggle API credential (the network proxy injects it) ;
 KAGGLE_USERNAME set (or --user). Jobs: tools/models/kaggle/{concepts,hunyuan3d}/.
@@ -208,8 +209,11 @@ def main():
                 dest[out_id] = os.path.join(ROOT, "assets", "cutins", "candidates")
         elif a.kind == "panels":
             jobs = []
-            only = {int(x) for x in a.only.split(",") if x.strip()} if a.only else set()
-            for scene in names:
+            # names are scenes, or scene:3,7,12 to pick panels per scene (several scenes, one run)
+            for name in names:
+                scene, _, picked = name.partition(":")
+                sel = picked or a.only
+                only = {int(x) for x in sel.split(",") if x.strip()} if sel else set()
                 for p in story_panels(scene):
                     if only and p["n"] not in only:
                         continue

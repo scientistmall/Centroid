@@ -9,11 +9,11 @@
 > His gravitational energy becomes unstable.
 @show left darin
 @show right mael
-@panel wide | darin, mael | Darin walking up to the kneeling Mael, gauntlets lowered, offering an end
+@panel wide | darin, mael | Only Darin and Mael: Darin walking up to the kneeling Mael, gauntlets lowered, offering an end
 > Darin approaches him.
 DARIN: It's over.
 MAEL: No...
-@panel square | mael | Close-up of Mael's eyes sliding toward someone off-panel, a dark bitter decision forming
+@panel square | mael | Close-up of Mael's face, his eyes sliding toward someone off-panel, a dark bitter decision forming
 > Mael looks toward Mira.
 MAEL: You still have something to protect.
 
@@ -38,7 +38,7 @@ MIRA: Darin!
 @hide all
 
 @page
-@panel wide | mira, darin | Mira running through settling dust toward Darin lying broken among the rubble
+@panel wide | mira, darin | Mira running through settling dust toward Darin, who lies broken among the rubble
 > Mira runs to Darin.
 @show right mira
 MIRA: Darin! Darin, look at me!
@@ -61,12 +61,12 @@ KAEL: Get up. We have to move.
 > Darin looks at Kael.
 DARIN: She's going to blame herself.
 KAEL: Stop talking like that.
-@panel square | darin | Close-up of Darin's fading eyes looking up at Kael, a final request
+@panel square | darin | Close-up of Darin lying on his back, his fading eyes looking up, a final request
 DARIN: Promise me...
 > Kael looks away.
 DARIN: Look after each other.
 @hide left
-@panel strip | kael, mira, darin | Darin lying still on the stones, his great gauntleted hand falling still; Mira weeping over him; Kael standing motionless behind them in the dark pass
+@panel strip | kael, mira, darin | Darin lying still on his back on the stones, his great gauntleted hand falling still; Mira kneeling over him weeping; Kael standing motionless behind them in the dark pass
 > Darin's hand falls still.
 > Mira begins crying.
 > Kael stands motionless.
@@ -87,7 +87,7 @@ MIRA: You were there.
 KAEL: I should have done something.
 MIRA: He saved me, Kael.
 KAEL: And now he's gone.
-@panel square | mira | Close-up of Mira looking up at Kael, eyes red but steady and strong
+@panel square | mira | Close-up of Mira alone, looking up toward someone off-panel, eyes red but steady and strong
 > Mira looks up.
 MIRA: If you spend the rest of your life blaming yourself, you'll make his sacrifice mean something he never wanted.
 @panel strip | kael, mira | Kael sitting down beside Mira by the gauntlets, both silent, torchlight flickering against the endless dark sky

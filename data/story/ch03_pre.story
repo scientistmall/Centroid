@@ -5,9 +5,9 @@
 @bg broken_pass
 
 @page
-@panel strip | - | Extreme wide shot of a ruined mountain pass under violet storm clouds, shattered cliffs on both sides, a narrow road winding up, a small group of travellers climbing it
+@panel strip | - | Extreme wide shot of a ruined mountain pass under violet storm clouds, shattered cliffs on both sides, a narrow rocky dirt trail winding up, a small group of travellers climbing it
 > The group reaches a ruined mountain passage.
-@panel wide | darin | A colossal boulder blocking the mountain road; Darin, huge and broad with stone-plated gauntlets, walking up to it and studying it warily
+@panel wide | darin | A colossal boulder blocking the rocky dirt trail of the mountain pass; Darin, huge and broad with stone-plated gauntlets, walking up to it and studying it warily
 > A huge stone blocks the road.
 > Darin approaches it.
 @show left darin
@@ -74,7 +74,7 @@ MAEL: You never asked.
 > Mira steps forward.
 @show right mira
 MIRA: Darin, we can find another path.
-@panel square | darin | Darin glancing at Mira, his jaw set, resolute
+@panel square | darin | Close-up of Darin alone, glancing sideways toward someone off-panel, his jaw set, resolute
 > Darin glances at her.
 DARIN: No. We've been running around people we used to trust for too long.
 @panel strip | darin, mael | Darin turning back to Mael and raising his massive stone gauntlets into a fighting stance; Mael's floating rocks orbiting him; the two rivals squaring off under the violet storm

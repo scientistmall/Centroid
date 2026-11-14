@@ -45,7 +45,7 @@ NYRA: And look where that got him.
 @panel square | mira | Close-up of Mira's expression hardening into anger
 > Mira's expression hardens.
 MIRA: Don't speak about him like that.
-@panel square | - | Close-up of a single massive stone-plated gauntlet hanging from Mira's belt
+@panel square | - | Close-up of a single massive stone-plated gauntlet hanging from a leather belt over a dark navy coat with soft pink trim; only the belt and gauntlet are visible, no face
 > Nyra looks at Darin's gauntlet attached to Mira's belt.
 NYRA: Where is Darin?
 
@@ -61,7 +61,7 @@ NYRA: Come with me. We can still survive this together.
 MIRA: I came here hoping you would say something different.
 
 @page
-@panel action | nyra | Nyra uncoiling a long whip that drips glowing green venom, her stance turning dangerous
+@panel action | nyra | Nyra alone, uncoiling a long whip that drips glowing green venom, her stance turning dangerous
 > Nyra draws her whip.
 @fx SKRRSH | whip
 NYRA: Then I suppose we both came here hoping for something impossible.

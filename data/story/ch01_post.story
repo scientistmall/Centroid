@@ -9,13 +9,13 @@
 @show left kael
 @show right rhex
 RHEX [determined]: You've improved.
-@panel square | kael | Kael standing over him with his sword lowered, breathing hard, demanding
+@panel square | kael | Kael standing alone with his sword lowered, breathing hard, looking down at his fallen opponent below the frame, demanding
 KAEL [angry]: Where is the stone?
 @panel square | rhex | Rhex looking up with a defiant bloody smirk
 RHEX [smile]: You really think we would leave it where you could reach it?
 
 @page
-@panel action | rhex | Rhex suddenly grabbing his axe and charging upward at Kael with a desperate roar, black flames reigniting
+@panel action | rhex | Rhex alone, suddenly grabbing his axe and charging straight toward the viewer with a desperate roar, black flames reigniting
 > Rhex suddenly grabs his axe and charges.
 @fx RAAGH | swing_heavy
 @panel action | kael, rhex | Kael's lightning sword flashing in a single decisive strike as Rhex charges past him, a bright arc of light, the two frozen mid-motion
@@ -30,7 +30,7 @@ KAEL: What?
 @panel square | rhex | Close-up of Rhex's face, a last genuine smile, eyes softening
 RHEX [smile]: You really are getting stronger.
 @hide right
-@panel strip | kael | Kael standing alone over his former companion's body in the silent dark courtyard, sword hanging from his hand, no triumph
+@panel strip | kael, rhex | Kael standing alone over Rhex's body lying on the stones in the silent dark courtyard, sword hanging from his hand, no triumph
 > Rhex dies.
 > Kael stands over his former companion.
 > There is no celebration.

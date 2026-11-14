@@ -6,7 +6,7 @@
 @page
 @panel wide | vaska | The mist thinning in the forest clearing: Vaska falling to the mossy ground, her twin blades scattering beside her
 > Vaska falls to the ground.
-@panel action | tala, vaska | Tala standing over Vaska, the point of her jade-inlaid spear aimed at her throat, the last wisps of mist curling away
+@panel action | tala, vaska | Vaska lying on her back on the mossy ground; Tala standing over her, the point of her jade-inlaid spear aimed at Vaska's throat, the last wisps of mist curling away
 > Tala points her spear toward her.
 @show left tala
 @show right vaska
@@ -26,7 +26,7 @@ TALA: Perhaps. But I'm giving you one chance to decide what kind of person you'r
 > Tala lowers her spear.
 
 @page
-@panel wide | tala, vaska | Vaska sitting up, wary and confused; Tala standing calmly before her
+@panel wide | tala, vaska | Vaska sitting up on the ground, wary and confused; Tala standing calmly before her with her spear lowered
 VASKA: Veyr's followers won't forgive me if I leave.
 TALA: I'm not promising forgiveness.
 VASKA: Then what are you offering?
@@ -43,7 +43,7 @@ TALA: A chance to stop making things worse.
 KAEL: She could come back.
 TALA: She might.
 KAEL: Then why let her go?
-@panel square | tala | Close-up of Tala looking at Kael with calm conviction, her scarf stirring in the breeze
+@panel square | tala | Close-up of Tala alone, looking toward someone off-panel with calm conviction, her scarf stirring in the breeze
 TALA: Because if we kill every person who makes a terrible choice, what exactly are we protecting?
 @panel strip | kael, tala | The two guardians standing silently in the dark forest, Kael lost in thought, the mist settling
 > Kael says nothing.
