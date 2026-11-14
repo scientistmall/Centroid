@@ -10,6 +10,7 @@ How THE CENTROID's 3D characters are made. The user-facing guide is
 | 4-view preview | `preview/` (standalone Godot project) | here (Xvfb) |
 | Mixamo ZIP | `prepare_for_mixamo.py` | here |
 | Overview sheet | `contact_sheet.py` | here |
+| Hunyuan 3D model -> rigged game GLB | `hy_rig.py` (Blender `bpy` 5.2 in a venv: `pip install bpy==5.2.4`) | here |
 | Design prompts | `generate_character.py` (`PROMPTS`, `STYLE`; also a slow Hugging Face fallback) | — |
 
 ```
@@ -22,6 +23,9 @@ godot --path tools/models/preview --rendering-method gl_compatibility -- <model.
 python3 tools/models/prepare_for_mixamo.py assets/characters/kael/raw/kael.glb --name kael --height 1.78
 #   -> assets/characters/kael/kael_mixamo.zip (+ kael_mixamo_report.json)
 python3 tools/models/contact_sheet.py out.png [names] [--all]
+python3 -m venv /tmp/bpyenv && /tmp/bpyenv/bin/pip install bpy==5.2.4
+/tmp/bpyenv/bin/python tools/models/hy_rig.py kael.fbx assets/characters/kael/kael_hy.glb --height 1.78
+#   -> game-ready, rigged (VRM humanoid bone names), flex colours; Model3D loads <name>_hy.glb first
 ```
 
 ## Notes

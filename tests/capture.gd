@@ -34,6 +34,7 @@ func _ready() -> void:
 	if _want("cutin"): await _shot_cutin()
 	if _want("impact"): await _shot_impact()
 	if _want("hand"): await _shot_hand()
+	if _want("body"): await _shot_body()
 	if _want("chapters"): await _shot_scene("res://scenes/ui/chapter_select.tscn", "chapters", true)
 	if _want("settings"): await _shot_settings()
 	if _want("vs"): await _shot_vs()
@@ -172,6 +173,42 @@ func _shot_hand() -> void:
 		await get_tree().process_frame
 		await get_tree().process_frame
 		await _save(side[0])
+	a.queue_free()
+
+
+## The player fighter up close: idle, mid attack, and from the side (face, joints, weapon).
+func _shot_body() -> void:
+	SceneRouter.current = {"type": "fight", "id": "fight01", "no_briefing": true}
+	var a = load("res://scenes/fight/arena.tscn").instantiate()
+	add_child(a)
+	var t := 0
+	while a.phase != "fight" and t < 600:
+		await get_tree().physics_frame
+		t += 1
+	a.player.controller = null
+	a.enemy.controller = null
+	a.enemy.position.x = a.player.position.x + 700.0
+	for i in 30:
+		await get_tree().physics_frame
+	var m: Node3D = a._puppets.get(a.player)
+	var cam: Camera3D = a.stage3d.camera
+	var shots := [["body_idle", ""], ["body_attack", "light"], ["body_heavy", "heavy"]]
+	for sh in shots:
+		if sh[1] != "":
+			a.player._start_attack(sh[1], 0)
+			for i in 9:
+				await get_tree().physics_frame
+		a.process_mode = Node.PROCESS_MODE_DISABLED
+		var c: Vector3 = m.global_position + Vector3(0, 1.0, 0)
+		for view in [["", Vector3(0.0, 0.05, 1.0)], ["_side", Vector3(0.8, 0.1, 0.6)]]:
+			cam.fov = 30.0
+			cam.near = 0.05
+			cam.global_position = c + (view[1] as Vector3).normalized() * 4.2
+			cam.look_at(c, Vector3.UP)
+			await get_tree().process_frame
+			await get_tree().process_frame
+			await _save(sh[0] + view[0])
+		a.process_mode = Node.PROCESS_MODE_INHERIT
 	a.queue_free()
 
 

@@ -67,7 +67,13 @@ var _grip: Array = []        # [[bone, pose rotation]] holding the weapon
 
 static func available(char_id: String) -> bool:
 	return char_id != "" and ResourceLoader.exists(LIB_PATH) \
-		and (ResourceLoader.exists(vrm_path(char_id)) or ResourceLoader.exists(scene_path(char_id)))
+		and (ResourceLoader.exists(vrm_path(char_id)) or ResourceLoader.exists(hy_path(char_id))
+			or ResourceLoader.exists(scene_path(char_id)))
+
+
+## A Hunyuan 3D character rigged by tools/models/hy_rig.py (humanoid bone names, flex colours).
+static func hy_path(char_id: String) -> String:
+	return "res://assets/characters/%s/%s_hy.glb" % [char_id, char_id]
 
 
 static func vrm_path(char_id: String) -> String:
@@ -84,7 +90,9 @@ func setup(f: Fighter, s: Stage3D) -> void:
 	if _lib == null:
 		_lib = load(LIB_PATH)
 	if ResourceLoader.exists(vrm_path(f.char_id)):
-		_setup_vrm(f)
+		_setup_humanoid(f, vrm_path(f.char_id), false)
+	elif ResourceLoader.exists(hy_path(f.char_id)):
+		_setup_humanoid(f, hy_path(f.char_id), true)
 	else:
 		_setup_mixamo(f)
 	# coloured back-light and soft fill, as for the mannequin
@@ -129,10 +137,12 @@ func _setup_mixamo(f: Fighter) -> void:
 	_build_weapon(rig, f.weapon, f.color)
 
 
-## A VRoid / VRM body: scaled to fighter height, clips retargeted onto its skeleton.
-func _setup_vrm(f: Fighter) -> void:
+## A humanoid body (VRoid / VRM, or Hunyuan 3D via hy_rig.py): scaled to fighter height, the
+## shared clips retargeted onto its skeleton. `toon`: replace its materials with the game's
+## character shader (texture, rim, flash, hair / coat sway from the flex colours); otherwise
+## keep its own (MToon) materials and add the flash / rim overlay.
+func _setup_humanoid(f: Fighter, path: String, toon: bool) -> void:
 	_vrm = true
-	var path := vrm_path(f.char_id)
 	var model: Node3D = (load(path) as PackedScene).instantiate()
 	add_child(model)
 	_sk = model.find_children("*", "Skeleton3D", true, false)[0]
@@ -155,14 +165,25 @@ func _setup_vrm(f: Fighter) -> void:
 	_sk.get_parent().add_child(_ap)   # root_node ".." -> tracks "<Skeleton>:Bone" resolve
 	_ap.add_animation_library("", lib)
 	_ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
-	# hit flash and a rim in the fighter's colour on top of the anime shading
-	_overlay = ShaderMaterial.new()
-	var sh := Shader.new()
-	sh.code = OVERLAY
-	_overlay.shader = sh
-	_overlay.set_shader_parameter("color", f.color.lerp(Color.WHITE, 0.5))
-	for m in _meshes:
-		m.material_overlay = _overlay
+	if toon:
+		var src_mat := _mesh.get_active_material(0) as BaseMaterial3D
+		_mat = ShaderMaterial.new()
+		_mat.shader = SHADER
+		_mat.set_shader_parameter("albedo_tex", src_mat.albedo_texture if src_mat else null)
+		_mat.set_shader_parameter("use_flex", (_mesh.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_COLOR) != 0)
+		_mat.set_shader_parameter("model_height", _mesh.mesh.get_aabb().size.y)
+		_mat.set_shader_parameter("flash_color", f.color.lerp(Color.WHITE, 0.6))
+		for m in _meshes:
+			m.material_override = _mat
+	else:
+		# hit flash and a rim in the fighter's colour on top of the anime shading
+		_overlay = ShaderMaterial.new()
+		var sh := Shader.new()
+		sh.code = OVERLAY
+		_overlay.shader = sh
+		_overlay.set_shader_parameter("color", f.color.lerp(Color.WHITE, 0.5))
+		for m in _meshes:
+			m.material_overlay = _overlay
 	_build_weapon_vrm(f.weapon, f.color)
 
 
@@ -428,6 +449,7 @@ func sync() -> void:
 	if _vrm:
 		for g in _grip:
 			_sk.set_bone_pose_rotation(g[0], g[1])
+	if _overlay:
 		_overlay.set_shader_parameter("flash", flash)
 	else:
 		_secondary(dt)

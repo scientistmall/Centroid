@@ -33,26 +33,21 @@ shows you before you spend generations on the others.
    use it and give it the front, back and left (and right for Tala) images. If it only takes
    one picture, use `<name>_front.png`.
 3. Pick the **highest quality** geometry setting it offers, and turn **textures** on (PBR if offered).
-4. If it offers **rigging / auto skeleton** for a humanoid, turn it on.
+4. Rigging on the site is not needed.
 5. Before you download, look at the model:
    - the face reads clearly (eyes, nose, mouth, not a blank mannequin face);
    - the hands have separate fingers;
    - the hair and coat tails are their own shapes, not melted into the body;
    - no weapon or extra object stuck to the body.
    If one of these is badly wrong, regenerate once before moving on.
-6. Download as **FBX** if it is rigged, otherwise **GLB** (with textures).
-7. Upload it to the repo as `assets/characters/<name>/<name>_hy.fbx` (or `.glb`)
-   and tell Claude.
+6. Download it (FBX or GLB, with textures).
+7. The file is too big for a normal repo upload (over 100 MB), so attach it to a **draft
+   release** instead: on the repo page, **Releases → Draft a new release**, tag
+   `models-<name>`, drag the file in, wait for the upload, **Save draft**. Then tell Claude.
 
-## If the model comes without a skeleton
-
-Claude will say so after testing. Then:
-
-1. Open mixamo.com (free Adobe account), **Upload Character**, choose the GLB/FBX.
-2. Place the markers (chin, wrists, elbows, knees, groin), **Use Symmetry: on**,
-   **Skeleton LOD: Standard (65)** so fingers get bones.
-3. Download **FBX Binary, T-pose, without skin animation**, and upload it as
-   `assets/characters/<name>/<name>_hy.fbx`.
+You don't need Mixamo or any rigging step: Claude does it with `tools/models/hy_rig.py`
+(shrinks the mesh to about 60,000 triangles and the textures to 2K, builds the skeleton from
+the body's shape, skins it, and marks the hair and coat tails so they sway).
 
 ## Weapons
 
