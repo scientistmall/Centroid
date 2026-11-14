@@ -16,6 +16,7 @@ const LIB_PATH := "res://assets/animations/centroid_anims.res"
 const FALLBACK := {
 	"light_1": "heavy_2", "light_2": "heavy_1", "light_3": "air_attack",
 	"walk_forward": "idle", "walk_back": "idle", "knockdown": "defeat", "victory": "buff",
+	"run": "walk_forward",
 }
 const POWER_CLIP := {
 	"projectile": "cast_1", "lash": "cast_1", "drain": "cast_1", "pull": "cast_1",
@@ -75,22 +76,16 @@ static func available(char_id: String) -> bool:
 			or ResourceLoader.exists(scene_path(char_id)))
 
 
-## The shared clips with a fighter's own set laid over them (same Mixamo skeleton, same clip names).
+## A fighting style's own clip set (tools/models/anim_sets.py), or the shared clips without one.
+## A set is complete on its own: its clips share one skeleton (meta "ref"), so they are never
+## mixed with the shared ones, which were made on another.
 static func _merged(set_name: String) -> AnimationLibrary:
 	var path := "res://assets/animations/%s/%s_anims.res" % [set_name, set_name]
 	if set_name == "" or not ResourceLoader.exists(path):
 		return _lib
-	if _sets.has(set_name):
-		return _sets[set_name]
-	var own: AnimationLibrary = load(path)
-	var out := AnimationLibrary.new()
-	for c in _lib.get_animation_list():
-		out.add_animation(c, own.get_animation(c) if own.has_animation(c) else _lib.get_animation(c))
-	for c in own.get_animation_list():
-		if not out.has_animation(c):
-			out.add_animation(c, own.get_animation(c))
-	_sets[set_name] = out
-	return out
+	if not _sets.has(set_name):
+		_sets[set_name] = load(path)
+	return _sets[set_name]
 
 
 ## A Hunyuan 3D character rigged by tools/models/hy_rig.py (humanoid bone names, flex colours).
@@ -111,7 +106,9 @@ func setup(f: Fighter, s: Stage3D) -> void:
 	stage = s
 	if _lib == null:
 		_lib = load(LIB_PATH)
-	_anims = _merged(str(f.data.get("anim_set", "")))
+	# a fighting style's own set (made on Mixamo's standard skeleton) needs a retargeted body
+	var humanoid := ResourceLoader.exists(vrm_path(f.char_id)) or ResourceLoader.exists(hy_path(f.char_id))
+	_anims = _merged(str(f.data.get("anim_set", ""))) if humanoid else _lib
 	if ResourceLoader.exists(vrm_path(f.char_id)):
 		_setup_humanoid(f, vrm_path(f.char_id), false)
 	elif ResourceLoader.exists(hy_path(f.char_id)):
@@ -179,7 +176,8 @@ func _setup_humanoid(f: Fighter, path: String, toon: bool) -> void:
 		top = maxf(top, (model.global_transform.affine_inverse() * m.global_transform * bb).end.y)
 	model.scale = Vector3.ONE * (HEIGHT / maxf(top, 0.3))
 	# the shared clips, moved onto this skeleton
-	var ref: Node3D = (load(scene_path("kael")) as PackedScene).instantiate() if ResourceLoader.exists(scene_path("kael")) else null
+	var ref_path: String = _anims.get_meta("ref", scene_path("kael"))
+	var ref: Node3D = (load(ref_path) as PackedScene).instantiate() if ResourceLoader.exists(ref_path) else null
 	var src: Skeleton3D = ref.find_children("*", "Skeleton3D", true, false)[0] if ref else null
 	var lib := VrmRetarget.library(path + "|" + str(f.data.get("anim_set", "")), _anims, src, _sk) if src else _anims
 	if ref:
@@ -444,6 +442,8 @@ func _pick(clip: String) -> String:
 func _choose() -> Array:
 	var f := fighter
 	var t := f.state_time
+	if f.get_meta("intro_run", false):
+		return [_pick("run"), -1.0]
 	match f.state:
 		Fighter.S.IDLE, Fighter.S.FROZEN:
 			return ["idle", -1.0]
@@ -474,7 +474,10 @@ func _choose() -> Array:
 			return [clip, _timeline(clip, t, f.move.get("startup", 0.1), f.move.get("active", 0.08), f.move.get("recovery", 0.2))]
 		Fighter.S.POWER:
 			var pd := f.power_def
-			var pc := _pick(POWER_CLIP.get(pd.get("type", ""), "cast_1"))
+			var want: String = POWER_CLIP.get(pd.get("type", ""), "cast_1")
+			if pd.get("type", "") == "dash" and _has("dash"):
+				want = "dash"
+			var pc := _pick(want)
 			return [pc, _timeline(pc, t, pd.get("startup", 0.2), pd.get("active", 0.1), pd.get("recovery", 0.3))]
 	return ["idle", -1.0]
 

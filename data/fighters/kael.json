@@ -4,6 +4,7 @@
 	"element": "lightning",
 	"weapon": "sword",
 	"two_handed": true,
+	"anim_set": "greatsword",
 	"grip_span": 0.12,
 	"max_hp": 1000,
 	"walk_speed": 440,

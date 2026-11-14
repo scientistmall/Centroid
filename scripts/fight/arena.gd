@@ -19,6 +19,8 @@ var player: Fighter
 var enemy: Fighter
 var round_no := 1
 var phase := "intro"
+const RUN_FROM := 600.0   # how far from the centre each fighter starts a round (both stay in view)
+const RUN_TIME := 0.75    # seconds for the opening charge
 var time_left := 99.0
 var ground_y := 880.0
 var stage := Vector2(140, 1780)
@@ -187,8 +189,9 @@ func _start_round() -> void:
 	for f in [player, enemy]:
 		f.reset_for_round()
 	var mid := (stage.x + stage.y) / 2.0
-	player.position = Vector2(mid - 330, ground_y)
-	enemy.position = Vector2(mid + 330, ground_y)
+	# each round opens with the fighters apart; on FIGHT! they charge in (see _run_in)
+	player.position = Vector2(maxf(stage.x + 90.0, mid - RUN_FROM), ground_y)
+	enemy.position = Vector2(minf(stage.y - 90.0, mid + RUN_FROM), ground_y)
 	player.facing = 1
 	enemy.facing = -1
 	touch.release_all()
@@ -208,11 +211,32 @@ func _start_round() -> void:
 	hud.banner("FIGHT!")
 	shake = 18.0
 	AudioManager.sfx("gong", -4.0)
-	await _wait(0.6)
+	await _run_in(mid)
 	hud.clear_banner()
 	player.release()
 	enemy.release()
 	phase = "fight"
+
+
+## Both fighters sprint to fighting range (MCOC-style opening): fast out of the blocks, easing
+## into their stance as they arrive. The 3D bodies play their style's run while it lasts.
+func _run_in(mid: float) -> void:
+	var goals := {player: mid - 330.0, enemy: mid + 330.0}
+	var starts := {player: player.position.x, enemy: enemy.position.x}
+	for f in goals:
+		f.set_meta("intro_run", true)
+	var t := 0.0
+	while t < RUN_TIME:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		var k := 1.0 - pow(1.0 - clampf(t / RUN_TIME, 0.0, 1.0), 2.2)
+		for f in goals:
+			f.position.x = lerpf(starts[f], goals[f], k)
+			if t > RUN_TIME * 0.8:
+				f.set_meta("intro_run", false)
+	for f in goals:
+		f.position.x = goals[f]
+		f.set_meta("intro_run", false)
 
 
 func _wait(t: float) -> void:

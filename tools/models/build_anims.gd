@@ -1,24 +1,41 @@
 extends SceneTree
-## Build the shared animation library from the Mixamo clips in assets/animations/*.fbx.
-##   godot --headless --path . -s tools/models/build_anims.gd
+## Build the shared animation library from the Mixamo clips in assets/animations/*.fbx,
+## or a fighting style's set from assets/animations/<set>/*.fbx (see tools/models/anim_sets.py):
+##   godot --headless --path . -s tools/models/build_anims.gd [-- <set> ...]
 ## - one Animation per file, named after the file (idle, light_1, ...)
 ## - hips X/Z travel removed (the game moves fighters itself); vertical motion kept
 ## - looping set for idle / walk / block
 ## Output: assets/animations/centroid_anims.res (AnimationLibrary)
 
-const LOOP := ["idle", "walk_forward", "walk_back", "block"]
+const LOOP := ["idle", "walk_forward", "walk_back", "block", "run"]
 const OUT := "res://assets/animations/centroid_anims.res"
 
 
 func _init() -> void:
+	var sets := OS.get_cmdline_user_args()
+	if sets.is_empty():
+		_build("res://assets/animations", OUT, "res://assets/characters/kael/kael.tscn")
+	for s in sets:
+		var dir := "res://assets/animations/%s" % s
+		_build(dir, "%s/%s_anims.res" % [dir, s], dir + "/idle.fbx")
+	quit()
+
+
+## `ref`: a scene whose skeleton the clips were made on (strike timing, and retargeting in game).
+func _build(dir: String, out: String, ref: String) -> void:
+	if _ref:
+		_ref.free()
+	_ref = null
+	_sk = null
+	_ref_path = ref
 	var lib := AnimationLibrary.new()
-	var d := DirAccess.open("res://assets/animations")
+	var d := DirAccess.open(dir)
 	var names := []
 	for f in d.get_files():
 		if not f.ends_with(".fbx"):
 			continue
 		var clip := f.get_basename()
-		var root: Node = (load("res://assets/animations/" + f) as PackedScene).instantiate()
+		var root: Node = (load(dir + "/" + f) as PackedScene).instantiate()
 		var aps := root.find_children("*", "AnimationPlayer", true, false)
 		if aps.is_empty():
 			push_warning("no animation in " + f)
@@ -38,22 +55,43 @@ func _init() -> void:
 		lib.add_animation(clip, a)
 		names.append("%s (%.2fs, strike %.2fs)" % [clip, a.length, strike])
 		root.free()
-	ResourceSaver.save(lib, OUT)
-	print("ANIMS %d clips -> %s:\n  %s" % [names.size(), OUT, "\n  ".join(names)])
-	if _ref:
-		_ref.free()
-	quit()
+	# "reverse:<clip>" slots (set.txt): the clip played backwards, e.g. walking back
+	if FileAccess.file_exists(dir + "/set.txt"):
+		for line in FileAccess.get_file_as_string(dir + "/set.txt").split("\n"):
+			var kv := line.split("=", true, 1)
+			if kv.size() == 2 and kv[1].begins_with("reverse:") and lib.has_animation(kv[1].substr(8)):
+				var rev := _reversed(lib.get_animation(kv[1].substr(8)))
+				lib.add_animation(kv[0], rev)
+				names.append("%s (reverse of %s)" % [kv[0], kv[1].substr(8)])
+	lib.set_meta("ref", ref)
+	ResourceSaver.save(lib, out)
+	print("ANIMS %d clips -> %s:\n  %s" % [names.size(), out, "\n  ".join(names)])
+
+
+## The same motion played backwards (a walk becomes a walk back).
+func _reversed(a: Animation) -> Animation:
+	var r := a.duplicate(true) as Animation
+	for t in r.get_track_count():
+		var keys := []
+		for k in a.track_get_key_count(t):
+			keys.append([a.length - a.track_get_key_time(t, k), a.track_get_key_value(t, k)])
+		for k in range(r.track_get_key_count(t) - 1, -1, -1):
+			r.track_remove_key(t, k)
+		for kv in keys:
+			r.track_insert_key(t, kv[0], kv[1])
+	return r
 
 
 var _ref: Node
 var _sk: Skeleton3D
+var _ref_path := ""
 
 
 ## The strike moment: when the fastest hand or foot peaks (ignoring the first 15% wind-up),
 ## measured on Kael's skeleton. The game lines this frame up with a move's hit frame.
 func _strike_time(a: Animation) -> float:
 	if _sk == null:
-		_ref = (load("res://assets/characters/kael/kael.tscn") as PackedScene).instantiate()
+		_ref = (load(_ref_path) as PackedScene).instantiate()
 		_sk = _ref.find_children("*", "Skeleton3D", true, false)[0]
 	var limbs := ["mixamorig_RightHand", "mixamorig_LeftHand", "mixamorig_RightFoot", "mixamorig_LeftFoot"]
 	var ids := limbs.map(func(b): return _sk.find_bone(b))

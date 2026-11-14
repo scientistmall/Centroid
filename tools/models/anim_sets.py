@@ -1,0 +1,71 @@
+"""The fight animation set of each fighting style: one Mixamo clip per move slot, all exported
+on Mixamo's standard skeleton (Y Bot), then built into assets/animations/<set>/<set>_anims.res
+by tools/models/build_anims.gd and retargeted onto each fighter's body in the game.
+
+    python3 tools/models/anim_sets.py greatsword        # download that set's clips
+    godot --headless --path . -s tools/models/build_anims.gd -- greatsword
+
+Slots (what the game plays): idle, walk_forward, walk_back, run, jump, air_attack, block,
+block_hit, hit_light, hit_heavy, knockdown, victory, light_1..3, heavy_1..2, cast_1, cast_2,
+buff, dash. walk_back may be "reverse:walk_forward" (the walk played backwards).
+Picked by previewing every candidate on the fighter (tools/models/anim_preview.gd).
+"""
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, HERE)
+
+# slot: (Mixamo product id, export in place)
+SETS = {
+    # Kael: a two-handed sword (Mixamo "Great Sword" moves)
+    "greatsword": {
+        "idle": ("c9cc7140-b96c-11e4-a802-0aaa78deedf9", False),
+        "walk_forward": ("c9cc7257-b96c-11e4-a802-0aaa78deedf9", True),
+        "walk_back": "reverse:walk_forward",
+        "run": ("c9cce2a9-b96c-11e4-a802-0aaa78deedf9", True),
+        "jump": ("c9cc7c0e-b96c-11e4-a802-0aaa78deedf9", False),
+        "air_attack": ("c9cc8bd6-b96c-11e4-a802-0aaa78deedf9", False),
+        "block": ("c9cc815e-b96c-11e4-a802-0aaa78deedf9", False),
+        "block_hit": ("c9cc82f0-b96c-11e4-a802-0aaa78deedf9", False),
+        "hit_light": ("c9cc83b2-b96c-11e4-a802-0aaa78deedf9", False),
+        "hit_heavy": ("c9cc8471-b96c-11e4-a802-0aaa78deedf9", False),
+        "knockdown": ("c9cc9aaa-b96c-11e4-a802-0aaa78deedf9", False),   # Two Handed Sword Death
+        "victory": ("c9ccc0b3-b96c-11e4-a802-0aaa78deedf9", False),     # sheathes the sword
+        "light_1": ("c9cc7d9c-b96c-11e4-a802-0aaa78deedf9", False),
+        "light_2": ("c9cc7fdc-b96c-11e4-a802-0aaa78deedf9", False),
+        "light_3": ("c9cc7f1e-b96c-11e4-a802-0aaa78deedf9", False),
+        "heavy_1": ("c9cc8d52-b96c-11e4-a802-0aaa78deedf9", False),     # high spin attack
+        "heavy_2": ("c9cc7e5c-b96c-11e4-a802-0aaa78deedf9", False),     # overhead cleave
+        "cast_1": ("c9cc7fdc-b96c-11e4-a802-0aaa78deedf9", False),      # forward slash: Arc Bolt leaves the blade
+        "cast_2": ("c9cc975d-b96c-11e4-a802-0aaa78deedf9", False),      # casting: the kneeling slam
+        "buff": ("c9cc9819-b96c-11e4-a802-0aaa78deedf9", False),        # power up
+        "dash": ("c9cc8c95-b96c-11e4-a802-0aaa78deedf9", False),        # slide attack: Thunder Step
+    },
+}
+
+
+def download(set_name):
+    import mixamo
+    spec = SETS[set_name]
+    out = os.path.join(ROOT, "assets", "animations", set_name)
+    os.makedirs(out, exist_ok=True)
+    char = mixamo.ybot()
+    for slot, v in spec.items():
+        if isinstance(v, str):
+            continue
+        pid, inplace = v
+        f = os.path.join(out, slot + ".fbx")
+        if os.path.exists(f):
+            continue
+        mixamo.fetch(mixamo.export(pid, char, inplace), f)
+        print("saved", f, flush=True)
+    with open(os.path.join(out, "set.txt"), "w") as fh:
+        for slot, v in spec.items():
+            fh.write(f"{slot}={v}\n" if isinstance(v, str) else f"{slot}=mixamo:{v[0]}\n")
+
+
+if __name__ == "__main__":
+    for s in sys.argv[1:]:
+        download(s)
