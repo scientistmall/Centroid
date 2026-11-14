@@ -32,6 +32,7 @@ func _ready() -> void:
 	if _want("sanctuary_story"): await _shot_story("ch04_pre", 5, "sanctuary_story")
 	if _want("sanctuary"): await _shot_fight("fight04", "sanctuary")
 	if _want("cutin"): await _shot_cutin()
+	if _want("impact"): await _shot_impact()
 	if _want("chapters"): await _shot_scene("res://scenes/ui/chapter_select.tscn", "chapters", true)
 	if _want("settings"): await _shot_settings()
 	if _want("vs"): await _shot_vs()
@@ -125,6 +126,31 @@ func _shot_cutin() -> void:
 	a.enemy._try_power(1)
 	await get_tree().create_timer(0.35, true, false, true).timeout
 	await _save("cutin_enemy")
+	a.queue_free()
+
+
+## A special connecting: the impact frame (flash, radial blur, colour split) and the push-in.
+func _shot_impact() -> void:
+	SceneRouter.current = {"type": "fight", "id": "fight01", "no_briefing": true}
+	var a = load("res://scenes/fight/arena.tscn").instantiate()
+	add_child(a)
+	var t := 0
+	while a.phase != "fight" and t < 600:
+		await get_tree().physics_frame
+		t += 1
+	a.player.controller = null
+	a.enemy.controller = null
+	a.enemy.position.x = a.player.position.x + 420.0
+	var hit := [false]
+	a.enemy.special_hit.connect(func(_f, _a): hit[0] = true)
+	a.player.energy = 100.0
+	a.player._try_power(0)
+	t = 0
+	while not hit[0] and t < 240:
+		await get_tree().process_frame
+		t += 1
+	await get_tree().process_frame
+	await _save("impact")
 	a.queue_free()
 
 

@@ -10,6 +10,8 @@ signal energy_changed(f: Fighter)
 signal knocked_out(f: Fighter)
 signal got_hit(f: Fighter, heavy: bool)
 signal power_used(f: Fighter, power_name: String)
+## A power (not a normal attack) connected: drives the impact frame.
+signal special_hit(f: Fighter, attacker: Fighter)
 
 enum S { IDLE, WALK, AIR, ATTACK, BLOCK, BLOCKSTUN, HURT, KO, POWER, WIN, FROZEN }
 
@@ -452,6 +454,8 @@ func _try_power(i: int) -> bool:
 	vel.x = 0.0
 	set_state(S.POWER)
 	power_used.emit(self, p.get("name", "Power"))
+	if Vfx3D.on():
+		Vfx3D.charge(self, p)
 	_sfx(p.get("sfx", "bolt_cast"))
 	return true
 
@@ -467,6 +471,8 @@ func _power_update(_delta: float) -> void:
 			var count := int(power_def.get("count", 1))
 			var interval: float = power_def.get("interval", 0.15)
 			while shots_fired < count and t >= startup + shots_fired * interval:
+				if shots_fired == 0:
+					Vfx3D.on_power(self, power_def)
 				_spawn_projectile(shots_fired, count)
 				shots_fired += 1
 		"pull":
@@ -718,6 +724,8 @@ func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 	hp_changed.emit(self)
 	var heavy := dmg >= 90.0
 	got_hit.emit(self, heavy)
+	if m.has("cost"):
+		special_hit.emit(self, attacker)
 	_sfx("hit_heavy" if heavy else "hit_light")
 	if m.has("hit_sfx"):
 		_sfx(m["hit_sfx"], -3.0)

@@ -129,6 +129,74 @@ static var _soft: GradientTexture2D
 
 # ------------------------------------------------------------------------- basics
 
+## Marks left on the ground by powers (scorch, cracks, moon sigil, venom pool, lightning burn).
+## Drawn on a quad lying on the floor; `glow` fades faster than the mark itself.
+const DECAL_SHADER := """
+shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
+uniform vec4 color : source_color = vec4(1.0);
+uniform int mode = 0;
+uniform float alpha = 1.0;
+uniform float glow = 1.0;
+uniform float seed = 0.0;
+uniform sampler2D noise_tex : repeat_enable;
+float hash(float n) { return fract(sin(n * 12.9898 + seed * 78.233) * 43758.5453); }
+float rays(vec2 p, float r, float ang, int count, float width, float n) {
+	float v = 0.0;
+	for (int i = 0; i < count; i++) {
+		float aa = hash(float(i)) * 6.2831;
+		float len = 0.55 + 0.45 * hash(float(i) + 17.0);
+		float c = cos(ang - aa);
+		float d = c > 0.0 ? abs(sin(ang - aa)) * r : 1.0;
+		float w = width * (1.0 - r / len);
+		v = max(v, (1.0 - smoothstep(0.0, max(w, 0.0001), d + (n - 0.5) * 0.04)) * step(r, len));
+	}
+	return v;
+}
+void fragment() {
+	vec2 p = (UV - 0.5) * 2.0;
+	float r = length(p);
+	float ang = atan(p.y, p.x);
+	float n = texture(noise_tex, UV * 1.6 + vec2(seed * 0.37, seed * 0.11)).r;
+	vec3 col = vec3(0.0);
+	float a = 0.0;
+	if (mode == 0) {            // scorch with embers
+		float edge = 1.0 - smoothstep(0.45 + n * 0.35, 0.95, r);
+		a = edge * 0.88;
+		float ember = smoothstep(0.58, 0.78, n) * edge * (1.0 - smoothstep(0.15, 0.85, r));
+		col = vec3(0.025, 0.018, 0.02) + color.rgb * ember * 3.0 * glow;
+	} else if (mode == 1) {     // stone cracks
+		float k = rays(p, r, ang, 9, 0.06, n);
+		float pit = 1.0 - smoothstep(0.08, 0.28 + n * 0.1, r);
+		a = max(k, pit * 0.8) * 0.9;
+		col = mix(vec3(0.06, 0.05, 0.04), color.rgb * 2.2, glow * k * 0.7);
+	} else if (mode == 2) {     // moonlight sigil
+		float ring1 = 1.0 - smoothstep(0.0, 0.035, abs(r - 0.88));
+		float ring2 = 1.0 - smoothstep(0.0, 0.02, abs(r - 0.7));
+		float c1 = 1.0 - smoothstep(0.38, 0.41, r);
+		float c2 = 1.0 - smoothstep(0.30, 0.33, length(p - vec2(0.15, 0.07)));
+		float cres = clamp(c1 - c2, 0.0, 1.0);
+		float band = step(0.72, r) * step(r, 0.84);
+		float ticks = band * step(0.75, fract(ang / 6.2831 * 24.0));
+		a = max(max(ring1, ring2), max(cres, ticks)) * glow;
+		col = color.rgb * 1.5;
+	} else if (mode == 3) {     // venom pool
+		float blob = 1.0 - smoothstep(0.42 + n * 0.3, 0.7 + n * 0.25, r);
+		float shine = smoothstep(0.6, 0.85, texture(noise_tex, UV * 3.0 + TIME * 0.05).r);
+		a = blob * 0.85;
+		col = mix(color.rgb * 0.25, color.rgb * 1.8, shine * 0.6 + 0.25 * glow);
+	} else {                    // lightning burn
+		float edge = 1.0 - smoothstep(0.25 + n * 0.25, 0.6, r);
+		float k = rays(p, r, ang, 11, 0.035, n);
+		a = max(edge * 0.7, k);
+		col = mix(vec3(0.02, 0.025, 0.04), color.rgb * 3.0, glow * k);
+	}
+	ALBEDO = col;
+	ALPHA = clamp(a, 0.0, 1.0) * alpha;
+}
+"""
+
+
 static func stage() -> Stage3D:
 	return Stage3D.current
 
@@ -182,7 +250,7 @@ static func mat(code: String, params: Dictionary) -> ShaderMaterial:
 	m.shader = _shader(code)
 	for k in params:
 		m.set_shader_parameter(k, params[k])
-	if code == FIRE_SHADER or code == MIST_SHADER:
+	if code == FIRE_SHADER or code == MIST_SHADER or code == DECAL_SHADER:
 		m.set_shader_parameter("noise_tex", noise())
 	return m
 
@@ -547,7 +615,9 @@ static func on_projectile_end(p: Projectile, hit: bool) -> void:
 	match p.fx:
 		"bolt":
 			strike(at, p.color, 1.2 if hit else 0.8)
+			decal(Vector3(at.x, 0, 0.15), 2.2, p.color, "burn", 1.6)
 		"flame_wave":
+			decal(Vector3(at.x, 0, 0.15), 3.0, Color(1.0, 0.25, 0.05), "scorch", 2.2)
 			for i in 4:
 				var fm := mat(FIRE_SHADER, {"edge_col": Color(1.0, 0.18, 0.04), "edge_energy": 4.0, "core_from": 0.18, "seed": randf() * 9.0})
 				var fq := quad(Vector2(1.2, 1.8), fm, at + Vector3(randf_range(-0.4, 0.4), 0.6, 0.05 * i))
@@ -558,6 +628,7 @@ static func on_projectile_end(p: Projectile, hit: bool) -> void:
 			ring(at, 2.2, p.color, 0.35)
 			particles(at, p.color, "leaves", 30, 1.0)
 		"quake", "rock":
+			decal(Vector3(at.x, 0, 0.15), 2.4, p.color, "crack", 2.0)
 			particles(at, p.color, "dust", 26, 1.2)
 			particles(at, Color(0.5, 0.4, 0.3), "shards", 24, 1.3)
 			flash(at, p.color, 3.0)
@@ -688,8 +759,9 @@ static func on_power(f: Fighter, pd: Dictionary) -> void:
 					var mq := quad(Vector2(2.2, 2.2), mm, at + Vector3(randf_range(-0.5, 0.5), randf_range(-0.4, 0.6), 0.1 * i))
 					mq.create_tween().tween_property(mq, "scale", Vector3.ONE * 1.6, 0.8)
 					fade_free(mq, mm, 0.8)
-		"lash", "drain":
-			pass   # drawn by on_lash
+		"lash", "drain", "projectile":
+			pass   # drawn by on_lash / on_projectile
+	signature(f, pd)
 
 
 static func on_lash(f: Fighter, from2d: Vector2, to2d: Vector2) -> void:
@@ -706,6 +778,7 @@ static func on_lash(f: Fighter, from2d: Vector2, to2d: Vector2) -> void:
 	glow(b, 0.9, col, 4.0, 0.3)
 	if poison:
 		particles(b, Color(0.4, 1.0, 0.2), "drips", 30, 0.8)
+		decal(Vector3(b.x, 0, 0.15), 2.0, Color(0.4, 1.0, 0.25), "pool", 2.4)
 		if f.state == Fighter.S.POWER and String(f.power_def.get("type", "")) == "drain" and f.opponent:
 			# energy drained back to Nyra
 			var back := bolt(b, world(f.position + Vector2(0, -150)), Color(0.3, 0.9, 0.3), 0.45, 0.05, 2)
@@ -752,6 +825,136 @@ static func gravity_well(target: Fighter, duration: float, col: Color) -> void:
 	t.tween_interval(duration)
 	t.tween_method(func(v: float): dm.set_shader_parameter("alpha", v), 1.0, 0.0, 0.3)
 	t.tween_callback(fl.queue_free)
+
+
+# ------------------------------------------------------------------------- specials
+
+const DECAL_MODE := {"scorch": 0, "crack": 1, "sigil": 2, "pool": 3, "burn": 4}
+
+## A mark on the floor under world point `at`, lingering `life` seconds.
+static func decal(at: Vector3, size: float, col: Color, kind: String, life := 2.0) -> void:
+	if not on():
+		return
+	var m := mat(DECAL_SHADER, {"color": col, "mode": DECAL_MODE.get(kind, 0), "seed": randf() * 20.0})
+	var d := quad(Vector2(size, size), m, Vector3(at.x, 0.02, clampf(at.z, 0.0, 0.4)))
+	d.rotation_degrees.x = -90.0
+	d.rotation_degrees.y = randf() * 360.0
+	d.scale = Vector3.ONE * 0.6
+	var t := d.create_tween().set_parallel(true)
+	t.tween_property(d, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT)
+	t.tween_method(func(v: float): m.set_shader_parameter("glow", v), 1.0, 0.0, minf(0.9, life * 0.5))
+	t.chain().tween_interval(maxf(0.0, life - 0.9))
+	t.chain().tween_method(func(v: float): m.set_shader_parameter("alpha", v), 1.0, 0.0, 0.9)
+	t.chain().tween_callback(d.queue_free)
+
+
+## Charge-up the moment a power starts: an aura behind the caster, energy pulled
+## inward from around them, a glow ring on the floor. Lasts until the power is out.
+static func charge(f: Fighter, pd: Dictionary) -> void:
+	if not on():
+		return
+	var col := f.color
+	var dur := float(pd.get("startup", 0.2)) + float(pd.get("active", 0.1)) + 0.25
+	var fl := follow(f, Vector3(0, 1.05, 0.1))
+	var am := mat(GLOW_SHADER, {"color": col, "energy": 2.4})
+	var aura := quad(Vector2(2.4, 3.4), am, Vector3(0, 0.1, -0.35), fl)
+	aura.scale = Vector3(0.5, 0.5, 1.0)
+	aura.create_tween().tween_property(aura, "scale", Vector3.ONE, 0.12).set_ease(Tween.EASE_OUT)
+	fade_free(aura, am, 0.3, maxf(0.0, dur - 0.3))
+	# energy drawn in from a sphere around the body
+	var p := CPUParticles3D.new()
+	p.amount = 46
+	p.lifetime = 0.3
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE_SURFACE
+	p.emission_sphere_radius = 1.5
+	p.gravity = Vector3.ZERO
+	p.radial_accel_min = -34.0
+	p.radial_accel_max = -26.0
+	p.local_coords = true
+	var q := QuadMesh.new()
+	q.size = Vector2(0.07, 0.07)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.vertex_color_use_as_albedo = true
+	m.albedo_texture = soft()
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	q.material = m
+	p.mesh = q
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(col.r * 2.0, col.g * 2.0, col.b * 2.0, 0.0))
+	ramp.set_color(1, Color(col.r * 2.2, col.g * 2.2, col.b * 2.2, 1.0))
+	p.color_ramp = ramp
+	fl.add_child(p)
+	p.emitting = true
+	ring(world(f.position) + Vector3(0, 0.03, 0.1), 3.4, col, 0.45, true)
+	flash(fl.position, col, 5.0, 6.0, dur)
+	var t := fl.create_tween()
+	t.tween_interval(maxf(0.05, dur - 0.3))
+	t.tween_callback(func(): p.emitting = false)
+	t.tween_interval(0.35)
+	t.tween_callback(fl.queue_free)
+
+
+## Per-power extras on top of the base effect, so each special has its own signature.
+static func signature(f: Fighter, pd: Dictionary) -> void:
+	var col := f.color
+	var feet := world(f.position)
+	var hand := world(f.position + Vector2(f.facing * 70.0, -170.0))
+	match String(pd.get("id", "")):
+		"arc_bolt":   # forked arcs from the blade to the ground
+			for i in 3:
+				var g := Vector3(hand.x + f.facing * randf_range(0.4, 1.4), 0.0, randf_range(0.0, 0.35))
+				var b := bolt(hand, g, col, 0.22, 0.05, 1)
+				b.jitter = 0.25
+			decal(feet + Vector3(f.facing * 0.9, 0, 0.15), 2.4, col, "burn", 1.6)
+		"thunder_step":
+			decal(feet, 2.6, col, "burn", 1.8)
+		"black_flame_wave":
+			decal(feet + Vector3(f.facing * 0.8, 0, 0.1), 2.6, Color(1.0, 0.25, 0.05), "scorch", 2.2)
+		"hellfire_burst":   # a rising column of black fire that mushrooms out
+			decal(feet, 5.0, Color(1.0, 0.25, 0.05), "scorch", 2.6)
+			var cm := mat(FIRE_SHADER, {"edge_col": Color(1.0, 0.16, 0.03), "core_col": Color(0.015, 0.0, 0.02),
+				"edge_energy": 4.0, "core_from": 0.18, "seed": randf() * 9.0, "speed": 3.0})
+			var col_q := quad(Vector2(1.6, 4.5), cm, feet + Vector3(0, 2.2, 0.0))
+			col_q.scale = Vector3(0.6, 0.1, 1.0)
+			col_q.create_tween().tween_property(col_q, "scale", Vector3.ONE, 0.28).set_ease(Tween.EASE_OUT)
+			fade_free(col_q, cm, 0.45, 0.35)
+			for i in 6:
+				var a := TAU * i / 6.0
+				var pm := mat(FIRE_SHADER, {"edge_col": Color(1.0, 0.2, 0.04), "core_col": Color(0.02, 0.0, 0.02),
+					"edge_energy": 3.2, "core_from": 0.2, "seed": randf() * 9.0, "speed": 2.0})
+				var puff := quad(Vector2(1.4, 1.4), pm, feet + Vector3(0, 4.2, 0.05 * i))
+				puff.scale = Vector3.ONE * 0.2
+				var t := puff.create_tween().set_parallel(true)
+				t.tween_property(puff, "position", feet + Vector3(cos(a) * 1.3, 4.3 + sin(a) * 0.5, 0.05 * i), 0.4).set_delay(0.18).set_ease(Tween.EASE_OUT)
+				t.tween_property(puff, "scale", Vector3.ONE, 0.4).set_delay(0.18)
+				fade_free(puff, pm, 0.5, 0.45)
+		"stone_bulwark":
+			decal(world(f.position + Vector2(f.facing * 120.0, 0)), 3.0, col, "crack", 3.0)
+		"quake_fist", "rising_stones":
+			decal(feet + Vector3(f.facing * 0.5, 0, 0.1), 3.0, col, "crack", 2.4)
+		"gravity_well":   # debris dragged in toward the target
+			if f.opponent:
+				var at := world(f.opponent.position + Vector2(0, -120))
+				for i in 12:
+					var a := randf() * TAU
+					var rk := rock_mesh(randf_range(0.05, 0.11), Color(0.3, 0.25, 0.32))
+					rk.position = at + Vector3(cos(a) * 2.6, sin(a) * 1.6, 0.2)
+					Stage3D.current.world_root.add_child(rk)
+					var t := rk.create_tween()
+					t.tween_property(rk, "position", at, randf_range(0.35, 0.6)).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+					t.tween_callback(rk.queue_free)
+				decal(world(f.opponent.position), 3.2, col, "crack", 1.8)
+		"purify":
+			decal(feet, 3.6, Color(1.0, 0.72, 0.9), "sigil", 2.2)
+		"clear_sight", "piercing_gale":
+			ring(feet + Vector3(0, 0.03, 0.1), 4.5, col, 0.5, true)
+		"veil_of_mist", "mirror_double":
+			ring(feet + Vector3(0, 0.03, 0.1), 3.5, Color(0.7, 0.76, 0.86), 0.6, true)
+		"venom_lash", "withering_curse":
+			pass   # marks where the whip lands (on_lash)
 
 
 # ------------------------------------------------------------------------- hits

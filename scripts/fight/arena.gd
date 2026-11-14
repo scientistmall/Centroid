@@ -32,6 +32,11 @@ var _puppets := {}   # Fighter -> Puppet3D
 var _cam_zoom := 1.3
 var _cam_x := 960.0
 var _shake_px := Vector2.ZERO
+## Special-move camera push toward the caster: time since the push began, and on whom.
+var _push_t := 9.0
+var _push_f: Fighter
+const PUSH_TIME := 0.55
+var impact: ImpactFrame
 var fog_back: FogLayer
 
 var world: Node2D
@@ -99,6 +104,12 @@ func _build() -> void:
 		fog.strength = 0.3
 		world.add_child(fog)
 
+	if impact == null:
+		var il := CanvasLayer.new()
+		il.layer = 4
+		add_child(il)
+		impact = ImpactFrame.new()
+		il.add_child(impact)
 	var ui := CanvasLayer.new()
 	ui.layer = 5
 	add_child(ui)
@@ -156,6 +167,7 @@ func _make_fighter(id: String, ctrl: Object) -> Fighter:
 	f.knocked_out.connect(_on_ko)
 	f.got_hit.connect(_on_hit)
 	f.power_used.connect(_on_power)
+	f.special_hit.connect(_on_special_hit)
 	world.add_child(f)
 	return f
 
@@ -239,12 +251,19 @@ func _update_camera(delta: float) -> void:
 	var mid := (player.position.x + enemy.position.x) / 2.0
 	var dist := absf(player.position.x - enemy.position.x)
 	var want_zoom := clampf(vis.x * 0.62 / maxf(1.0, dist + 260.0), 1.0, 1.55)
-	_cam_zoom = lerpf(_cam_zoom, want_zoom, clampf(delta * 3.0, 0.0, 1.0))
+	# special-move push: ease in on the caster, hold, ease back (no slow motion)
+	_push_t += delta
+	var push := 0.0
+	if _push_t < PUSH_TIME and is_instance_valid(_push_f):
+		push = smoothstep(0.0, 0.12, _push_t) * (1.0 - smoothstep(0.32, PUSH_TIME, _push_t))
+		want_zoom += 0.2 * push
+		mid = lerpf(mid, _push_f.position.x, 0.4 * push)
+	_cam_zoom = lerpf(_cam_zoom, want_zoom, clampf(delta * (3.0 + 9.0 * push), 0.0, 1.0))
 	# keep the framed view inside the stage
 	var half := vis.x / 2.0 / _cam_zoom
 	var lo := minf(stage.x - 60.0 + half, vis.x / 2.0)
 	var hi := maxf(stage.y + 60.0 - half, vis.x / 2.0)
-	_cam_x = lerpf(_cam_x, clampf(mid, lo, hi), clampf(delta * 4.0, 0.0, 1.0))
+	_cam_x = lerpf(_cam_x, clampf(mid, lo, hi), clampf(delta * (4.0 + 8.0 * push), 0.0, 1.0))
 	if stage3d:
 		world.transform = stage3d.frame(_cam_x, _cam_zoom, _shake_px)
 	else:
@@ -295,6 +314,8 @@ var cutins_enabled := true   # tests turn the power cut-in banner off
 
 
 func _on_power(f: Fighter, power_name: String) -> void:
+	_push_t = 0.0
+	_push_f = f
 	# the power's name and art slide out under the caster's health bar: no screen-wide banner,
 	# no slow motion, nothing covering the fight
 	if not cutins_enabled or hud == null:
@@ -305,6 +326,14 @@ func _on_power(f: Fighter, power_name: String) -> void:
 			idx = i + 1
 	hud.show_power(f, power_name, idx)
 	AudioManager.sfx("cutin", -8.0)
+
+
+## A power connected: impact frame centred on the hit, and a heavier shake.
+func _on_special_hit(f: Fighter, attacker: Fighter) -> void:
+	shake = maxf(shake, 24.0)
+	if impact:
+		var at := world.get_global_transform_with_canvas() * (f.position + Vector2(0, -150))
+		impact.trigger(at, attacker.color)
 
 
 func _on_hit(f: Fighter, heavy: bool) -> void:
