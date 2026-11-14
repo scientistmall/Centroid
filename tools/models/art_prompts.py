@@ -56,8 +56,8 @@ _SHEET = (", manga weapon design sheet, modern anime key art style, clean confid
 WEAPON_SHEETS = {
     # id: (owner, short look used in panel prompts, sheet prompt)
     "kael_sword": ("kael",
-        "a single-edged slightly curved longsword with a dark steel blade, a glowing light-blue lightning edge, a "
-        "round silver disc guard and a navy leather grip",
+        "a straight longsword with a dark steel blade crackling with glowing light-blue lightning lines, a round "
+        "silver disc guard and a navy cord-wrapped grip with a silver pommel",
         "Kael's sword: a single-edged, slightly curved longsword, the blade three times as long as the grip, dark "
         "gunmetal steel with a bright light-blue glowing cutting edge and thin forked lightning engravings along the "
         "flat, a round polished silver disc guard, a long grip wrapped in dark navy leather with light-blue cord, a "
@@ -106,8 +106,8 @@ WEAPON_SHEETS = {
         "with a silver snake-head pommel, the last third of the lash studded with small green thorn barbs dripping "
         "glowing green venom"),
     "veyr_blade": ("veyr",
-        "a long single-edged katana-style sword with a violet-black blade dotted with tiny glowing stars and a "
-        "silver star-shaped guard",
+        "a long, nearly straight single-edged sword with a violet-black blade dotted with tiny glowing stars like "
+        "a constellation, a silver star-shaped guard and a violet cord-wrapped grip",
         "Veyr's sword: a long elegant single-edged katana-style sword, a mirror-dark violet-black steel blade with "
         "tiny glowing star points along it like a constellation, a silver star-shaped guard, a black grip with "
         "violet cord wrap; its matching black lacquered scabbard with silver constellation inlay drawn below it"),
