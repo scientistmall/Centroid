@@ -215,7 +215,7 @@ def download(user: str, slug: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("kind", choices=["concepts", "model", "views", "art", "panels", "splash", "depth", "cutout", "title"])
+    ap.add_argument("kind", choices=["concepts", "model", "views", "art", "panels", "splash", "depth", "cutout", "title", "armed", "motion"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--missing", action="store_true", help="concepts: every character without a concept yet")
     ap.add_argument("--n", type=int, default=2)
@@ -255,6 +255,35 @@ def main():
             print("saved", os.path.join(bd, os.path.basename(f)))
         return
 
+    if a.kind == "motion":
+        # text-to-motion candidates per move slot of each style (HY-Motion 1.0), into
+        # assets/animations/<style>/ai/<slot>_k<i>.npz plus the source skeleton
+        import anim_sets
+        jobs, where = [], {}
+        for st in names:
+            for slot, (prompt, secs) in anim_sets.MOTION_PROMPTS[st].items():
+                key = f"{st}__{slot}"
+                jobs.append({"name": key, "prompt": prompt, "seconds": secs, "n": a.n})
+                where[key] = os.path.join(ROOT, "assets", "animations", st, "ai")
+        push_and_wait(a.user, "motion", jobs, use_dataset=False, slug="centroid-motion")
+        out = download(a.user, "centroid-motion")
+        for f in glob.glob(os.path.join(out, "*.npz")):
+            b = os.path.basename(f)
+            if b == "skeleton.npz":
+                for d in set(where.values()):
+                    os.makedirs(d, exist_ok=True)
+                    shutil.copy(f, d)
+                continue
+            key = b.rsplit("_k", 1)[0]
+            if key in where:
+                os.makedirs(where[key], exist_ok=True)
+                open(os.path.join(where[key], ".gdignore"), "a").close()
+                shutil.copy(f, os.path.join(where[key], b.split("__", 1)[1]))
+                print("saved", os.path.join(where[key], b.split("__", 1)[1]))
+        for f in glob.glob(os.path.join(out, "*.log")):
+            shutil.copy(f, "/tmp/motion_kernel.log")
+        return
+
     if a.kind == "cutout":
         # image paths -> background removed (RGBA) next to them as <name>_cut.png, CPU kernel, images inline
         import base64
@@ -277,7 +306,7 @@ def main():
                 print("saved", os.path.join(where[key], os.path.basename(f)))
         return
 
-    if a.kind in ("concepts", "views", "art", "panels", "splash", "title"):
+    if a.kind in ("concepts", "views", "art", "panels", "splash", "title", "armed"):
         dest = {}   # out prefix -> folder
         refs = []
         if a.kind == "concepts":
@@ -306,6 +335,21 @@ def main():
                              f"(reference image 1), keep the face, hair and outfit exactly like the reference.{wl}",
                              "refs": [os.path.basename(ref)], "w": 1344, "h": 768, "n": a.n})
                 dest[out_id] = os.path.join(ROOT, "assets", "cutins", "candidates")
+        elif a.kind == "armed":
+            # each fighter holding the approved weapon (concept art for the 3D fighter and grip)
+            jobs = []
+            for c in names:
+                ref = char_weapon_ref(c)
+                if ref not in refs:
+                    refs.append(ref)
+                for shot, what in ap_.ARMED_CONCEPTS[c]:
+                    w, h = (832, 1216) if shot == "stance" else (1216, 832)
+                    out_id = f"{c}_armed_{shot}"
+                    jobs.append({"out": out_id, "prompt": f"{ap_.ARMED_STYLE}. {what}. {ap_.LOOKS[c]} (reference image 1), "
+                                 f"keep the face, hair and outfit exactly like the reference. {weapon_clause(c, 1)}; it "
+                                 f"appears once, held with both hands.", "refs": [os.path.basename(ref)],
+                                 "w": w, "h": h, "n": a.n})
+                    dest[out_id] = os.path.join(CHARS, c, "concepts")
         elif a.kind == "title":
             # the wallpaper: an empty plate (no refs) and one full-body pose per character (own reference)
             jobs = []

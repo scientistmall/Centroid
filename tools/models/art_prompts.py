@@ -306,3 +306,20 @@ def title_pose(c: str) -> str:
                       f"image 1; it appears once, held naturally.")
     return (f"{_POSE}. {look}, {extra}, {turn}. Keep the face, hair and outfit exactly like reference image 1."
             f"{weapon}")
+
+# ----------------------------------------------------------------------------- armed concept art
+# Each fighter holding their approved weapon: the look the 3D fighter and its grip must match.
+ARMED_CONCEPTS = {
+    "kael": [("stance", "full body, Kael in a two-handed sword guard, both hands gripping the hilt of his "
+              "straight lightning longsword, blade raised diagonally before him, feet planted wide, determined"),
+             ("grip", "close-up of Kael's two hands gripping the long navy cord-wrapped hilt of his straight "
+              "lightning longsword one above the other, below the round silver disc guard, light-blue lightning "
+              "crackling up the dark steel blade")],
+    "rhex": [("stance", "full body, Rhex in a heavy two-handed stance, both hands on the long red-wrapped haft "
+              "of his black-flame battle axe, the crescent blade raised over his shoulder, smirking"),
+             ("grip", "close-up of Rhex's two muscular hands gripping the long dark wooden haft of his battle "
+              "axe one above the other, red leather wrap, the blackened crescent blade with its ember-red edge "
+              "above them")],
+}
+ARMED_STYLE = ("full colour anime key art, clean confident ink line art, cel shading with soft painted gradients, "
+               "dramatic lighting, plain dark grey-blue background, no text, no other people")

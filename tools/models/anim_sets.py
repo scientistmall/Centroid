@@ -94,3 +94,40 @@ def download(set_name):
 if __name__ == "__main__":
     for s in sys.argv[1:]:
         download(s)
+
+
+# ----------------------------------------------------------------------------- AI motion (HY-Motion 1.0)
+# Text prompts per move slot, generated on Kaggle (tools/models/kaggle/motion/motion.py), then picked
+# against the Mixamo clips by previewing both on the fighter. Under 30 words each; both hands stay
+# together as on a two-handed hilt or haft (the model can't see the weapon).
+_SW = "A swordsman gripping a long sword hilt with both hands together"
+_AX = "A strong warrior gripping a heavy two-handed axe haft with both hands together"
+MOTION_PROMPTS = {
+    "greatsword": {
+        "idle": (_SW + ", standing upright in a confident fighting guard, knees slightly bent, chest open, breathing.", 3.0),
+        "walk_forward": (_SW + " in front, stepping forward steadily in a fighting guard.", 2.0),
+        "light_1": (_SW + " swings a fast diagonal slash from upper right to lower left, then returns to guard.", 1.6),
+        "light_2": (_SW + " swings a quick horizontal slash from left to right, stepping forward.", 1.6),
+        "light_3": (_SW + " thrusts forward with a lunge, arms extending, then recovers to guard.", 1.6),
+        "heavy_1": (_SW + " raises both hands high above the head and slams down in a powerful overhead strike.", 2.0),
+        "heavy_2": (_SW + " spins around once with a wide powerful horizontal slash.", 2.2),
+        "air_attack": (_SW + " jumps and slashes downward while in the air, then lands.", 1.8),
+        "block": (_SW + " raises both hands in front of the face to block, bracing.", 1.5),
+        "cast_1": (_SW + " thrusts both hands forward sharply, releasing a blast.", 1.6),
+        "dash": (_SW + " dashes forward fast with a low slash passing through.", 1.4),
+        "victory": ("A swordsman lowers his long sword, plants it point down and stands tall, proud.", 3.0),
+    },
+    "greataxe": {
+        "idle": (_AX + ", standing upright and broad, shoulders squared, weight shifting menacingly.", 3.0),
+        "walk_forward": (_AX + ", stomping forward heavily and confidently.", 2.0),
+        "light_1": (_AX + " chops down diagonally with force, then pulls back.", 1.7),
+        "light_2": (_AX + " swings a heavy horizontal chop from right to left.", 1.7),
+        "light_3": (_AX + " rams forward with the haft, then swings upward.", 1.7),
+        "heavy_1": (_AX + " raises both hands high overhead and smashes straight down into the ground.", 2.2),
+        "heavy_2": (_AX + " spins a full turn with a sweeping horizontal swing.", 2.4),
+        "air_attack": (_AX + " leaps and chops downward hard while landing.", 1.8),
+        "block": (_AX + " holds both hands up across the chest to block, bracing.", 1.5),
+        "cast_1": (_AX + " slams both hands down to the ground in a powerful strike.", 1.8),
+        "victory": ("A strong warrior raises both fists overhead and roars in triumph.", 3.0),
+    },
+}
