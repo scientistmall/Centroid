@@ -295,29 +295,16 @@ var cutins_enabled := true   # tests turn the power cut-in banner off
 
 
 func _on_power(f: Fighter, power_name: String) -> void:
-	if not cutins_enabled:
+	# the power's name and art slide out under the caster's health bar: no screen-wide banner,
+	# no slow motion, nothing covering the fight
+	if not cutins_enabled or hud == null:
 		return
-	if ui_layer == null:
-		return
-	for c in ui_layer.get_children():
-		if c is CutIn:
-			c.queue_free()
-	var cut := CutIn.new()
-	cut.char_id = f.char_id
-	cut.accent = f.color
-	cut.power_name = power_name
+	var idx := 0
 	for i in f.powers.size():
 		if String(f.powers[i].get("name", "")) == power_name:
-			cut.power_index = i + 1
-	cut.from_left = f.side == 0
-	ui_layer.add_child(cut)
-	AudioManager.sfx("cutin", -2.0)
-	ui_layer.move_child(cut, 1)   # above the HUD bars, below overlays
-	if phase == "fight":
-		Engine.time_scale = 0.35
-		await _wait(0.32)
-		if phase == "fight":
-			Engine.time_scale = 1.0
+			idx = i + 1
+	hud.show_power(f, power_name, idx)
+	AudioManager.sfx("cutin", -8.0)
 
 
 func _on_hit(f: Fighter, heavy: bool) -> void:
@@ -424,7 +411,7 @@ func _swap_member() -> void:
 		return
 	swap_cooldown = 5.0
 	_replace_player(idx, true)
-	hud.show_power(player, "TAG — " + player.display_name)
+	hud.show_power(player, "TAG — " + player.display_name, 0)
 
 
 # ---------------------------------------------------------------- end / pause

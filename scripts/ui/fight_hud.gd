@@ -27,8 +27,11 @@ var _combo_pop := 0.0
 var _frames: Array = [null, null]
 var _portraits: Array = [null, null]
 var _t := 0.0
+## Power strip under each side's bars: {name, art, col, t} or {} (see show_power)
+var _pow: Array = [{}, {}]
 
 const BAR_H := 46.0
+const POW_HOLD := 1.6
 const FRAME := 150.0
 
 
@@ -86,8 +89,14 @@ func clear_banner() -> void:
 	_sub = ""
 
 
-func show_power(_f: Fighter, _power_name: String) -> void:
-	pass   # the cut-in banner shows power names now
+## A power was used: slide a strip with its splash art and name out under that fighter's bars.
+func show_power(f: Fighter, power_name: String, index: int) -> void:
+	var i := 0 if f == left else 1
+	var art: Texture2D = null
+	var path := "res://assets/cutins/cutin_%s_%d.webp" % [f.char_id, index]
+	if index > 0 and ResourceLoader.exists(path):
+		art = load(path)
+	_pow[i] = {"name": power_name.to_upper(), "art": art, "col": f.color, "t": 0.0}
 
 
 ## Called when the left fighter lands a hit (combo) or takes one (combo breaks).
@@ -105,6 +114,11 @@ func _process(delta: float) -> void:
 	_banner_t += delta
 	_combo_t += delta
 	_combo_pop = maxf(0.0, _combo_pop - delta * 5.0)
+	for i in 2:
+		if not _pow[i].is_empty():
+			_pow[i]["t"] += delta
+			if _pow[i]["t"] > POW_HOLD + 0.4:
+				_pow[i] = {}
 	for i in 2:
 		var f := left if i == 0 else right
 		if f:
@@ -172,6 +186,7 @@ func _draw_side(i: int, f: Fighter, w: float) -> void:
 			col = col.lerp(Color.WHITE, 0.25 + 0.2 * sin(_t * 6.0 + k))
 		Metal.slant_bar(self, Rect2(sx, 66 + BAR_H + 10, seg_w, 22), seg_frac, col.lightened(0.3), col.darkened(0.3), -1.0, dir, 10.0,
 			Color(f.color, 0.8 if full else 0.4))
+	_draw_power(i, bar_x0, bar_x1, dir)
 	# round pips (diamonds)
 	for k in rounds_to_win:
 		var px := bar_x1 - 18 - k * 36 if i == 0 else bar_x0 + 18 + k * 36
@@ -181,6 +196,57 @@ func _draw_side(i: int, f: Fighter, w: float) -> void:
 		draw_colored_polygon(d, Metal.GOLD if lit else Color(0.15, 0.16, 0.2))
 		d.append(d[0])
 		draw_polyline(d, Color(1, 1, 1, 0.5), 2.0)
+
+
+func _draw_power(i: int, bar_x0: float, bar_x1: float, dir: int) -> void:
+	var p: Dictionary = _pow[i]
+	if p.is_empty():
+		return
+	var t: float = p["t"]
+	# slide out from the portrait side, hold, slide back
+	var k := ease(clampf(t / 0.16, 0.0, 1.0), 0.4)
+	if t > POW_HOLD:
+		k = ease(clampf(1.0 - (t - POW_HOLD) / 0.3, 0.0, 1.0), 0.4)
+	var w := (bar_x1 - bar_x0) * 0.82 * k
+	if w < 2.0:
+		return
+	var h := 84.0
+	var y := 66 + BAR_H + 44
+	var x := bar_x0 if i == 0 else bar_x1 - w
+	var col: Color = p["col"]
+	var r := Rect2(x, y, w, h)
+	var art: Texture2D = p["art"]
+	if art:
+		# the face area of the splash art (upper third), cropped to the strip's shape
+		var aw := float(art.get_width())
+		var ah := float(art.get_height())
+		var full_w := (bar_x1 - bar_x0) * 0.82
+		var src_h := aw * h / full_w
+		var src := Rect2(0, ah * 0.2, aw, src_h)
+		var shown := src
+		shown.size.x = aw * (w / full_w)
+		if i == 1:
+			shown.position.x = aw - shown.size.x
+		draw_texture_rect_region(art, r, shown)
+	else:
+		draw_rect(r, col.darkened(0.6))
+	# dark gradient toward the name side, colour edge, name
+	var fade := 22
+	for s in fade:
+		var a := 0.75 * (1.0 - float(s) / fade)
+		var sw := w * 0.55 / fade
+		var sx := x + w - (s + 1) * sw if i == 0 else x + s * sw
+		draw_rect(Rect2(sx, y, sw + 1, h), Color(0, 0, 0, a))
+	draw_rect(r, col.lightened(0.3), false, 3.0)
+	draw_rect(Rect2(x, y + h - 6, w, 6), col)
+	var f := Metal.display_bold()
+	var nm: String = p["name"]
+	var fs := 40
+	var nw := f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var nx := x + w - nw - 18 if i == 0 else x + 18
+	if w > nw + 40:
+		draw_string_outline(f, Vector2(nx, y + h * 0.66), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 9, Color(0, 0, 0, 0.95))
+		draw_string(f, Vector2(nx, y + h * 0.66), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col.lightened(0.45))
 
 
 func _draw_timer(w: float) -> void:

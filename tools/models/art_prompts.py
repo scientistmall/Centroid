@@ -57,21 +57,26 @@ PROPS = {
                     "lighting, highly detailed", 1216, 832),
 }
 
-_BG = (", wide cinematic background painting for a 2.5D fighting game arena, no characters, no people, "
-       "empty ground in the foreground, epic atmosphere, volumetric light, highly detailed digital painting")
+_BG = (", the sky is dark night during an eternal eclipse: a black disc where the sun should be, ringed by a thin "
+       "cold silver corona, dim stars, no daylight, no sunlight, lit only by fire, glowing crystals and mist; wide "
+       "cinematic background painting for a 2.5D fighting game arena, no characters, no people, empty ground in the "
+       "foreground, epic atmosphere, highly detailed anime background art")
 
 BACKDROPS = {
-    "training_ground": ("the stone training courtyard of a mountain fortress at dawn, wooden training posts and "
-                        "weapon racks, banners, distant snowy peaks under a pale golden sky" + _BG, 1664, 704),
-    "silent_forest": ("a silent ancient forest at night, giant mossy trees, drifting blue-grey mist between the "
-                      "trunks, faint moonlight beams, fireflies" + _BG, 1664, 704),
-    "broken_pass": ("a broken mountain pass at dusk, shattered cliffs, floating rock fragments defying gravity, "
-                    "violet storm clouds, dust in the air" + _BG, 1664, 704),
-    "underground_sanctuary": ("an underground sanctuary cavern, carved stone pillars, glowing green crystal "
-                              "veins, still water pools reflecting light, ancient statues" + _BG, 1664, 704),
-    "solar_altar": ("the sacred Solar Altar plateau above the clouds at the dawn of a new day, a ring of ancient "
-                    "stone pillars with golden sun carvings, rays of warm sunrise light breaking through, stars "
-                    "fading in the deep blue sky" + _BG, 1664, 704),
+    "training_ground": ("the stone training courtyard of a mountain fortress, wooden training posts and weapon racks, "
+                        "tattered banners, iron braziers burning with orange fire along the walls, distant snowy peaks "
+                        "under the eclipsed sky" + _BG, 1664, 704),
+    "silent_forest": ("a silent ancient forest of giant mossy trees, drifting blue-grey mist between the trunks, "
+                      "hundreds of fireflies, faint cold light from the eclipse corona through the canopy" + _BG, 1664, 704),
+    "broken_pass": ("a broken mountain pass, shattered cliffs, rock fragments floating in the air defying gravity, "
+                    "violet storm clouds with flickers of violet lightning around the eclipsed sun, dust in the air"
+                    + _BG, 1664, 704),
+    "underground_sanctuary": ("an underground sanctuary cavern, carved stone pillars, veins of glowing green crystal in "
+                              "the walls, still water pools reflecting the green light, ancient statues, an opening in "
+                              "the ceiling showing the eclipsed sun far above" + _BG, 1664, 704),
+    "solar_altar": ("the sacred Solar Altar plateau above the clouds, a ring of ancient stone pillars with golden sun "
+                    "carvings, the glowing star-shaped Centroid crystal on the altar casting golden light, the "
+                    "eclipsed sun directly above" + _BG, 1664, 704),
 }
 
 # ----------------------------------------------------------------------------- manga panels
