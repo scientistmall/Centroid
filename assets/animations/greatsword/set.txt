@@ -1,7 +1,7 @@
 idle=mixamo:c9cc7140-b96c-11e4-a802-0aaa78deedf9
 walk_forward=mixamo:c9cc7257-b96c-11e4-a802-0aaa78deedf9
 walk_back=reverse:walk_forward
-run=mixamo:c9cce2a9-b96c-11e4-a802-0aaa78deedf9
+run=mixamo:c9ce86d8-b96c-11e4-a802-0aaa78deedf9
 jump=mixamo:c9cc7c0e-b96c-11e4-a802-0aaa78deedf9
 air_attack=mixamo:c9cc8bd6-b96c-11e4-a802-0aaa78deedf9
 block=mixamo:c9cc815e-b96c-11e4-a802-0aaa78deedf9

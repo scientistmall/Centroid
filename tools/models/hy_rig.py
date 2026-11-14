@@ -131,9 +131,10 @@ def central_span(xs, bin_w):
     i0 = int(np.searchsorted(edges, 0.0)) - 1
     i0 = min(max(i0, 0), len(hist) - 1)
     l = r = i0
-    while l > 0 and hist[l - 1] > 0:
+    # grow while there is mesh within two bins (a decimated surface has small gaps)
+    while l > 0 and (hist[l - 1] > 0 or (l > 1 and hist[l - 2] > 0)):
         l -= 1
-    while r < len(hist) - 1 and hist[r + 1] > 0:
+    while r < len(hist) - 1 and (hist[r + 1] > 0 or (r < len(hist) - 2 and hist[r + 2] > 0)):
         r += 1
     return max(abs(edges[l]), abs(edges[r + 1]))
 
@@ -151,15 +152,32 @@ def joints(ob, H):
         x = band[:, 0] * sgn
         far = band[x > x.max() - 0.05 * H]
         J[side + "Fist"] = Vector(far.mean(0))
-    # torso half-width at the waist (arms are clear of the body there in an A-pose)
-    waist = slab(v, 0.60 * H, 0.64 * H)
-    half_w = central_span(waist[:, 0], H * 0.006)
-    chest = slab(v, 0.70 * H, 0.74 * H)
+    # neck: the narrowest point of the central body between the shoulders and the head
+    # (found, not assumed, so tall hair like a mohawk doesn't move the shoulders)
+    def span_at(z, dz=0.006):
+        sl = slab(v, z - dz * H, z + dz * H)
+        return central_span(sl[:, 0], H * 0.006) if len(sl) else 0.0
+    zs = np.arange(0.66, 0.95, 0.005) * H
+    raw = np.array([span_at(z) for z in zs])
+    widths = np.array([np.median(raw[max(0, i - 2):i + 3]) for i in range(len(raw))])
+    # shoulders: the widest slice in the upper body; neck: the first slice above them that is
+    # much narrower (a scarf or collar can't hide it; tall hair above the skull doesn't matter)
+    band = (zs >= 0.68 * H) & (zs <= 0.88 * H)
+    peak_i = int(np.argmax(np.where(band, widths, 0.0)))
+    neck_z = 0.84 * H
+    for i in range(peak_i + 1, len(zs)):
+        if widths[i] < 0.6 * widths[peak_i]:
+            neck_z = float(zs[i])
+            break
+    sh_z = neck_z - 0.035 * H
+    # shoulder joints: the outer edge of the shoulders just below their top, less the deltoid
+    sh_span = span_at(sh_z - 0.02 * H, 0.008)
+    sh_x = max(sh_span - 0.045 * H, 0.08 * H)
+    half_w = max(0.7 * sh_x, 0.06 * H)
+    chest = slab(v, sh_z - 0.12 * H, sh_z - 0.08 * H)
     chest_c = chest[np.abs(chest[:, 0]) < half_w]
     y_chest = float(np.percentile(chest_c[:, 1], 2) + 0.56 * (np.percentile(chest_c[:, 1], 98) - np.percentile(chest_c[:, 1], 2))) if len(chest_c) else 0.0
-    sh_z = 0.815 * H
-    sh_x = max(half_w * 0.95, 0.085 * H)
-    log(f"waist half-width {half_w:.3f}  shoulder x {sh_x:.3f}")
+    log(f"neck z {neck_z / H:.3f}H  shoulder z {sh_z / H:.3f}H  shoulder x {sh_x:.3f}  torso half-width {half_w:.3f}")
     # spine, centred front-to-back on each slice
     def yc(z):
         """Depth centre of the body at height z: a little behind the middle of front and back
@@ -170,16 +188,17 @@ def joints(ob, H):
             return y_chest
         lo, hi = np.percentile(s[:, 1], 2), np.percentile(s[:, 1], 98)
         return float(lo + 0.56 * (hi - lo))
-    J["Hips"] = Vector((0, yc(0.53 * H), 0.53 * H))
-    J["Spine"] = Vector((0, yc(0.59 * H), 0.59 * H))
-    J["Chest"] = Vector((0, yc(0.665 * H), 0.665 * H))
-    J["UpperChest"] = Vector((0, yc(0.74 * H), 0.74 * H))
-    head_y = yc(0.93 * H)   # above the collar and scarf
-    J["Neck"] = Vector((0, 0.5 * (yc(0.79 * H) + head_y), 0.84 * H))
-    J["Head"] = Vector((0, head_y, 0.875 * H))
+    body = sh_z / 0.815          # height the body would have without hair above the skull
+    J["Hips"] = Vector((0, yc(0.53 * body), 0.53 * body))
+    J["Spine"] = Vector((0, yc(0.59 * body), 0.59 * body))
+    J["Chest"] = Vector((0, yc(0.665 * body), 0.665 * body))
+    J["UpperChest"] = Vector((0, yc(0.74 * body), 0.74 * body))
+    head_y = yc(neck_z + 0.07 * H)   # above the collar and scarf
+    J["Neck"] = Vector((0, 0.5 * (yc(sh_z - 0.04 * H) + head_y), neck_z))
+    J["Head"] = Vector((0, head_y, neck_z + 0.035 * H))
     J["HeadTop"] = Vector((0, J["Head"].y, H))
     # legs: the two clusters in a thigh slice
-    thigh = slab(v, 0.36 * H, 0.42 * H)
+    thigh = slab(v, 0.36 * body, 0.42 * body)
     for side, sgn in (("Left", 1.0), ("Right", -1.0)):
         leg = thigh[(thigh[:, 0] * sgn > 0.01 * H) & (thigh[:, 0] * sgn < half_w * 1.6)]
         lx = float(np.median(leg[:, 0])) if len(leg) else sgn * 0.06 * H
@@ -189,8 +208,8 @@ def joints(ob, H):
         toe_y = float(foot[:, 1].min()) if len(foot) else ly - 0.12 * H
         heel_y = float(foot[:, 1].max()) if len(foot) else ly + 0.04 * H
         ankle_y = heel_y - 0.25 * (heel_y - toe_y)
-        J[side + "UpperLeg"] = Vector((lx * 0.85, ly, 0.505 * H))
-        J[side + "LowerLeg"] = Vector((lx, ly - 0.012 * H, 0.285 * H))
+        J[side + "UpperLeg"] = Vector((lx * 0.85, ly, 0.505 * body))
+        J[side + "LowerLeg"] = Vector((lx, ly - 0.012 * H, 0.285 * body))
         J[side + "Foot"] = Vector((lx, ankle_y, 0.055 * H))
         J[side + "Toes"] = Vector((lx, toe_y + 0.35 * (ankle_y - toe_y), 0.018 * H))
         J[side + "ToeTip"] = Vector((lx, toe_y, 0.018 * H))
@@ -199,7 +218,7 @@ def joints(ob, H):
         # the arm hangs in a plane: the shoulder joint sits between the chest centre and the fist
         arm_y = 0.5 * (y_chest + J[side + "Fist"].y)
         J[side + "Shoulder"] = Vector((sgnx * 0.025 * H, y_chest, sh_z - 0.01 * H))
-        J[side + "UpperArm"] = Vector((sgnx * sh_x * 1.12, arm_y, sh_z))
+        J[side + "UpperArm"] = Vector((sgnx * sh_x, arm_y, sh_z))
         fist = J[side + "Fist"]
         up = J[side + "UpperArm"]
         to_fist = fist - up
@@ -341,11 +360,18 @@ def main():
     ap.add_argument("--height", type=float, required=True)
     ap.add_argument("--tris", type=int, default=60000)
     ap.add_argument("--tex", type=int, default=2048)
+    ap.add_argument("--build", type=float, default=1.0, help="widen the body (x and depth) by this factor")
     a = ap.parse_args(argv)
     reset()
     ob = import_mesh(a.src)
     ob.name = "Body"
     normalise(ob, a.height)
+    if a.build != 1.0:
+        for vtx in ob.data.vertices:
+            vtx.co.x *= a.build
+            vtx.co.y *= a.build
+        ob.data.update()
+        log("build x", a.build)
     decimate(ob, a.tris)
     shrink_textures(ob, a.tex)
     J = joints(ob, a.height)

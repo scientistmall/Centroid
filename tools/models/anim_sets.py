@@ -24,7 +24,7 @@ SETS = {
         "idle": ("c9cc7140-b96c-11e4-a802-0aaa78deedf9", False),
         "walk_forward": ("c9cc7257-b96c-11e4-a802-0aaa78deedf9", True),
         "walk_back": "reverse:walk_forward",
-        "run": ("c9cce2a9-b96c-11e4-a802-0aaa78deedf9", True),
+        "run": ("c9ce86d8-b96c-11e4-a802-0aaa78deedf9", True),   # rifle sprint: hands together, leaning in
         "jump": ("c9cc7c0e-b96c-11e4-a802-0aaa78deedf9", False),
         "air_attack": ("c9cc8bd6-b96c-11e4-a802-0aaa78deedf9", False),
         "block": ("c9cc815e-b96c-11e4-a802-0aaa78deedf9", False),
@@ -42,6 +42,31 @@ SETS = {
         "cast_2": ("c9cc975d-b96c-11e4-a802-0aaa78deedf9", False),      # casting: the kneeling slam
         "buff": ("c9cc9819-b96c-11e4-a802-0aaa78deedf9", False),        # power up
         "dash": ("c9cc8c95-b96c-11e4-a802-0aaa78deedf9", False),        # slide attack: Thunder Step
+    },
+    # Rhex: a heavy two-handed battle axe. Mixamo's axe pack is one-handed, so the two-handed
+    # great-weapon moves carry it, heavier and more brutal, with the axe pack's reactions/taunt.
+    "greataxe": {
+        "idle": ("c9cc946d-b96c-11e4-a802-0aaa78deedf9", False),
+        "walk_forward": ("c9cc73a7-b96c-11e4-a802-0aaa78deedf9", True),
+        "walk_back": "reverse:walk_forward",
+        "run": ("c9ce86d8-b96c-11e4-a802-0aaa78deedf9", True),   # rifle sprint: hands together, leaning in
+        "jump": ("c9cc7cd9-b96c-11e4-a802-0aaa78deedf9", False),
+        "air_attack": ("c9cc8bd6-b96c-11e4-a802-0aaa78deedf9", False),
+        "block": ("c9cc8232-b96c-11e4-a802-0aaa78deedf9", False),
+        "block_hit": ("c9cecdb9-b96c-11e4-a802-0aaa78deedf9", False),   # axe: block react large
+        "hit_light": ("c9cedd30-b96c-11e4-a802-0aaa78deedf9", False),   # axe: react large from left
+        "hit_heavy": ("c9cedebd-b96c-11e4-a802-0aaa78deedf9", False),   # axe: react large gut
+        "knockdown": ("c9cc9aaa-b96c-11e4-a802-0aaa78deedf9", False),
+        "victory": ("c9cee10b-b96c-11e4-a802-0aaa78deedf9", False),     # axe: battle cry
+        "light_1": ("c9cc7e5c-b96c-11e4-a802-0aaa78deedf9", False),     # overhead chop
+        "light_2": ("c9cc8764-b96c-11e4-a802-0aaa78deedf9", False),     # low sweep
+        "light_3": ("c9cc98d6-b96c-11e4-a802-0aaa78deedf9", False),
+        "heavy_1": ("c9cc8d52-b96c-11e4-a802-0aaa78deedf9", False),     # spinning cleave
+        "heavy_2": ("c9cc92cb-b96c-11e4-a802-0aaa78deedf9", False),     # kick into the haft
+        "cast_1": ("c9cc975d-b96c-11e4-a802-0aaa78deedf9", False),      # slam: Black Flame Wave
+        "cast_2": ("c9cc9819-b96c-11e4-a802-0aaa78deedf9", False),      # power up: Hellfire Burst
+        "buff": ("c9cee1d2-b96c-11e4-a802-0aaa78deedf9", False),        # axe: chest thump
+        "dash": ("c9cc8c95-b96c-11e4-a802-0aaa78deedf9", False),
     },
 }
 

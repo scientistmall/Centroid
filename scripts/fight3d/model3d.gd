@@ -67,7 +67,11 @@ var _meshes: Array[MeshInstance3D] = []
 var _overlay: ShaderMaterial
 var _sk: Skeleton3D
 var _grip: Array = []        # [[bone, pose rotation]] holding the weapon
-var _ik: TwoBoneIK3D         # two-handed weapons: drives the left fist onto the grip
+var _ik: TwoBoneIK3D         # (unused; kept for older callers)
+var _two_handed := false     # left fist is driven onto the weapon's grip by _left_hand_ik()
+var _weapon: Node3D          # the held weapon (child of the right-hand attachment)
+var _lgrip := Vector3.ZERO   # where the left fist closes, in the weapon's own space
+var _hold := 0.0             # 0..1 how firmly the left hand is on the weapon
 
 
 static func available(char_id: String) -> bool:
@@ -249,32 +253,68 @@ func _build_weapon_vrm(kind: String, col: Color) -> void:
 func _two_hands(w: Node3D, span: float) -> void:
 	var up := w.basis.y.normalized()          # along the blade, in hand space
 	w.position -= up * span * 0.55
-	var target := Node3D.new()
-	target.name = "LeftGrip"
-	w.add_child(target)
-	target.position = Vector3(0.0, -span, 0.0) + Vector3(0.0, 0.0, 0.0)
-	# the elbow points down and a little out, as in a two-handed guard
-	var pole := Node3D.new()
-	pole.name = "LeftElbowPole"
-	_sk.add_child(pole)
-	var elbow := _sk.get_bone_global_rest(_sk.find_bone("LeftLowerArm")).origin
-	var hips := _sk.get_bone_global_rest(_sk.find_bone("Hips")).origin
-	var h := maxf(elbow.y - hips.y, 0.2)
-	pole.position = elbow + Vector3(h * 0.6, -h * 1.2, -h * 0.3)
-	var ik := TwoBoneIK3D.new()
-	ik.setting_count = 1
-	ik.set_root_bone_name(0, "LeftUpperArm")
-	ik.set_middle_bone_name(0, "LeftLowerArm")
-	ik.set_end_bone_name(0, "LeftHand")
-	var hand := _sk.find_bone("LeftHand")
-	var knuckle := _sk.find_bone("LeftMiddleProximal")
-	if knuckle >= 0:
-		ik.set_extend_end_bone(0, true)
-		ik.set_end_bone_length(0, _sk.get_bone_global_rest(hand).origin.distance_to(_sk.get_bone_global_rest(knuckle).origin) * 0.75)
-	_sk.add_child(ik)
-	ik.set_target_node(0, ik.get_path_to(target))
-	ik.set_pole_node(0, ik.get_path_to(pole))
-	_ik = ik
+	_weapon = w
+	_lgrip = Vector3(0.0, -span, 0.0)
+	_two_handed = true
+	_hold = 1.0
+
+
+## Two-bone IK for the left arm, run every frame right after the animation: the left fist closes
+## on the weapon's grip below the right one. The elbow bends toward where the clip had it, so
+## the clip's style is kept; `_hold` fades it out for hits, knockdowns and victory poses.
+func _left_hand_ik() -> void:
+	var ua := _sk.find_bone("LeftUpperArm")
+	var la := _sk.find_bone("LeftLowerArm")
+	var hd := _sk.find_bone("LeftHand")
+	var rh := _sk.find_bone("RightHand")
+	if ua < 0 or la < 0 or hd < 0 or rh < 0 or _hold <= 0.001:
+		return
+	var g_ua := _sk.get_bone_global_pose(ua)
+	var g_la := _sk.get_bone_global_pose(la)
+	var g_hd := _sk.get_bone_global_pose(hd)
+	var g_rh := _sk.get_bone_global_pose(rh)
+	# grip point in skeleton space (the weapon hangs off the right hand's attachment)
+	var grip := g_rh * (_weapon.transform * _lgrip)
+	# aim the wrist so the fist's centre, not the wrist, lands on the grip
+	var kn := _sk.find_bone("LeftMiddleProximal")
+	var fist := (_sk.get_bone_global_pose(kn).origin - g_hd.origin) * 0.75 if kn >= 0 else Vector3.ZERO
+	var t := grip - fist
+	var a_pos := g_ua.origin
+	var a := g_la.origin.distance_to(a_pos)
+	var b := g_hd.origin.distance_to(g_la.origin)
+	var to_t := t - a_pos
+	var d := clampf(to_t.length(), absf(a - b) + 0.001, a + b - 0.001)
+	var td := to_t.normalized()
+	# elbow: in the plane of shoulder, target and the clip's own elbow
+	var pole := g_la.origin - a_pos
+	var perp := (pole - td * pole.dot(td))
+	if perp.length() < 1e-4:
+		perp = Vector3.DOWN - td * Vector3.DOWN.dot(td)
+	perp = perp.normalized()
+	var cos_a := clampf((a * a + d * d - b * b) / (2.0 * a * d), -1.0, 1.0)
+	var elbow := a_pos + (td * cos_a + perp * sqrt(1.0 - cos_a * cos_a)) * a
+	var q_ua := g_ua.basis.get_rotation_quaternion()
+	var q_la := g_la.basis.get_rotation_quaternion()
+	var r1 := _arc_q((g_la.origin - a_pos).normalized(), (elbow - a_pos).normalized())
+	var n_ua := r1 * q_ua
+	var lower_dir := r1 * (g_hd.origin - g_la.origin).normalized()
+	var r2 := _arc_q(lower_dir, (a_pos + to_t.normalized() * d - elbow).normalized())
+	var n_la := r2 * r1 * q_la
+	var parent_q := _sk.get_bone_global_pose(_sk.get_bone_parent(ua)).basis.get_rotation_quaternion()
+	var loc_ua := (parent_q.inverse() * n_ua).normalized()
+	var loc_la := (n_ua.inverse() * n_la).normalized()
+	_sk.set_bone_pose_rotation(ua, _sk.get_bone_pose_rotation(ua).slerp(loc_ua, _hold))
+	_sk.set_bone_pose_rotation(la, _sk.get_bone_pose_rotation(la).slerp(loc_la, _hold))
+
+
+static func _arc_q(a: Vector3, b: Vector3) -> Quaternion:
+	var dd := clampf(a.dot(b), -1.0, 1.0)
+	if dd > 0.99999:
+		return Quaternion.IDENTITY
+	var ax := a.cross(b)
+	if ax.length() < 1e-6:
+		ax = a.cross(Vector3.UP if absf(a.y) < 0.9 else Vector3.RIGHT)
+	return Quaternion(ax.normalized(), acos(dd))
 
 
 ## Rest rotation of bone `b` turned by `deg` about a skeleton-space axis.
@@ -510,10 +550,11 @@ func sync() -> void:
 	if _vrm:
 		for g in _grip:
 			_sk.set_bone_pose_rotation(g[0], g[1])
-	if _ik:
+	if _two_handed:
 		# let go when hit, knocked down or celebrating; both hands on the weapon otherwise
 		var hold := not (fighter.state in [Fighter.S.HURT, Fighter.S.KO, Fighter.S.WIN])
-		_ik.influence = move_toward(_ik.influence, 1.0 if hold else 0.0, dt * 6.0)
+		_hold = move_toward(_hold, 1.0 if hold else 0.0, dt * 6.0)
+		_left_hand_ik()
 	if _overlay:
 		_overlay.set_shader_parameter("flash", flash)
 	else:
@@ -538,7 +579,9 @@ func _animate(dt: float) -> void:
 		_clip = clip
 	if time < 0.0:
 		var rate := 1.0
-		if fighter.state == Fighter.S.WALK:
+		if fighter.get_meta("intro_run", false):
+			rate = float(fighter.get_meta("run_rate", 1.0))
+		elif fighter.state == Fighter.S.WALK:
 			rate = clampf(absf(fighter.vel.x) / maxf(fighter.walk_speed, 1.0), 0.6, 1.5)
 		_ap.advance(dt * rate)
 	else:
