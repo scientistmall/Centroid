@@ -250,7 +250,8 @@ func _update_camera(delta: float) -> void:
 	var vis := get_viewport().get_visible_rect().size
 	var mid := (player.position.x + enemy.position.x) / 2.0
 	var dist := absf(player.position.x - enemy.position.x)
-	var want_zoom := clampf(vis.x * 0.62 / maxf(1.0, dist + 260.0), 1.0, 1.55)
+	# close framing at fighting range (fighters about half the screen tall), out as they separate
+	var want_zoom := clampf(vis.x * 0.85 / maxf(1.0, dist + 200.0), 1.0, 2.3)
 	# special-move push: ease in on the caster, hold, ease back (no slow motion)
 	_push_t += delta
 	var push := 0.0

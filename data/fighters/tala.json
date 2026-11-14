@@ -3,6 +3,8 @@
 	"color": "#7be0a8",
 	"element": "wind",
 	"weapon": "spear",
+	"two_handed": true,
+	"grip_span": 0.42,
 	"max_hp": 980,
 	"walk_speed": 450,
 	"jump_velocity": 1340,

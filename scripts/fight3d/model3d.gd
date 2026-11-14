@@ -21,12 +21,15 @@ const POWER_CLIP := {
 	"projectile": "cast_1", "lash": "cast_1", "drain": "cast_1", "pull": "cast_1",
 	"burst": "cast_2", "wall": "cast_2", "summon": "cast_2", "buff": "buff", "dash": "light_2",
 }
-const TURN := 0.38  # radians the body turns toward the camera from pure profile
+const TURN := 0.72  # radians the body turns toward the camera from pure profile (three-quarter view)
 const SHADER := preload("res://assets/shaders/character.gdshader")
 ## crossfade time when switching into each kind of clip
 const BLEND := {"idle": 0.18, "walk_forward": 0.15, "walk_back": 0.15, "block": 0.08, "jump": 0.1}
 
 static var _lib: AnimationLibrary
+## per-fighter sets (data "anim_set"): assets/animations/<set>/<set>_anims.res, merged over the shared clips
+static var _sets := {}
+var _anims: AnimationLibrary   # this fighter's clips (shared, overridden by its own set)
 ## fighters stand this tall (metres), as the Mixamo models do
 const HEIGHT := 1.78
 const OVERLAY := """
@@ -63,12 +66,31 @@ var _meshes: Array[MeshInstance3D] = []
 var _overlay: ShaderMaterial
 var _sk: Skeleton3D
 var _grip: Array = []        # [[bone, pose rotation]] holding the weapon
+var _ik: TwoBoneIK3D         # two-handed weapons: drives the left fist onto the grip
 
 
 static func available(char_id: String) -> bool:
 	return char_id != "" and ResourceLoader.exists(LIB_PATH) \
 		and (ResourceLoader.exists(vrm_path(char_id)) or ResourceLoader.exists(hy_path(char_id))
 			or ResourceLoader.exists(scene_path(char_id)))
+
+
+## The shared clips with a fighter's own set laid over them (same Mixamo skeleton, same clip names).
+static func _merged(set_name: String) -> AnimationLibrary:
+	var path := "res://assets/animations/%s/%s_anims.res" % [set_name, set_name]
+	if set_name == "" or not ResourceLoader.exists(path):
+		return _lib
+	if _sets.has(set_name):
+		return _sets[set_name]
+	var own: AnimationLibrary = load(path)
+	var out := AnimationLibrary.new()
+	for c in _lib.get_animation_list():
+		out.add_animation(c, own.get_animation(c) if own.has_animation(c) else _lib.get_animation(c))
+	for c in own.get_animation_list():
+		if not out.has_animation(c):
+			out.add_animation(c, own.get_animation(c))
+	_sets[set_name] = out
+	return out
 
 
 ## A Hunyuan 3D character rigged by tools/models/hy_rig.py (humanoid bone names, flex colours).
@@ -89,6 +111,7 @@ func setup(f: Fighter, s: Stage3D) -> void:
 	stage = s
 	if _lib == null:
 		_lib = load(LIB_PATH)
+	_anims = _merged(str(f.data.get("anim_set", "")))
 	if ResourceLoader.exists(vrm_path(f.char_id)):
 		_setup_humanoid(f, vrm_path(f.char_id), false)
 	elif ResourceLoader.exists(hy_path(f.char_id)):
@@ -122,7 +145,7 @@ func _setup_mixamo(f: Fighter) -> void:
 	_mesh = model.find_children("*", "MeshInstance3D", true, false)[0]
 	_ap = AnimationPlayer.new()
 	rig.add_child(_ap)  # root_node ".." -> tracks "Skeleton3D:mixamorig_*" resolve
-	_ap.add_animation_library("", _lib)
+	_ap.add_animation_library("", _anims)
 	_ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	# one shader for texture, rim, hit flash and hair / cloth motion
 	var src := _mesh.get_active_material(0) as BaseMaterial3D
@@ -158,7 +181,7 @@ func _setup_humanoid(f: Fighter, path: String, toon: bool) -> void:
 	# the shared clips, moved onto this skeleton
 	var ref: Node3D = (load(scene_path("kael")) as PackedScene).instantiate() if ResourceLoader.exists(scene_path("kael")) else null
 	var src: Skeleton3D = ref.find_children("*", "Skeleton3D", true, false)[0] if ref else null
-	var lib := VrmRetarget.library(path, _lib, src, _sk) if src else _lib
+	var lib := VrmRetarget.library(path + "|" + str(f.data.get("anim_set", "")), _anims, src, _sk) if src else _anims
 	if ref:
 		ref.free()
 	_ap = AnimationPlayer.new()
@@ -209,6 +232,8 @@ func _build_weapon_vrm(kind: String, col: Color) -> void:
 		var knuckle := _sk.get_bone_global_rest(mid).origin
 		grip = hb.origin + (knuckle - hb.origin) * 0.75 + Vector3(0, -0.028, 0)
 	w.position = hb.affine_inverse() * grip
+	if bool(fighter.data.get("two_handed", false)) and _sk.find_bone("LeftHand") >= 0:
+		_two_hands(w, float(fighter.data.get("grip_span", 0.12)))
 	# fingers closed around the handle (rest pose: fingers along -X, palm down, thumb forward)
 	for finger in ["Index", "Middle", "Ring", "Little"]:
 		for k in 3:
@@ -219,6 +244,39 @@ func _build_weapon_vrm(kind: String, col: Color) -> void:
 		var tb := _sk.find_bone("RightThumb%s" % ["Metacarpal", "Proximal", "Distal"][k])
 		if tb >= 0:
 			_grip.append([tb, _curl(tb, Vector3.RIGHT, [10.0, 35.0, 30.0][k])])
+
+
+## Both fists on the weapon: the right fist slides up toward the guard, the left closes below it
+## (or further down a spear / axe haft), placed by two-bone IK every frame after the animation.
+func _two_hands(w: Node3D, span: float) -> void:
+	var up := w.basis.y.normalized()          # along the blade, in hand space
+	w.position -= up * span * 0.55
+	var target := Node3D.new()
+	target.name = "LeftGrip"
+	w.add_child(target)
+	target.position = Vector3(0.0, -span, 0.0) + Vector3(0.0, 0.0, 0.0)
+	# the elbow points down and a little out, as in a two-handed guard
+	var pole := Node3D.new()
+	pole.name = "LeftElbowPole"
+	_sk.add_child(pole)
+	var elbow := _sk.get_bone_global_rest(_sk.find_bone("LeftLowerArm")).origin
+	var hips := _sk.get_bone_global_rest(_sk.find_bone("Hips")).origin
+	var h := maxf(elbow.y - hips.y, 0.2)
+	pole.position = elbow + Vector3(h * 0.6, -h * 1.2, -h * 0.3)
+	var ik := TwoBoneIK3D.new()
+	ik.setting_count = 1
+	ik.set_root_bone_name(0, "LeftUpperArm")
+	ik.set_middle_bone_name(0, "LeftLowerArm")
+	ik.set_end_bone_name(0, "LeftHand")
+	var hand := _sk.find_bone("LeftHand")
+	var knuckle := _sk.find_bone("LeftMiddleProximal")
+	if knuckle >= 0:
+		ik.set_extend_end_bone(0, true)
+		ik.set_end_bone_length(0, _sk.get_bone_global_rest(hand).origin.distance_to(_sk.get_bone_global_rest(knuckle).origin) * 0.75)
+	_sk.add_child(ik)
+	ik.set_target_node(0, ik.get_path_to(target))
+	ik.set_pole_node(0, ik.get_path_to(pole))
+	_ik = ik
 
 
 ## Rest rotation of bone `b` turned by `deg` about a skeleton-space axis.
@@ -372,7 +430,7 @@ func _target_yaw() -> float:
 
 
 func _has(clip: String) -> bool:
-	return _lib.has_animation(clip)
+	return _anims.has_animation(clip)
 
 
 func _pick(clip: String) -> String:
@@ -393,8 +451,8 @@ func _choose() -> Array:
 			return [_pick("walk_forward" if f.vel.x * f.facing >= 0.0 else "walk_back"), -1.0]
 		Fighter.S.AIR:
 			var j := _pick("jump")
-			var s: float = _lib.get_animation(j).get_meta("strike", 0.5)
-			return [j, minf(s - 0.1 + t, _lib.get_animation(j).length - 0.05)]
+			var s: float = _anims.get_animation(j).get_meta("strike", 0.5)
+			return [j, minf(s - 0.1 + t, _anims.get_animation(j).length - 0.05)]
 		Fighter.S.BLOCK:
 			return ["block", -1.0]
 		Fighter.S.BLOCKSTUN:
@@ -423,7 +481,7 @@ func _choose() -> Array:
 
 ## Map game time in a move to clip time so the clip's strike lands on the move's active frame.
 func _timeline(clip: String, t: float, su: float, ac: float, re: float) -> float:
-	var a := _lib.get_animation(clip)
+	var a := _anims.get_animation(clip)
 	var s: float = a.get_meta("strike", a.length * 0.4)
 	var wind := minf(s, 0.45)
 	var follow := clampf(a.length - s - 0.1, 0.0, 0.6)
@@ -449,6 +507,10 @@ func sync() -> void:
 	if _vrm:
 		for g in _grip:
 			_sk.set_bone_pose_rotation(g[0], g[1])
+	if _ik:
+		# let go when hit, knocked down or celebrating; both hands on the weapon otherwise
+		var hold := not (fighter.state in [Fighter.S.HURT, Fighter.S.KO, Fighter.S.WIN])
+		_ik.influence = move_toward(_ik.influence, 1.0 if hold else 0.0, dt * 6.0)
 	if _overlay:
 		_overlay.set_shader_parameter("flash", flash)
 	else:
@@ -465,7 +527,7 @@ func _animate(dt: float) -> void:
 	var time: float = pick[1]
 	var new_state := fighter.state != _last_state
 	_last_state = fighter.state
-	var length := _lib.get_animation(clip).length
+	var length := _anims.get_animation(clip).length
 	if clip != _clip or (new_state and time >= 0.0 and time < _ap.current_animation_position - 0.05):
 		_ap.play(clip, BLEND.get(clip, 0.07))
 		if time >= 0.0:

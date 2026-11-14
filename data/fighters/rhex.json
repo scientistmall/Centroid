@@ -3,6 +3,8 @@
 	"color": "#ff4a3d",
 	"element": "black_flame",
 	"weapon": "axe",
+	"two_handed": true,
+	"grip_span": 0.32,
 	"max_hp": 1100,
 	"walk_speed": 390,
 	"jump_velocity": 1220,
