@@ -22,7 +22,7 @@ TALA: Because you're already defeated.
 @panel wide | tala, vaska | Tala and Vaska in the quiet clearing, the spear between them, a tense stillness
 VASKA: You should kill me.
 TALA: Perhaps. But I'm giving you one chance to decide what kind of person you're going to be.
-@panel wide | tala | Tala slowly lowering her spear and stepping back, mercy in her eyes
+@panel wide | tala | Tala alone, holding her one long wind spear in both hands, slowly lowering its point toward the ground and stepping back, mercy in her eyes
 > Tala lowers her spear.
 
 @page

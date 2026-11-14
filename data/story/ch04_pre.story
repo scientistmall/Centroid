@@ -65,7 +65,7 @@ MIRA: I came here hoping you would say something different.
 > Nyra draws her whip.
 @fx SKRRSH | whip
 NYRA: Then I suppose we both came here hoping for something impossible.
-@panel action | mira | Mira drawing her flexible segmented silver blade, which uncoils like a ribbon with a soft pink moonlight glow
+@panel action | mira | Medium shot of Mira alone drawing her one whip-sword from its white hilt in her right hand; the silver crescent plates are uncoiling from the blade into a long glowing pink ribbon that curls around her in the air
 > Mira draws her flexible blade.
 @fx SHIIING | swing_light
 @panel strip | mira, nyra | The two sisters squaring off across the glowing pool, Mira on the left with her segmented pink-glowing whip-sword, Nyra on the right with her single long braid and green venom whip, reflections rippling

@@ -13,7 +13,7 @@ NYRA: Finish it.
 @panel action | nyra, mira | Nyra lying wounded on the cavern floor; Mira standing over her fallen sister, raising her pink-glowing blade high; Nyra closing her eyes
 > Mira raises her weapon.
 > Nyra closes her eyes.
-@panel wide | mira | Mira lowering the blade instead, trembling, tears in her eyes
+@panel wide | mira | Medium shot of Mira alone lowering her one whip-sword held by its white hilt in her right hand, the blade drooping toward the floor, trembling, tears in her eyes
 > Mira lowers the blade instead.
 
 @page
