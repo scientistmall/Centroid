@@ -9,7 +9,7 @@
 @show left kael
 @show right rhex
 RHEX [determined]: You've improved.
-@panel square | kael | Kael standing alone with his sword lowered, breathing hard, looking down at his fallen opponent below the frame, demanding
+@panel square | rhex, kael | Rhex lying defeated on the flagstones in the foreground; Kael standing over him with his sword lowered, breathing hard, demanding
 KAEL [angry]: Where is the stone?
 @panel square | rhex | Rhex looking up with a defiant bloody smirk
 RHEX [smile]: You really think we would leave it where you could reach it?
@@ -30,7 +30,7 @@ KAEL: What?
 @panel square | rhex | Close-up of Rhex's face, a last genuine smile, eyes softening
 RHEX [smile]: You really are getting stronger.
 @hide right
-@panel strip | kael, rhex | Kael standing alone over Rhex's body lying on the stones in the silent dark courtyard, sword hanging from his hand, no triumph
+@panel strip | rhex, kael | Kael standing alone over Rhex's body lying on the stones in the silent dark courtyard, sword hanging from his hand, no triumph
 > Rhex dies.
 > Kael stands over his former companion.
 > There is no celebration.

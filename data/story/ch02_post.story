@@ -26,7 +26,7 @@ TALA: Perhaps. But I'm giving you one chance to decide what kind of person you'r
 > Tala lowers her spear.
 
 @page
-@panel wide | tala, vaska | Vaska sitting up on the ground, wary and confused; Tala standing calmly before her with her spear lowered
+@panel wide | vaska, tala | Vaska sitting up on the ground, wary and confused; Tala standing calmly before her with her spear lowered
 VASKA: Veyr's followers won't forgive me if I leave.
 TALA: I'm not promising forgiveness.
 VASKA: Then what are you offering?

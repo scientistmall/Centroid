@@ -323,7 +323,7 @@ VEYR: Then you trusted the wrong man.
 > He strikes.
 @fx CLANG | block
 > Auren blocks the first attack but refuses to deliver a killing blow.
-@panel splash | veyr, auren | Tragic dramatic scene, only two men: standing Veyr thrusting his blade toward the white-bearded Auren, who staggers backward and falls, his pale robes swirling, against the dark glow of the stone on its altar, no gore, heavy shadows
+@panel splash | auren, veyr | Tragic dramatic scene, only two men: standing Veyr thrusting his blade toward the white-bearded Auren, who staggers backward and falls, his pale robes swirling, against the dark glow of the stone on its altar, no gore, heavy shadows
 > Veyr uses that hesitation to stab him.
 @fx SHK | hit_heavy
 @hide left
@@ -364,7 +364,7 @@ KAEL: Then explain it!
 @hide right
 
 @page
-@panel wide | kael, auren | The white-bearded Auren lying on his back on the stone floor, gravely wounded; young Kael kneeling beside him, holding his hand with both of his, the stone's glow fading behind them
+@panel wide | auren, kael | The white-bearded Auren lying on his back on the stone floor, gravely wounded; young Kael kneeling beside him, holding his hand with both of his, the stone's glow fading behind them
 > Kael kneels beside Auren. The dying founder struggles to speak.
 @show right auren
 AUREN: Kael...
@@ -374,7 +374,7 @@ KAEL [sad]: Please...
 @panel square | auren | Close-up of the dying Auren lying on the stone floor, his head resting on the stones, a faint peaceful smile, looking up
 AUREN: Don't let what happened here become everything you are.
 @hide right
-@panel strip | kael, auren | Kael kneeling with his head bowed beside the still body of the white-bearded Auren lying on the floor, still holding his hand, tears falling, the chamber silent and dark
+@panel strip | auren, kael | Kael kneeling with his head bowed beside the still body of the white-bearded Auren lying on the floor, still holding his hand, tears falling, the chamber silent and dark
 > Auren dies.
 > Kael remains holding his hand.
 @hide all

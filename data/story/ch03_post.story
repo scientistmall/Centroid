@@ -13,7 +13,7 @@
 > Darin approaches him.
 DARIN: It's over.
 MAEL: No...
-@panel square | mael | Close-up of Mael's face, his eyes sliding toward someone off-panel, a dark bitter decision forming
+@panel square | mael | Mael down on one knee, head turned, glancing sideways with a dark, bitter look as a decision forms
 > Mael looks toward Mira.
 MAEL: You still have something to protect.
 
@@ -38,7 +38,7 @@ MIRA: Darin!
 @hide all
 
 @page
-@panel wide | mira, darin | Mira running through settling dust toward Darin, who lies broken among the rubble
+@panel wide | darin, mira | Mira running through settling dust toward Darin, who lies broken among the rubble
 > Mira runs to Darin.
 @show right mira
 MIRA: Darin! Darin, look at me!
@@ -66,7 +66,7 @@ DARIN: Promise me...
 > Kael looks away.
 DARIN: Look after each other.
 @hide left
-@panel strip | kael, mira, darin | Darin lying still on his back on the stones, his great gauntleted hand falling still; Mira kneeling over him weeping; Kael standing motionless behind them in the dark pass
+@panel strip | darin, mira, kael | Darin lying still on his back on the stones, his great gauntleted hand falling still; Mira kneeling over him weeping; Kael standing motionless behind them in the dark pass
 > Darin's hand falls still.
 > Mira begins crying.
 > Kael stands motionless.
