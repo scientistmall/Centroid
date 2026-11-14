@@ -152,9 +152,9 @@ const HORIZON := {"training_ground": 0.40, "silent_forest": 0.30, "broken_pass":
 				  "underground_sanctuary": 0.32, "solar_altar": 0.24}
 
 
-static func build(id: String, root: Node3D, cam_y := 2.0) -> void:
+static func build(id: String, root: Node3D, cam_y := 2.0, cam_z := 9.6) -> void:
 	if ResourceLoader.exists(backdrop_path(id)):
-		_painted(root, id, cam_y)
+		_painted(root, id, cam_y, cam_z)
 		return
 	match id:
 		"silent_forest": _forest(root)
@@ -171,7 +171,13 @@ static func backdrop_path(id: String) -> String:
 ## sky, fog, ambient and floor colours are sampled from the painting so the 3D floor the
 ## fighters stand on continues the painted ground, and the painting's horizon is put at the
 ## camera's eye level so the perspective agrees.
-static func _painted(root: Node3D, id: String, cam_y: float) -> void:
+##
+## With a depth map (<id>_depth.png) the painting becomes a relief: every point is moved
+## toward the camera along its own line of sight, by how near it is in the picture. From the
+## starting camera it looks exactly like the flat painting; once the camera follows the
+## fighters, near walls and trees slide against the far sky (parallax). backdrop.gdshader
+## animates it and ArenaLife adds particles, mist and the lights.
+static func _painted(root: Node3D, id: String, cam_y: float, cam_z: float) -> void:
 	var tex: Texture2D = load(backdrop_path(id))
 	var img := tex.get_image()
 	if img.is_compressed():
@@ -181,22 +187,74 @@ static func _painted(root: Node3D, id: String, cam_y: float) -> void:
 	var horizon := _avg_rows(img, 1.0 - hf - 0.04, 1.0 - hf + 0.02)
 	var ground := _avg_rows(img, 1.0 - hf + 0.04, 1.0 - hf * 0.45)
 	environment(root, sky, horizon, horizon.lerp(ground, 0.4), 0.007, sky.lerp(ground, 0.5).lightened(0.1))
-	lights(root, sky.lerp(Color.WHITE, 0.55), horizon.lightened(0.25), 1.05)
+	lights(root, sky.lerp(Color.WHITE, 0.55), horizon.lightened(0.25), 0.85)
 	var fl := ground.darkened(0.35)
 	floor_plane(root, noise_mat(fl, fl.darkened(0.3), 0.05, 0.95))
 	# the painting, its horizon at eye level
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_texture = tex
-	m.disable_fog = true
 	var dist := 34.0
-	var h := 36.0
+	var h := 32.0   # small enough that the eclipse shows above the fighters
 	var w := h * float(tex.get_width()) / float(tex.get_height())
-	var q := QuadMesh.new()
-	q.size = Vector2(w, h)
-	var y_bottom := cam_y - hf * h
-	var mi := add_mesh(root, q, Vector3(0, y_bottom + h * 0.5, -dist), m)
+	var y_top := cam_y - hf * h + h
+	var dpath := "res://assets/backdrops/%s_depth.png" % id
+	var depth: Texture2D = load(dpath) if ResourceLoader.exists(dpath) else null
+	var m := ShaderMaterial.new()
+	m.shader = load("res://assets/shaders/backdrop.gdshader")
+	m.set_shader_parameter("painting", tex)
+	m.set_shader_parameter("noise_tex", Vfx3D.noise())
+	m.set_shader_parameter("has_depth", 1.0 if depth else 0.0)
+	if depth:
+		m.set_shader_parameter("depth_map", depth)
+	var c: Dictionary = ArenaLife.CONF.get(id, {})
+	m.set_shader_parameter("mist_color", c.get("mist", Color(0.6, 0.65, 0.75)))
+	m.set_shader_parameter("fire", 1.0 if c.has("warm") else 0.3)
+	var mi := MeshInstance3D.new()
+	mi.mesh = _relief(depth, w, h, y_top, dist, Vector3(0, cam_y, cam_z))
+	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+	ArenaLife.make(id, root, m)
+
+
+## The painting as a grid seen from `cam`; with a depth map, near points come forward
+## along their line of sight (up to PUSH metres), so the image is unchanged from `cam`.
+const PUSH := 16.0
+
+static func _relief(depth: Texture2D, w: float, h: float, y_top: float, dist: float, cam: Vector3) -> ArrayMesh:
+	var nx := 160
+	var ny := 72
+	var dimg: Image = null
+	if depth:
+		dimg = depth.get_image()
+		if dimg.is_compressed():
+			dimg.decompress()
+		dimg.convert(Image.FORMAT_L8)
+		dimg.resize(nx + 1, ny + 1, Image.INTERPOLATE_BILINEAR)   # also smooths depth edges
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for j in ny + 1:
+		for i in nx + 1:
+			var u := float(i) / nx
+			var v := float(j) / ny
+			var p := Vector3(-w * 0.5 + u * w, y_top - v * h, -dist)
+			if dimg:
+				var d := dimg.get_pixel(i, j).r
+				var z := -dist + pow(d, 1.4) * PUSH
+				p = cam + (p - cam) * ((cam.z - z) / (cam.z + dist))
+			st.set_uv(Vector2(u, v))
+			st.add_vertex(p)
+	for j in ny:
+		for i in nx:
+			var a := j * (nx + 1) + i
+			var b := a + 1
+			var c := a + nx + 1
+			var d2 := c + 1
+			st.add_index(a)
+			st.add_index(b)
+			st.add_index(c)
+			st.add_index(b)
+			st.add_index(d2)
+			st.add_index(c)
+	return st.commit()
 
 
 static func _avg_rows(img: Image, from: float, to: float) -> Color:

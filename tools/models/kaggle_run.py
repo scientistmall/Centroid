@@ -4,6 +4,7 @@
   python3 tools/models/kaggle_run.py concepts darin iren --n 2     # FLUX concept images
   python3 tools/models/kaggle_run.py concepts --missing --n 2      # every character without a concept
   python3 tools/models/kaggle_run.py model kael rhex               # Hunyuan3D-2 textured GLBs
+  python3 tools/models/kaggle_run.py depth training_ground         # arena depth maps (CPU)
 
 Needs: pip install kaggle ; a Kaggle API credential (the network proxy injects it) ;
 KAGGLE_USERNAME set (or --user). Jobs: tools/models/kaggle/{concepts,hunyuan3d}/.
@@ -101,16 +102,18 @@ def upload_inputs(user: str, names: list, files: list = None) -> None:
     raise SystemExit("dataset not ready: " + s)
 
 
-def push_and_wait(user: str, kind: str, jobs: list, use_dataset: bool, slug: str = "") -> str:
+def push_and_wait(user: str, kind: str, jobs: list, use_dataset: bool, slug: str = "", gpu: bool = True) -> str:
     src = os.path.join(HERE, "kaggle", kind, kind + ".py")
     slug = slug or f"centroid-{kind}"
     with tempfile.TemporaryDirectory() as d:
         code = open(src).read().replace("JOBS = []", "JOBS = " + json.dumps(jobs), 1)
         open(os.path.join(d, kind + ".py"), "w").write(code)
         meta = {"id": f"{user}/{slug}", "title": slug, "code_file": kind + ".py", "language": "python",
-                "kernel_type": "script", "is_private": True, "enable_gpu": True, "enable_internet": True,
+                "kernel_type": "script", "is_private": True, "enable_gpu": gpu, "enable_internet": True,
                 "dataset_sources": [f"{user}/{DATASET}"] if use_dataset else [],
-                "competition_sources": [], "kernel_sources": [], "machine_shape": "NvidiaTeslaT4"}
+                "competition_sources": [], "kernel_sources": []}
+        if gpu:
+            meta["machine_shape"] = "NvidiaTeslaT4"
         json.dump(meta, open(os.path.join(d, "kernel-metadata.json"), "w"), indent=1)
         print(kaggle("kernels", "push", "-p", d))
     t0 = time.time()
@@ -138,7 +141,7 @@ def download(user: str, slug: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("kind", choices=["concepts", "model", "views", "art", "panels", "splash"])
+    ap.add_argument("kind", choices=["concepts", "model", "views", "art", "panels", "splash", "depth"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--missing", action="store_true", help="concepts: every character without a concept yet")
     ap.add_argument("--n", type=int, default=2)
@@ -153,6 +156,27 @@ def main():
     if not names:
         sys.exit("no characters given")
     print("characters:", " ".join(names))
+
+    if a.kind == "depth":
+        # arena paintings -> depth maps, on a CPU kernel (no GPU queue). The images travel inside
+        # the script, so the shared input dataset other jobs may be using is left alone.
+        import base64
+        import io
+        from PIL import Image
+        bd = os.path.join(ROOT, "assets", "backdrops")
+        jobs = []
+        for n in names:
+            im = Image.open(os.path.join(bd, n + ".png")).convert("RGB")
+            im.thumbnail((1280, 1280))
+            buf = io.BytesIO()
+            im.save(buf, "JPEG", quality=92)
+            jobs.append({"name": n, "b64": base64.b64encode(buf.getvalue()).decode()})
+        push_and_wait(a.user, "depth", jobs, use_dataset=False, slug="centroid-depth", gpu=False)
+        out = download(a.user, "centroid-depth")
+        for f in glob.glob(os.path.join(out, "*_depth.png")):
+            shutil.copy(f, bd)
+            print("saved", os.path.join(bd, os.path.basename(f)))
+        return
 
     if a.kind in ("concepts", "views", "art", "panels", "splash"):
         dest = {}   # out prefix -> folder

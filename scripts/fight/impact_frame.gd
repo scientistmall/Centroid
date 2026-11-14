@@ -26,14 +26,14 @@ void fragment() {
 	float l = dot(acc, vec3(0.299, 0.587, 0.114));
 	vec3 hit = tint.rgb * (0.35 + 1.4 * l);
 	float k = clamp(amount, 0.0, 1.0);
-	COLOR = vec4(mix(acc, hit, k * k * 0.4) + tint.rgb * k * 0.06, 1.0);
+	COLOR = vec4(mix(acc, hit, k * k * 0.28) + tint.rgb * k * 0.05, 1.0);
 }
 """
 
 const TIME := 0.22
 
 var _t := TIME
-var _frames := 0   # the first two frames always show at full strength, even on a slow device
+var _frames := 0   # the first frame always shows at full strength, even on a slow device
 var _m: ShaderMaterial
 
 
@@ -63,7 +63,7 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	_frames += 1
-	if _frames <= 2:
+	if _frames <= 1:
 		return
 	_t += minf(delta, 1.0 / 30.0)
 	var k := 1.0 - clampf(_t / TIME, 0.0, 1.0)

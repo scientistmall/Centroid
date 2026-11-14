@@ -43,7 +43,7 @@ func setup(id: String, vp_size: Vector2, ground_px: float) -> void:
 	camera.far = 200.0
 	world_root.add_child(camera)
 	_place_camera()
-	ArenaBuilder.build(id, world_root, camera.position.y)
+	ArenaBuilder.build(id, world_root, camera.position.y, camera.position.z)
 
 
 func _place_camera() -> void:
