@@ -157,9 +157,14 @@ def upload_inputs(user: str, names: list, files: list = None) -> None:
     raise SystemExit("dataset not ready: " + s)
 
 
+ATTACH = False   # --attach: wait for and download the version already pushed, push nothing
+
+
 def push_and_wait(user: str, kind: str, jobs: list, use_dataset: bool, slug: str = "", gpu: bool = True) -> str:
     src = os.path.join(HERE, "kaggle", kind, kind + ".py")
     slug = slug or f"centroid-{kind}"
+    if ATTACH:
+        print("attaching to the version already pushed:", slug)
     with tempfile.TemporaryDirectory() as d:
         code = open(src).read().replace("JOBS = []", "JOBS = " + json.dumps(jobs), 1)
         open(os.path.join(d, kind + ".py"), "w").write(code)
@@ -170,12 +175,16 @@ def push_and_wait(user: str, kind: str, jobs: list, use_dataset: bool, slug: str
         if gpu:
             meta["machine_shape"] = "NvidiaTeslaT4"
         json.dump(meta, open(os.path.join(d, "kernel-metadata.json"), "w"), indent=1)
-        print(kaggle("kernels", "push", "-p", d))
+        if not ATTACH:
+            print(kaggle("kernels", "push", "-p", d))
     t0 = time.time()
     last = ""
     while True:
-        time.sleep(30)
+        time.sleep(60)
         s = kaggle("kernels", "status", f"{user}/{slug}", check=False).strip()
+        if "429" in s or "rate limit" in s.lower() or "too many requests" in s.lower():
+            time.sleep(120)   # Kaggle throttles status polling: wait, the job keeps going
+            continue
         if s != last:
             print("[%4.0f min] %s" % ((time.time() - t0) / 60, s), flush=True)
             last = s
@@ -202,7 +211,10 @@ def main():
     ap.add_argument("--n", type=int, default=2)
     ap.add_argument("--only", default="", help="panels: comma separated panel numbers (one scene)")
     ap.add_argument("--user", default=os.environ.get("KAGGLE_USERNAME", ""))
+    ap.add_argument("--attach", action="store_true", help="wait for the job already pushed instead of pushing")
     a = ap.parse_args()
+    global ATTACH
+    ATTACH = a.attach
     if not a.user:
         sys.exit("set KAGGLE_USERNAME or pass --user")
     names = a.names
@@ -338,7 +350,7 @@ def main():
                 ids = list(table)
             jobs = [{"out": i, "prompt": table[i][0], "w": table[i][1], "h": table[i][2], "n": a.n} for i in ids]
             dest = {i: table[i][3] for i in ids}
-        if refs:
+        if refs and not ATTACH:
             upload_inputs(a.user, [], refs)
         slug = f"centroid-{a.kind}"
         status = push_and_wait(a.user, "concepts", jobs, use_dataset=bool(refs), slug=slug)
