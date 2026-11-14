@@ -323,7 +323,7 @@ VEYR: Then you trusted the wrong man.
 > He strikes.
 @fx CLANG | block
 > Auren blocks the first attack but refuses to deliver a killing blow.
-@panel splash | auren, veyr | Tragic dramatic scene, only two men: standing Veyr thrusting his blade toward the white-bearded Auren, who staggers backward and falls, his pale robes swirling, against the dark glow of the stone on its altar, no gore, heavy shadows
+@panel splash | auren | Tragic dramatic scene: the white-bearded Auren in pale robes staggering backward and falling, his robes swirling, struck by a blade thrust from a black-gloved hand that enters from the edge of the frame (the attacker is not shown), the dark glow of the stone on its altar behind him, no gore, heavy shadows
 > Veyr uses that hesitation to stab him.
 @fx SHK | hit_heavy
 @hide left
@@ -374,7 +374,7 @@ KAEL [sad]: Please...
 @panel square | auren | Close-up of the dying Auren lying on the stone floor, his head resting on the stones, a faint peaceful smile, looking up
 AUREN: Don't let what happened here become everything you are.
 @hide right
-@panel strip | auren, kael | Kael kneeling with his head bowed beside the still body of the white-bearded Auren lying on the floor, still holding his hand, tears falling, the chamber silent and dark
+@panel strip | kael | Kael kneeling with his head bowed on the dark stone floor, tears falling, holding with both hands a pale, still, wrinkled old hand in a white-and-gold robe sleeve that lies on the floor in the foreground (only the hand and sleeve visible), the chamber silent and dark
 > Auren dies.
 > Kael remains holding his hand.
 @hide all

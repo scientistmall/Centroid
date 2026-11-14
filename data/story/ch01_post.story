@@ -30,7 +30,7 @@ KAEL: What?
 @panel square | rhex | Close-up of Rhex's face, a last genuine smile, eyes softening
 RHEX [smile]: You really are getting stronger.
 @hide right
-@panel strip | rhex, kael | Kael standing alone over Rhex's body lying on the stones in the silent dark courtyard, sword hanging from his hand, no triumph
+@panel strip | kael | Kael standing alone in the silent dark courtyard, sword hanging from his hand, looking down without triumph at a defeated, red-mohawked warrior lying face-down on the stones in the foreground (only his back and red mohawk visible)
 > Rhex dies.
 > Kael stands over his former companion.
 > There is no celebration.
