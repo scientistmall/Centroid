@@ -40,7 +40,7 @@ def kaggle(*args, check=True) -> str:
 
 
 def picked_concept(name: str) -> str:
-    files = sorted(f for f in glob.glob(os.path.join(CHARS, name, "concepts", "*.png")) if "_weapon" not in f)
+    files = sorted(f for f in glob.glob(os.path.join(CHARS, name, "concepts", "*.png")) if "_weapon" not in f and "_armed" not in f)
     if not files:
         raise SystemExit(f"{name}: no concept image in assets/characters/{name}/concepts/")
     return files[0]
