@@ -32,6 +32,7 @@ def main():
     t0 = time.time()
     os.makedirs("/kaggle/tmp", exist_ok=True)
     os.environ["HF_HOME"] = "/kaggle/tmp/hf"
+    os.environ["USE_HF_MODELS"] = "1"   # text encoders straight from Hugging Face
     if not os.path.isdir(REPO):
         sh("apt-get -qq install -y git-lfs >/dev/null 2>&1 || true")
         sh(f"git clone -q --depth 1 https://github.com/Tencent-Hunyuan/HY-Motion-1.0.git {REPO}")
