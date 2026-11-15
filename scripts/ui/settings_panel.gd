@@ -48,6 +48,36 @@ func _ready() -> void:
 					c.button_pressed = c.text == ["EASY", "NORMAL", "HARD"][i])
 		row.add_child(b)
 
+	# graphics: AUTO picks for this phone (and steps down by itself if the 3D comes out black)
+	var grow := HBoxContainer.new()
+	grow.add_theme_constant_override("separation", 12)
+	vb.add_child(grow)
+	var glbl := Label.new()
+	glbl.text = "Graphics"
+	glbl.custom_minimum_size.x = 380
+	grow.add_child(glbl)
+	var gnames := ["AUTO", "HIGH", "LOW", "SAFE"]
+	var info := Label.new()
+	for gi in 4:
+		var gb := Button.new()
+		gb.text = gnames[gi]
+		gb.toggle_mode = true
+		gb.button_pressed = Settings.graphics == gi
+		gb.custom_minimum_size = Vector2(170, 72)
+		gb.pressed.connect(func():
+			Settings.graphics = gi
+			Settings.graphics_detected = 0
+			info.text = Settings.graphics_info()
+			for c in grow.get_children():
+				if c is Button:
+					c.button_pressed = c.text == gnames[gi])
+		grow.add_child(gb)
+	info.text = Settings.graphics_info()
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info.add_theme_font_size_override("font_size", 22)
+	info.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+	vb.add_child(info)
+
 	var close := Button.new()
 	close.text = "DONE"
 	close.theme_type_variation = "PrimaryButton"

@@ -19,6 +19,8 @@ func _ready() -> void:
 	only = args.slice(1)
 	DirAccess.make_dir_recursive_absolute(out)
 	SceneRouter._busy = true
+	if OS.get_environment("GFX") != "":   # force a graphics level: 1 HIGH, 2 LOW, 3 SAFE
+		Settings.graphics = int(OS.get_environment("GFX"))
 	StoryManager.new_game()
 	if _want("menu"): await _shot_menu()
 	if _want("story_opening"): await _shot_story("prologue", 11, "story_opening")

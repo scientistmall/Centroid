@@ -1,5 +1,5 @@
 extends Node
-## Gestures -> actions: tap, hold own side, hold opponent side (power), drag, flick, swipe up.
+## Gestures -> actions: tap, hold own side, tap the power gauge, drag, flick, swipe up.
 ## Events arrive in window pixels; the fight works in viewport pixels.
 func _win(p: Vector2) -> Vector2:
 	return get_tree().root.get_final_transform() * p
@@ -53,14 +53,21 @@ func _ready() -> void:
 	while Time.get_ticks_msec() - t0 < 300:
 		watch.call(); await get_tree().process_frame
 	_touch(0, own, false); await _frames(2)
-	# hold opponent side with full bars -> power
+	# holding the opponent's side no longer fires a power
 	a.player.energy = 300.0
-	var e0: float = a.player.energy
 	_touch(0, opp, true)
 	t0 = Time.get_ticks_msec()
 	while Time.get_ticks_msec() - t0 < 700:
-		watch.call(); await get_tree().process_frame
+		await get_tree().process_frame
 	_touch(0, opp, false); await _frames(3)
+	var no_hold_power: bool = a.player.energy > 299.0 and a.player.state != Fighter.S.POWER
+	# tap the power gauge with full bars -> power
+	a.player.energy = 300.0
+	var e0: float = a.player.energy
+	var g: Vector2 = tc.gauge_rect().get_center()
+	_touch(0, g, true)
+	for k in 4: watch.call(); await get_tree().process_frame
+	_touch(0, g, false); await _frames(3)
 	var power_fired: bool = a.player.energy < e0 - 1.0 or a.player.state == Fighter.S.POWER
 	# drag toward opponent -> move right
 	_touch(1, own, true); await _frames(2); _drag(1, own + Vector2(120, 0))
@@ -73,7 +80,8 @@ func _ready() -> void:
 	for act in ["attack_light", "block", "jump", "move_right"]:
 		print(("ok   " if seen.has(act) else "FAIL ") + act)
 		ok = ok and seen.has(act)
-	print(("ok   " if power_fired else "FAIL ") + "power fired by holding the opponent's side (bars used %d -> %d)" % [int(e0), int(a.player.energy)])
-	ok = ok and power_fired
+	print(("ok   " if no_hold_power else "FAIL ") + "holding the opponent's side does not fire a power")
+	print(("ok   " if power_fired else "FAIL ") + "power fired by tapping the gauge (bars %d -> %d)" % [int(e0), int(a.player.energy)])
+	ok = ok and power_fired and no_hold_power
 	print("GESTURES: ", "PASS" if ok else "FAIL")
 	get_tree().quit()

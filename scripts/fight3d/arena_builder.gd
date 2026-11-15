@@ -65,6 +65,10 @@ static func cyl(r_top: float, r_bot: float, h: float, sides := 12) -> CylinderMe
 	return c
 
 
+## LOW / SAFE graphics (see Settings.effective_graphics): no glow, fog, sky shader or shadows.
+static var low := false
+
+
 static func environment(root: Node3D, sky_top: Color, horizon: Color, fog_col: Color, fog_density: float, ambient: Color) -> void:
 	var env := Environment.new()
 	var sky := Sky.new()
@@ -90,6 +94,13 @@ static func environment(root: Node3D, sky_top: Color, horizon: Color, fog_col: C
 	env.glow_intensity = 0.9
 	env.glow_bloom = 0.15
 	env.glow_hdr_threshold = 0.9
+	if low:
+		# only what every GPU can do: a plain background colour, no post effects
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = sky_top.lerp(horizon, 0.5)
+		env.sky = null
+		env.glow_enabled = false
+		env.fog_enabled = false
 	var we := WorldEnvironment.new()
 	we.environment = env
 	root.add_child(we)
@@ -101,7 +112,7 @@ static func lights(root: Node3D, moon: Color, rim: Color, key_energy := 1.2) -> 
 	key.light_color = moon
 	key.light_energy = key_energy
 	key.rotation_degrees = Vector3(-35, 20, 0)
-	key.shadow_enabled = true
+	key.shadow_enabled = not low
 	key.shadow_opacity = 0.55   # no sun: soft shadows, not black pools
 	root.add_child(key)
 	# strong rim light from behind — makes fighters pop from the background

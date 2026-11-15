@@ -13,8 +13,8 @@ const DIR := "res://assets/title/"
 ## id: [x (fraction of width), feet y (fraction of height), height (fraction of height), row]
 ## row 0 = front (leaders), 1 = middle, 2 = back. Traitors left, guardians right.
 const LAYOUT := {
-	"zerin": [0.035, 0.80, 0.47, 2], "nyra": [0.115, 0.79, 0.46, 2], "vaska": [0.20, 0.78, 0.45, 2], "corvin": [0.285, 0.77, 0.44, 2],
-	"iren": [0.715, 0.77, 0.44, 2], "mira": [0.80, 0.78, 0.45, 2], "oren": [0.885, 0.79, 0.46, 2], "lyra": [0.965, 0.80, 0.47, 2],
+	"zerin": [0.095, 0.80, 0.47, 2], "nyra": [0.155, 0.79, 0.46, 2], "vaska": [0.225, 0.78, 0.45, 2], "corvin": [0.295, 0.77, 0.44, 2],
+	"iren": [0.705, 0.77, 0.44, 2], "mira": [0.775, 0.78, 0.45, 2], "oren": [0.845, 0.79, 0.46, 2], "lyra": [0.905, 0.80, 0.47, 2],
 	"rhex": [0.065, 1.00, 0.60, 1], "mael": [0.16, 0.98, 0.59, 1], "thane": [0.25, 0.96, 0.58, 1],
 	"kael": [0.75, 0.96, 0.58, 1], "darin": [0.84, 0.98, 0.60, 1], "tala": [0.935, 1.00, 0.59, 1],
 	"auren": [0.5, 0.78, 0.52, 1],

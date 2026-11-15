@@ -52,6 +52,9 @@ var hud: FightHud
 var touch: TouchControls
 var overlay: Control
 var backdrop: Backdrop
+var _gfx_t := 0.8              # fight time before the black-screen check (once per fight)
+## Tests: make the black-screen check see black.
+static var force_black_check := false
 
 
 func _ready() -> void:
@@ -232,6 +235,10 @@ func _wait(t: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if phase == "fight" and _gfx_t > 0.0:
+		_gfx_t -= delta
+		if _gfx_t <= 0.0:
+			_check_render.call_deferred()
 	# dust kicks up behind charging fighters
 	_dust_t -= delta
 	if _dust_t <= 0.0 and Vfx3D.on():
@@ -463,6 +470,55 @@ func _swap_member() -> void:
 	swap_cooldown = 5.0
 	_replace_player(idx, true)
 	hud.show_power(player, "TAG — " + player.display_name, 0)
+
+
+# ---------------------------------------------------------------- graphics check
+
+## Some phone GPUs (e.g. PowerVR GE8320) draw the HUD but leave the 3D black. Look at the 3D
+## picture once; if it is black, step the graphics down (HIGH -> LOW -> SAFE), remember it for
+## this phone and restart the fight. If even SAFE is black, say so on screen with the GPU name.
+func _check_render() -> void:
+	if DisplayServer.get_name() != "headless":   # (no frames are drawn headless)
+		await RenderingServer.frame_post_draw
+	var img: Image
+	if stage3d.viewport:
+		var tex := stage3d.viewport.get_texture()
+		img = tex.get_image() if tex else null
+	else:
+		var full: Image = get_viewport().get_texture().get_image() if get_viewport().get_texture() else null
+		if full and not full.is_empty():
+			var sz := full.get_size()
+			img = full.get_region(Rect2i(0, int(sz.y * 0.3), sz.x, int(sz.y * 0.5)))   # under the HUD
+	var lum := 1.0
+	if img and not img.is_empty() and img.get_width() > 0:
+		img.resize(32, 18, Image.INTERPOLATE_BILINEAR)
+		lum = 0.0
+		for y in 18:
+			for x in 32:
+				lum += img.get_pixel(x, y).get_luminance()
+		lum /= 32.0 * 18.0
+	if force_black_check:
+		lum = 0.0
+	if lum >= 0.02:
+		return
+	var lvl := stage3d.level
+	if Settings.graphics == Settings.Gfx.AUTO and lvl < Settings.Gfx.SAFE:
+		Settings.graphics_detected = lvl + 1
+		Settings.save_settings()
+		SceneRouter.toast("Adjusting graphics for this phone...")
+		var dest: Dictionary = SceneRouter.current.duplicate()
+		dest["no_briefing"] = true
+		SceneRouter.go(dest)
+		return
+	var l := Label.new()
+	l.text = "3D could not be drawn on this phone.\nSettings > Graphics can change the mode.\n" + Settings.graphics_info()
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	l.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	l.grow_vertical = Control.GROW_DIRECTION_BOTH
+	l.add_theme_font_size_override("font_size", 30)
+	l.add_theme_constant_override("outline_size", 10)
+	ui_layer.add_child(l)
 
 
 # ---------------------------------------------------------------- end / pause

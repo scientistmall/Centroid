@@ -12,8 +12,9 @@ const PPM := 154.0          # pixels per metre on the fighters' plane
 static var current: Stage3D
 const FOV := 40.0
 
-var viewport: SubViewport
+var viewport: SubViewport          # null in SAFE graphics: the 3D then draws straight to the screen
 var camera: Camera3D
+var level := Settings.Gfx.HIGH
 var world_root: Node3D
 var arena_id := ""
 var _vp_size := Vector2(1920, 1080)
@@ -29,14 +30,26 @@ func setup(id: String, vp_size: Vector2, ground_px: float) -> void:
 	stretch = true
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	viewport = SubViewport.new()
-	viewport.size = Vector2i(vp_size)
-	viewport.own_world_3d = true
-	viewport.msaa_3d = Viewport.MSAA_2X
-	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	add_child(viewport)
+	level = Settings.effective_graphics()
+	ArenaBuilder.low = level != Settings.Gfx.HIGH
 	world_root = Node3D.new()
-	viewport.add_child(world_root)
+	if level == Settings.Gfx.SAFE:
+		# no off-screen render: the world joins the screen's own viewport and draws under every
+		# canvas layer (this stage sits on the lowest one, so the picture is the same)
+		var root_vp := get_viewport()
+		root_vp.scaling_3d_scale = 0.75
+		tree_exiting.connect(func(): root_vp.scaling_3d_scale = 1.0)
+		add_child(world_root)
+	else:
+		viewport = SubViewport.new()
+		viewport.size = Vector2i(vp_size)
+		viewport.own_world_3d = true
+		viewport.msaa_3d = Viewport.MSAA_2X if level == Settings.Gfx.HIGH else Viewport.MSAA_DISABLED
+		if level == Settings.Gfx.LOW:
+			viewport.scaling_3d_scale = 0.75
+		viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		add_child(viewport)
+		viewport.add_child(world_root)
 	camera = Camera3D.new()
 	camera.fov = FOV
 	camera.keep_aspect = Camera3D.KEEP_HEIGHT

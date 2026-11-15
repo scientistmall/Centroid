@@ -59,9 +59,20 @@ func _ready() -> void:
 	layer.add_child(_toast)
 
 
+## A short message near the bottom of the screen (fades out by itself).
+func toast(text: String, secs := 2.5) -> void:
+	_toast.text = text
+	_exit_armed = 0.0
+	_toast_t = secs
+
+
+var _toast_t := 0.0
+
+
 func _process(delta: float) -> void:
+	_toast_t = maxf(0.0, _toast_t - delta)
 	_exit_armed = maxf(0.0, _exit_armed - delta)
-	_toast.modulate.a = clampf(_exit_armed, 0.0, 1.0)
+	_toast.modulate.a = clampf(maxf(_exit_armed, _toast_t), 0.0, 1.0)
 
 
 # ---------------------------------------------------------------- back button

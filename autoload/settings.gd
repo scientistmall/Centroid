@@ -10,12 +10,42 @@ var button_scale := 1.0        # 0.8..1.3
 var button_opacity := 0.85     # 0.4..1.0
 var left_handed := false       # swap joystick and buttons
 var difficulty := 1            # 0 easy, 1 normal, 2 hard
+## 3D quality: AUTO picks for the phone; LOW drops MSAA, glow, fog and shadows; SAFE also
+## draws the 3D straight to the screen (no off-screen pass) for GPUs whose drivers fail at it.
+enum Gfx { AUTO, HIGH, LOW, SAFE }
+var graphics := Gfx.AUTO
+var graphics_detected := 0     # 0 = not yet; else the level the black-screen check settled on
+
+## GPU families whose drivers are known to fail at parts of the 3D pipeline: start them on LOW.
+const WEAK_GPUS := ["PowerVR", "GE8", "Mali-4", "Mali-T7", "Adreno (TM) 3"]
 
 signal changed
 
 
 func _ready() -> void:
 	load_settings()
+
+
+## The 3D level to use now (HIGH, LOW or SAFE).
+func effective_graphics() -> int:
+	if graphics != Gfx.AUTO:
+		return graphics
+	if graphics_detected > 0:
+		return graphics_detected
+	var gpu := RenderingServer.get_video_adapter_name()
+	for g in WEAK_GPUS:
+		if gpu.contains(g):
+			return Gfx.LOW
+	return Gfx.HIGH
+
+
+## "Compatibility · PowerVR Rogue GE8320 · OpenGL ES 3.2 · using LOW"
+func graphics_info() -> String:
+	var method := RenderingServer.get_current_rendering_method()
+	var names := {"gl_compatibility": "Compatibility", "mobile": "Mobile", "forward_plus": "Forward+"}
+	var lvl: String = ["AUTO", "HIGH", "LOW", "SAFE"][effective_graphics()]
+	return "%s  ·  %s  ·  %s  ·  using %s" % [names.get(method, method), RenderingServer.get_video_adapter_name(),
+		RenderingServer.get_video_adapter_api_version(), lvl]
 
 
 func ai_multiplier() -> float:
@@ -28,7 +58,8 @@ func save_settings() -> void:
 		f.store_string(JSON.stringify({
 			"music_volume": music_volume, "sfx_volume": sfx_volume, "vibration": vibration,
 			"button_scale": button_scale, "button_opacity": button_opacity,
-			"left_handed": left_handed, "difficulty": difficulty}))
+			"left_handed": left_handed, "difficulty": difficulty, "graphics": graphics,
+			"graphics_detected": graphics_detected}))
 	changed.emit()
 
 
@@ -44,6 +75,8 @@ func load_settings() -> void:
 		button_opacity = float(d.get("button_opacity", button_opacity))
 		left_handed = bool(d.get("left_handed", left_handed))
 		difficulty = int(d.get("difficulty", difficulty))
+		graphics = clampi(int(d.get("graphics", graphics)), 0, 3)
+		graphics_detected = clampi(int(d.get("graphics_detected", graphics_detected)), 0, 3)
 
 
 func vibrate(ms: int) -> void:

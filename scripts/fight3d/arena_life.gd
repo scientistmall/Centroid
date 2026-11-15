@@ -101,7 +101,7 @@ func _light(p: Vector3, col: Color, energy: float, rng_m: float) -> OmniLight3D:
 ## A slow, endless particle field (`add` = glowing, otherwise soft and dark).
 func _cloud(amount: int, life: float, at: Vector3, ext: Vector3, col: Color, size: float, add: bool) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
-	p.amount = amount
+	p.amount = maxi(4, amount / 2) if ArenaBuilder.low else amount
 	p.lifetime = life
 	p.preprocess = life
 	p.position = at
