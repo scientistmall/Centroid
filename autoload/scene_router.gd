@@ -20,6 +20,8 @@ const KEYS := {
 	"block": [KEY_L, KEY_S, KEY_DOWN],
 	"power_1": [KEY_U],
 	"power_2": [KEY_I],
+	"power_3": [KEY_O],
+	"power": [KEY_P],
 	"advance": [KEY_ENTER, KEY_KP_ENTER],
 }
 

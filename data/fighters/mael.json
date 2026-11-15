@@ -24,6 +24,7 @@
 		 "cost": 30, "duration": 1.4, "pull_speed": 420, "startup": 0.2, "active": 0.05, "recovery": 0.25},
 		{"id": "rising_stones", "desc": "Rocks orbit Mael, then launch at the opponent one after another.", "sfx": "stone", "hit_sfx": "stone", "name": "Rising Stones", "short": "STONES", "type": "projectile", "fx": "rock", "anim": "burst", "arc": true,
 		 "count": 3, "interval": 0.15, "y": -160, "y_spread": 70,
-		 "cost": 45, "damage": 50, "speed": 1300, "life": 1.8, "startup": 0.25, "active": 0.35, "recovery": 0.3, "stun": 0.35, "knock": 200}
+		 "cost": 45, "damage": 50, "speed": 1300, "life": 1.8, "startup": 0.25, "active": 0.35, "recovery": 0.3, "stun": 0.35, "knock": 200},
+		{"id": "event_horizon", "name": "Event Horizon", "short": "HORIZON", "type": "burst", "anim": "cast", "sfx": "gravity", "hit_sfx": "hit_heavy", "radius": 360, "desc": "Mael collapses gravity into a crushing sphere that swallows everything near him. Unblockable.", "damage": 320, "startup": 0.38, "active": 0.1, "recovery": 0.5, "stun": 1.0, "knock": 500, "unblockable": true, "ultimate": true, "cost": 300}
 	]
 }

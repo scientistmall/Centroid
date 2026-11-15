@@ -16,10 +16,11 @@ signal special_hit(f: Fighter, attacker: Fighter)
 enum S { IDLE, WALK, AIR, ATTACK, BLOCK, BLOCKSTUN, HURT, KO, POWER, WIN, FROZEN }
 
 const GRAVITY := 3400.0
-const MAX_ENERGY := 100.0
+const MAX_ENERGY := 300.0
+const BAR := 100.0               # one power bar; power N costs N bars
 const BODY_HALF_W := 52.0  # 3D bodies are wider than the old silhouettes
 const BODY_H := 285.0
-const PASSIVE_ENERGY := 2.5      # per second
+const PASSIVE_ENERGY := 4.0      # per second
 const PUSH_FRICTION := 2600.0
 const POISON_DPS := 15.0
 
@@ -60,6 +61,7 @@ var chain_index := 0
 var move_hit := false
 var queued := ""
 var power_def: Dictionary = {}
+var power_index := 0          # which of the three powers is running (2 = the unblockable ultimate)
 var power_fired := false
 var air_attack_used := false
 var _last_pose: Dictionary = {}
@@ -90,6 +92,8 @@ func setup(fighter_data: Dictionary) -> void:
 	walk_speed = float(data.get("walk_speed", 430))
 	jump_vel = float(data.get("jump_velocity", 1300))
 	powers = data.get("powers", [])
+	for i in powers.size():
+		(powers[i] as Dictionary)["cost"] = BAR * (i + 1)
 	costume = PortraitArt.look_for(char_id).get("fighter", {})
 	if element != "" and _emitter == null:
 		_emitter = Vfx.element_emitter(element, color)
@@ -100,7 +104,7 @@ func setup(fighter_data: Dictionary) -> void:
 
 func reset_for_round() -> void:
 	hp = max_hp
-	energy = float(data.get("start_energy", 20))
+	energy = float(data.get("start_energy", 20)) * 3.0
 	vel = Vector2.ZERO
 	stun_time = 0.0
 	invuln = 0.0
@@ -215,14 +219,15 @@ func _update_visual_motion(delta: float) -> void:
 	sec += _sec_vel * delta
 	# charged element particles stream off the weapon
 	if _emitter:
-		var charged := state == S.POWER or energy >= MAX_ENERGY * 0.999 or (state == S.ATTACK and move_kind == "heavy")
+		var charged := state == S.POWER or (not tip_source.is_valid() and (energy >= MAX_ENERGY * 0.999 or (state == S.ATTACK and move_kind == "heavy")))
 		_emitter.emitting = charged and state != S.KO
 		if tip_source.is_valid():
 			_emitter.position = tip_source.call()[0]
 		elif weapon != "none":
 			_emitter.position = FighterPainter.weapon_tip(current_pose(), facing, weapon) * 0.85
 	var swinging := false
-	if state == S.ATTACK:
+	if state == S.ATTACK and not tip_source.is_valid():
+		# (3D fighters fight unarmed: no blade smear on punches and kicks)
 		var tm := _move_times()
 		swinging = state_time >= tm.x * 0.9 and state_time <= tm.x + tm.y + 0.04
 	elif state == S.POWER and power_def.get("type", "") in ["dash", "lash", "burst"]:
@@ -293,6 +298,10 @@ func _ground_control() -> void:
 		vel.x = 0.0
 		set_state(S.BLOCK)
 		return
+	if inp.get("power", false) and _try_power(bars_full() - 1):
+		return
+	if inp.get("power_3", false) and _try_power(2):
+		return
 	if inp.get("power_1", false) and _try_power(0):
 		return
 	if inp.get("power_2", false) and _try_power(1):
@@ -334,6 +343,10 @@ func _block_update() -> void:
 	_face_opponent()
 	vel.x = 0.0
 	# Powers can be fired straight out of a block (e.g. Stone Bulwark).
+	if inp.get("power", false) and _try_power(bars_full() - 1):
+		return
+	if inp.get("power_3", false) and _try_power(2):
+		return
 	if inp.get("power_1", false) and _try_power(0):
 		return
 	if inp.get("power_2", false) and _try_power(1):
@@ -438,9 +451,15 @@ func _check_melee_hit() -> void:
 
 # ------------------------------------------------------------------ powers
 
+## Full power bars, capped by how many powers the fighter has.
+func bars_full() -> int:
+	return mini(int(floor(energy / BAR + 0.0001)), powers.size())
+
+
 func _try_power(i: int) -> bool:
-	if i >= powers.size():
+	if i < 0 or i >= powers.size():
 		return false
+	power_index = i
 	var p: Dictionary = powers[i]
 	var cost: float = p.get("cost", 30)
 	if energy < cost:
@@ -557,7 +576,7 @@ func _power_update(_delta: float) -> void:
 				power_fired = true
 				if opponent and absf(opponent.position.x - position.x) <= float(power_def.get("range", 650.0)) \
 						and not opponent.has_status("purified"):
-					var amt := minf(opponent.energy, float(power_def.get("amount", 35.0)))
+					var amt := minf(opponent.energy, float(power_def.get("amount", 105.0)))
 					opponent.add_energy(-amt)
 					add_energy(amt)
 					_apply_on_hit(opponent)
@@ -711,16 +730,16 @@ func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 		hp = maxf(1.0, hp - dmg * 0.12)
 		stun_time = stun * 0.55
 		vel.x = away * knock * 0.7
-		add_energy(4.0)
-		attacker.add_energy(3.0)
+		add_energy(7.0)
+		attacker.add_energy(5.0)
 		set_state(S.BLOCKSTUN)
 		hp_changed.emit(self)
 		_sfx("block", -2.0)
 		return "block"
 	hp = maxf(0.0, hp - dmg)
 	flash = 1.0
-	add_energy(5.0)
-	attacker.add_energy(8.0)
+	add_energy(9.0)
+	attacker.add_energy(13.0)
 	hp_changed.emit(self)
 	var heavy := dmg >= 90.0
 	got_hit.emit(self, heavy)

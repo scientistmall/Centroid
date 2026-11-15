@@ -127,8 +127,7 @@ func _build() -> void:
 	touch = TouchControls.new()
 	ui.add_child(touch)
 	_update_touch_labels()
-	if _mode() == "tag":
-		touch.buttons.append({"action": "swap", "icon": "swap", "off": Vector2(-120, -560), "r": 56.0, "color": Color(1, 1, 0.6)})
+	if _mode() == "tag":   # tag fights: swipe down swaps fighters (TouchControls)
 		if not InputMap.has_action("swap"):
 			InputMap.add_action("swap")
 			var ev := InputEventKey.new()

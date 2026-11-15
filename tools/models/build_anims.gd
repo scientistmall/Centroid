@@ -60,7 +60,12 @@ func _build(dir: String, out: String, ref: String) -> void:
 		for line in FileAccess.get_file_as_string(dir + "/set.txt").split("\n"):
 			var kv := line.split("=", true, 1)
 			if kv.size() == 2 and kv[1].begins_with("ai:"):
-				var a := _ai_clip(dir + "/ai", kv[1].substr(3))
+				var ref_ai: String = kv[1].substr(3)
+				var ai_dir := dir + "/ai"
+				if "/" in ref_ai:   # another set's AI clip: "<set>/<file>"
+					ai_dir = "res://assets/animations/%s/ai" % ref_ai.get_slice("/", 0)
+					ref_ai = ref_ai.get_slice("/", 1)
+				var a := _ai_clip(ai_dir, ref_ai)
 				if a == null:
 					continue
 				a.loop_mode = Animation.LOOP_LINEAR if kv[0] in LOOP else Animation.LOOP_NONE

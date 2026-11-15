@@ -9,6 +9,7 @@ var _plan_time := 0.0
 var _press := ""
 var _block_time := 0.0
 var rng := RandomNumberGenerator.new()
+var _goal := 1    # which power (1..3) the AI is saving bars for; re-rolled after each power
 
 
 func _init(difficulty: float = 0.5) -> void:
@@ -17,7 +18,7 @@ func _init(difficulty: float = 0.5) -> void:
 
 
 func get_input(f: Fighter, delta: float) -> Dictionary:
-	var out := {"move": 0.0, "jump": false, "light": false, "heavy": false, "block": false, "power_1": false, "power_2": false}
+	var out := {"move": 0.0, "jump": false, "light": false, "heavy": false, "block": false, "power_1": false, "power_2": false, "power_3": false}
 	var opp := f.opponent
 	if opp == null or not opp.is_alive():
 		return out
@@ -79,6 +80,11 @@ func get_input(f: Fighter, delta: float) -> Dictionary:
 				out["heavy"] = _consume("heavy")
 		"power_1":
 			out["power_1"] = _consume("power_1")
+		"power_3":
+			if dist > float(_range_of(f, 2)):
+				out["move"] = toward
+			else:
+				out["power_3"] = _consume("power_3")
 		"power_2":
 			if dist > float(_range_of(f, 1)):
 				out["move"] = toward
@@ -92,6 +98,9 @@ func get_input(f: Fighter, delta: float) -> Dictionary:
 func _consume(what: String) -> bool:
 	if _press == what:
 		_press = ""
+		if what.begins_with("power_"):
+			var g := rng.randf()
+			_goal = 1 if g < 0.45 else (2 if g < 0.8 else 3)
 		return true
 	return false
 
@@ -122,6 +131,8 @@ func _power_ok(f: Fighter, i: int, dist: float) -> bool:
 			return dist <= _range_of(f, i) and f.opponent.energy >= float(p.get("amount", 35)) * 0.8
 		"burst", "dash":
 			return dist < _range_of(f, i) + 150.0
+		"pull":
+			return dist > 220.0
 		_:
 			return dist > 380.0 or i == 1
 
@@ -152,19 +163,22 @@ func _decide(f: Fighter, dist: float) -> void:
 		if dp.get("ai_use", "") == "defend":
 			reserve = float(dp.get("cost", 30))
 	var special := ["dispel", "defend", "cleanse"]
-	var can_p1: bool = f.powers.size() > 0 and f.energy >= float(f.powers[0].get("cost", 30)) + reserve and f.powers[0].get("ai_use", "") not in special
-	var can_p2: bool = f.powers.size() > 1 and f.energy >= float(f.powers[1].get("cost", 40)) + reserve and f.powers[1].get("ai_use", "") not in special
-	# Range-limited lashes are taken eagerly while the opponent is in range.
-	var p2_chance := 0.18 + level * 0.15
-	var p1_chance := 0.3 + level * 0.2
-	if f.powers.size() > 1 and f.powers[1].get("type", "") == "lash":
-		p2_chance = 0.45 + level * 0.3
-	if f.powers.size() > 0 and f.powers[0].get("type", "") == "lash":
-		p1_chance = 0.45 + level * 0.3
-	if can_p2 and r < p2_chance and _power_ok(f, 1, dist):
-		_choose("power_2", "power_2")
-	elif can_p1 and r < p1_chance and _power_ok(f, 0, dist):
-		_choose("power_1", "power_1")
+	# Powers: the fighter saves bars toward a goal (1..3). With the goal reached it fires the
+	# goal power if it fits the moment, otherwise the best other affordable power that does.
+	var bars := f.bars_full()
+	var pick := -1
+	if bars >= _goal and r < 0.55 + level * 0.3:
+		var order := [_goal - 1]
+		for k in range(bars - 1, -1, -1):
+			if k != _goal - 1:
+				order.append(k)
+		for k in order:
+			if k < f.powers.size() and f.energy >= float(f.powers[k].get("cost", 100.0)) + (reserve if k < 2 else 0.0) - 0.5 \
+					and f.powers[k].get("ai_use", "") not in special and _power_ok(f, k, dist):
+				pick = k
+				break
+	if pick >= 0:
+		_choose("power_%d" % (pick + 1), "power_%d" % (pick + 1))
 	elif dist > 420.0:
 		_choose("jump_in" if r > 0.85 else "approach", "jump")
 	elif dist < 200.0:

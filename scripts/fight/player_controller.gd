@@ -12,4 +12,6 @@ func get_input(_f: Fighter, _delta: float) -> Dictionary:
 		"block": Input.is_action_pressed("block"),
 		"power_1": Input.is_action_just_pressed("power_1"),
 		"power_2": Input.is_action_just_pressed("power_2"),
+		"power_3": Input.is_action_just_pressed("power_3"),
+		"power": Input.is_action_just_pressed("power"),   # touch: hold the opponent's side
 	}

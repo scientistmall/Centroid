@@ -25,6 +25,7 @@
 		{"id": "clear_sight", "desc": "Tala's senses sharpen for 4 s: mist and illusions vanish and the real Vaska is revealed.", "sfx": "wind", "name": "Clear Sight", "short": "SIGHT", "type": "buff", "status": "clear_sight", "ai_use": "dispel", "anim": "cast",
 		 "cost": 30, "duration": 4.0, "radius": 220, "startup": 0.14, "active": 0.05, "recovery": 0.2},
 		{"id": "piercing_gale", "desc": "A long lance of wind that strikes hard from across the arena.", "sfx": "wind", "hit_sfx": "hit_heavy", "name": "Piercing Gale", "short": "GALE", "type": "projectile", "fx": "wind", "anim": "thrust",
-		 "cost": 40, "damage": 100, "speed": 2000, "life": 0.5, "startup": 0.16, "active": 0.05, "recovery": 0.3, "stun": 0.5, "knock": 340, "y": -165}
+		 "cost": 40, "damage": 100, "speed": 2000, "life": 0.5, "startup": 0.16, "active": 0.05, "recovery": 0.3, "stun": 0.5, "knock": 340, "y": -165},
+		{"id": "gale_spiral", "name": "Gale Spiral", "short": "SPIRAL", "type": "dash", "anim": "dash", "sfx": "dash", "hit_sfx": "hit_heavy", "speed": 2600, "desc": "Tala becomes a spiral of wind and drives her spear straight through the enemy. Unblockable.", "damage": 310, "startup": 0.18, "active": 0.22, "recovery": 0.45, "stun": 0.9, "knock": 500, "unblockable": true, "ultimate": true, "cost": 300}
 	]
 }

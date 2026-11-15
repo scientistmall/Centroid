@@ -23,6 +23,7 @@
 		{"id": "stone_bulwark", "desc": "Darin raises a stone wall for 3 s. It stops projectiles and anchors him against pulls.", "sfx": "stone", "name": "Stone Bulwark", "short": "WALL", "type": "wall", "ai_use": "defend", "anim": "burst",
 		 "cost": 30, "duration": 3.0, "startup": 0.12, "active": 0.05, "recovery": 0.22},
 		{"id": "quake_fist", "desc": "A shockwave tears along the ground and knocks floating rocks down.", "sfx": "stone", "hit_sfx": "stone", "name": "Quake Fist", "short": "QUAKE", "type": "projectile", "fx": "quake", "anim": "overhead", "ground_only": true,
-		 "cost": 40, "damage": 115, "speed": 1150, "life": 1.3, "y": -45, "startup": 0.24, "active": 0.05, "recovery": 0.34, "stun": 0.55, "knock": 300, "launch": 600}
+		 "cost": 40, "damage": 115, "speed": 1150, "life": 1.3, "y": -45, "startup": 0.24, "active": 0.05, "recovery": 0.34, "stun": 0.55, "knock": 300, "launch": 600},
+		{"id": "mountain_breaker", "name": "Mountain Breaker", "short": "QUAKE", "type": "burst", "anim": "cast", "sfx": "stone", "hit_sfx": "hit_heavy", "radius": 380, "desc": "Darin slams both gauntlets into the ground and the earth erupts around him. Unblockable.", "damage": 340, "startup": 0.4, "active": 0.1, "recovery": 0.5, "stun": 1.0, "knock": 560, "unblockable": true, "ultimate": true, "cost": 300}
 	]
 }

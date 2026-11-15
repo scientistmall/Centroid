@@ -198,7 +198,7 @@ func _test_status_mechanics() -> void:
 	# Purify cleanses poison, heals, and blocks new poison for a few seconds.
 	mira.hp = 400.0
 	mira.add_status("poison", 4.0)
-	mira.energy = 100.0
+	mira.energy = 300.0
 	mira._try_power(0)
 	await _steps(30)
 	check(not mira.has_status("poison"), "Purify removes poison")
@@ -209,13 +209,13 @@ func _test_status_mechanics() -> void:
 
 	# Withering Curse steals energy and curses.
 	mira.statuses.clear()
-	mira.energy = 60.0
-	nyra.energy = 100.0
+	mira.energy = 180.0
+	nyra.energy = 300.0
 	nyra.position.x = mira.position.x + 400.0
 	nyra._face_opponent()
 	nyra._try_power(1)
 	await _steps(90)   # powers trigger a brief cut-in slow-motion
-	check(mira.energy < 35.0, "Withering Curse drains energy (mira %.1f)" % mira.energy)
+	check(mira.energy < 105.0, "Withering Curse drains energy (mira %.1f)" % mira.energy)
 	check(nyra.energy > 90.0, "Withering Curse transfers energy to Nyra (nyra %.1f)" % nyra.energy)
 	check(mira.has_status("cursed"), "Withering Curse applies cursed")
 	var before := mira.energy
@@ -228,7 +228,7 @@ func _test_status_mechanics() -> void:
 	mira.position.x = 600.0
 	nyra.position.x = 980.0
 	nyra.set_state(Fighter.S.IDLE)
-	mira.energy = 100.0
+	mira.energy = 300.0
 	mira._face_opponent()
 	mira._try_power(1)
 	await _steps(30)

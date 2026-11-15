@@ -76,7 +76,11 @@ var _lgrip := Vector3.ZERO   # where the left fist closes, in the weapon's own s
 var _hold := 0.0             # 0..1 how firmly the left hand is on the weapon
 var _span := 0.12            # distance between the two fists on the grip
 var _w_hand_xf := Transform3D.IDENTITY   # the weapon relative to the right hand (one-handed)
-var _two_w := 0.0            # 0 = weapon follows the right hand, 1 = hilt through both fists
+var _two_w := 0.0
+var _wnode: Node3D           # the weapon; shown only while a power runs (summoned, then gone)
+var _wshow := 0.0            # 0..1 how far the weapon is summoned
+const SUMMON_IN := 0.16      # seconds for the weapon to flash into the hands
+const SUMMON_OUT := 0.3      # seconds for it to dissolve after the power            # 0 = weapon follows the right hand, 1 = hilt through both fists
 
 
 static func available(char_id: String) -> bool:
@@ -276,6 +280,32 @@ func _two_hands(w: Node3D, span: float) -> void:
 	_sk.add_child(w)
 
 
+## Weapons are summoned for powers: fighters fight with fists and kicks, and when a power starts
+## the weapon flashes into their hands in the fighter's colour, then dissolves when it ends.
+func _summon(dt: float) -> void:
+	if _wnode == null:
+		return
+	var want := fighter.state == Fighter.S.POWER
+	var before := _wshow
+	_wshow = move_toward(_wshow, 1.0 if want else 0.0, dt / (SUMMON_IN if want else SUMMON_OUT))
+	if Vfx3D.on() and is_inside_tree():
+		var at: Vector3 = (_tip.global_position + _wnode.global_position) * 0.5 if _tip else _wnode.global_position
+		if before <= 0.0 and _wshow > 0.0:
+			Vfx3D.flash(at, fighter.color, 5.0, 3.5, 0.3)
+			Vfx3D.glow(at, 0.9, fighter.color, 3.0, 0.25, 1.8)
+		elif before >= 1.0 and _wshow < 1.0:
+			Vfx3D.particles(at, fighter.color, "sparks", 26, 0.6)
+	_wnode.visible = _wshow > 0.001
+	if not _two_handed:
+		_wnode.scale = Vector3.ONE * maxf(_ease_w(), 0.001)
+
+
+## Summon curve: a quick overshoot so the weapon snaps into the hands.
+func _ease_w() -> float:
+	var t := _wshow
+	return maxf(0.001, 1.0 + 1.6 * pow(t - 1.0, 3.0) + 0.6 * pow(t - 1.0, 2.0)) if t > 0.0 else 0.001
+
+
 ## The body stands turned toward the camera (TURN) so the player sees it; the neck and head turn
 ## back so the eyes stay on the opponent. Applied after the animation, about the skeleton's up.
 func _look_at_opponent() -> void:
@@ -322,7 +352,7 @@ func _place_two_handed(dt: float) -> void:
 		var b := Basis(_arc_q(blade, axis)) * one.basis
 		var two := Transform3D(b, upper)
 		final = one.interpolate_with(two, _two_w)
-	_weapon.transform = final
+	_weapon.transform = final.scaled_local(Vector3.ONE * _ease_w())
 
 
 ## Two-bone IK for the left arm, run every frame right after the animation: the left fist closes
@@ -471,6 +501,9 @@ func _weapon_node(kind: String, col: Color) -> Node3D:
 	_mid = Node3D.new()
 	_mid.position = Vector3(0, reach * 0.45, 0)
 	w.add_child(_mid)
+	_wnode = w
+	w.scale = Vector3.ONE * 0.001
+	w.visible = false
 	return w
 
 
@@ -583,6 +616,8 @@ func _choose() -> Array:
 			var want: String = POWER_CLIP.get(pd.get("type", ""), "cast_1")
 			if pd.get("type", "") == "dash" and _has("dash"):
 				want = "dash"
+			if f.power_index == 2 and _has("ultimate"):
+				want = "ultimate"
 			var pc := _pick(want)
 			return [pc, _timeline(pc, t, pd.get("startup", 0.2), pd.get("active", 0.1), pd.get("recovery", 0.3))]
 	return ["idle", -1.0]
@@ -618,9 +653,10 @@ func sync() -> void:
 			_sk.set_bone_pose_rotation(g[0], g[1])
 	if _vrm:
 		_look_at_opponent()
+	_summon(dt)
 	if _two_handed:
-		# let go when hit, knocked down or celebrating; both hands on the weapon otherwise
-		var hold := not (fighter.state in [Fighter.S.HURT, Fighter.S.KO, Fighter.S.WIN])
+		# both hands on the weapon only while it is summoned for a power
+		var hold := _wshow > 0.5 and not (fighter.state in [Fighter.S.HURT, Fighter.S.KO, Fighter.S.WIN])
 		_hold = move_toward(_hold, 1.0 if hold else 0.0, dt * 6.0)
 		_left_hand_ik()
 		_place_two_handed(dt)

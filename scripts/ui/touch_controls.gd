@@ -1,68 +1,89 @@
 class_name TouchControls
 extends Control
-## On-screen controls: a floating joystick and icon buttons. Power buttons show an
-## energy ring that fills up and glows when the power is ready. Size, opacity and
-## left-handed layout come from Settings.
-## Feeds the same input actions as the keyboard (Input.action_press/release).
+## Gesture controls, no buttons on screen (the fight stays clear):
+##   swipe / drag toward or away from the opponent ... walk that way (held drag keeps walking)
+##   quick flick toward the opponent ................. heavy attack
+##   swipe up ........................................ jump
+##   swipe down (tag fights) ......................... swap fighters
+##   tap the opponent's side of the screen ........... light attack (tap again to chain the combo)
+##   hold your own side .............................. block
+##   hold the opponent's side ........................ fire the highest power whose bars are full
+##                                                     (1, 2 or 3 bars; the third is unblockable)
+## "Opponent's side" is the half of the screen the opponent is on. Feeds the same input actions
+## as the keyboard (Input.action_press / action_release).
 
-const DEAD := 0.25
-const JOY_R := 120.0
+const MOVE_PX := 46.0       # drag distance before a touch becomes movement
+const TAP_TIME := 0.24      # a tap is released within this
+const FLICK_TIME := 0.2     # a flick is a short, fast swipe
+const FLICK_PX := 90.0
+const BLOCK_DELAY := 0.1    # holding your own side this long starts blocking
+const POWER_HOLD := 0.45    # holding the opponent's side this long fires the power
+const JUMP_PX := 90.0
 
-var buttons: Array = []   # {action, icon, off (from the bottom corner), r, color, power}
-var fighter: Fighter      # for energy rings
-var _joy_index := -1
-var _joy_origin := Vector2.ZERO
-var _joy_vec := Vector2.ZERO
-var _btn_touch := {}      # touch index -> action
-var _jump_held := false
+var fighter: Fighter
+var _touches := {}          # index -> {start, pos, t, opp, mode}
+var _pulse := {}            # action -> frames left pressed
+var _ripples: Array = []    # [pos, age, color]
 var _t := 0.0
+var _hint := 6.0            # first seconds of a fight: a one-line reminder of the gestures
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	buttons = [
-		{"action": "attack_light", "icon": "attack_light", "off": Vector2(-200, -190), "r": 92.0, "color": Color(0.9, 0.92, 1.0)},
-		{"action": "attack_heavy", "icon": "attack_heavy", "off": Vector2(-390, -130), "r": 72.0, "color": Color(1.0, 0.72, 0.42)},
-		{"action": "jump", "icon": "jump", "off": Vector2(-140, -390), "r": 66.0, "color": Color(0.6, 1.0, 0.72)},
-		{"action": "block", "icon": "block", "off": Vector2(-340, -320), "r": 66.0, "color": Color(0.62, 0.8, 1.0)},
-		{"action": "power_1", "icon": "bolt", "off": Vector2(-560, -110), "r": 64.0, "color": Color(0.7, 0.9, 1.0), "power": 0},
-		{"action": "power_2", "icon": "dash", "off": Vector2(-540, -285), "r": 64.0, "color": Color(0.9, 0.7, 1.0), "power": 1},
-	]
 
 
 func set_fighter(f: Fighter) -> void:
 	fighter = f
-	for b in buttons:
-		if b.has("power") and b["power"] < f.powers.size():
-			b["icon"] = ButtonIcons.for_power(f.powers[b["power"]])
-			b["color"] = f.color.lightened(0.25 if b["power"] == 0 else 0.05)
 	queue_redraw()
 
 
-func _scale() -> float:
-	return Settings.button_scale
+## Which half of the screen the opponent is on (true = right).
+func _opp_right() -> bool:
+	if fighter and fighter.opponent:
+		return fighter.opponent.position.x >= fighter.position.x
+	return true
 
 
-func _btn_center(b: Dictionary) -> Vector2:
-	var off: Vector2 = b["off"] * _scale()
-	if Settings.left_handed:
-		return Vector2(-off.x, size.y + off.y)
-	return size + off
+func _is_opp_side(p: Vector2) -> bool:
+	return (p.x >= size.x * 0.5) == _opp_right()
 
 
-func _joy_default() -> Vector2:
-	return Vector2(size.x - 260, size.y - 230) if Settings.left_handed else Vector2(260, size.y - 230)
-
-
-func _in_joy_zone(p: Vector2) -> bool:
-	var left_zone := p.x < size.x * 0.45
-	return (not left_zone if Settings.left_handed else left_zone) and p.y > size.y * 0.2
+func _toward_sign() -> float:
+	return 1.0 if _opp_right() else -1.0
 
 
 func _process(delta: float) -> void:
 	_t += delta
+	_hint = maxf(0.0, _hint - delta)
+	for a in _pulse.keys():
+		_pulse[a] -= 1
+		if _pulse[a] <= 0:
+			Input.action_release(a)
+			_pulse.erase(a)
+	for idx in _touches.keys():
+		var tc: Dictionary = _touches[idx]
+		var held: float = _t - tc["t"]
+		if tc["mode"] == "pending":
+			if not tc["opp"] and held >= BLOCK_DELAY:
+				tc["mode"] = "block"
+				Input.action_press("block")
+			elif tc["opp"] and held >= POWER_HOLD:
+				tc["mode"] = "done"
+				if fighter and fighter.bars_full() > 0:
+					_press_once("power")
+					_ripples.append([tc["pos"], 0.0, fighter.color.lightened(0.3)])
+				else:
+					_ripples.append([tc["pos"], 0.0, Color(1, 1, 1, 0.4)])
+	for r in _ripples:
+		r[1] += delta
+	_ripples = _ripples.filter(func(r): return r[1] < 0.45)
 	queue_redraw()
+
+
+func _press_once(action: String) -> void:
+	Input.action_press(action)
+	_pulse[action] = 2
 
 
 func _input(event: InputEvent) -> void:
@@ -70,87 +91,98 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			var hit := _button_at(event.position)
-			if hit != "":
-				_btn_touch[event.index] = hit
-				Input.action_press(hit)
-			elif _in_joy_zone(event.position) and _joy_index == -1:
-				_joy_index = event.index
-				_joy_origin = event.position
-				_joy_vec = Vector2.ZERO
-		else:
-			if _btn_touch.has(event.index):
-				Input.action_release(_btn_touch[event.index])
-				_btn_touch.erase(event.index)
-			if event.index == _joy_index:
-				_joy_index = -1
-				_joy_vec = Vector2.ZERO
-				_apply_joy()
-	elif event is InputEventScreenDrag and event.index == _joy_index:
-		_joy_vec = ((event.position - _joy_origin) / JOY_R).limit_length(1.0)
-		_apply_joy()
+			_touches[event.index] = {"start": event.position, "pos": event.position, "t": _t,
+				"opp": _is_opp_side(event.position), "mode": "pending"}
+		elif _touches.has(event.index):
+			_release(event.index, event.position)
+	elif event is InputEventScreenDrag and _touches.has(event.index):
+		var tc: Dictionary = _touches[event.index]
+		tc["pos"] = event.position
+		var d: Vector2 = event.position - tc["start"]
+		if tc["mode"] in ["pending", "block"]:
+			if -d.y > JUMP_PX and absf(d.y) > absf(d.x) * 1.3:
+				if tc["mode"] == "block":
+					Input.action_release("block")
+				tc["mode"] = "done"
+				_press_once("jump")
+			elif d.y > JUMP_PX and absf(d.y) > absf(d.x) * 1.3 and InputMap.has_action("swap"):
+				if tc["mode"] == "block":
+					Input.action_release("block")
+				tc["mode"] = "done"
+				_press_once("swap")   # tag fights: swipe down swaps fighters
+			elif absf(d.x) > MOVE_PX:
+				if tc["mode"] == "block":
+					Input.action_release("block")
+				tc["mode"] = "move"
+		if tc["mode"] == "move":
+			_apply_move(d.x)
 
 
-func _button_at(p: Vector2) -> String:
-	for b in buttons:
-		if p.distance_to(_btn_center(b)) <= b["r"] * _scale() * 1.15:
-			return b["action"]
-	return ""
+func _release(idx: int, pos: Vector2) -> void:
+	var tc: Dictionary = _touches[idx]
+	var held: float = _t - tc["t"]
+	var d: Vector2 = pos - tc["start"]
+	match tc["mode"]:
+		"pending":
+			if held <= TAP_TIME and tc["opp"]:
+				_press_once("attack_light")
+				_ripples.append([pos, 0.0, Color(1, 1, 1, 0.5)])
+		"block":
+			Input.action_release("block")
+		"move":
+			_apply_move(0.0)
+			if held <= FLICK_TIME and absf(d.x) > FLICK_PX and signf(d.x) == _toward_sign():
+				_press_once("attack_heavy")
+				_ripples.append([pos, 0.0, Color(1.0, 0.75, 0.45, 0.6)])
+	_touches.erase(idx)
 
 
-func _apply_joy() -> void:
-	var x := _joy_vec.x
-	if x < -DEAD:
-		Input.action_press("move_left", minf(1.0, -x * 1.3))
+func _apply_move(dx: float) -> void:
+	if dx < -MOVE_PX * 0.5:
+		Input.action_press("move_left")
 		Input.action_release("move_right")
-	elif x > DEAD:
-		Input.action_press("move_right", minf(1.0, x * 1.3))
+	elif dx > MOVE_PX * 0.5:
+		Input.action_press("move_right")
 		Input.action_release("move_left")
 	else:
 		Input.action_release("move_left")
 		Input.action_release("move_right")
-	var want_jump := _joy_vec.y < -0.6
-	if want_jump and not _jump_held:
-		Input.action_press("jump")
-	elif not want_jump and _jump_held:
-		Input.action_release("jump")
-	_jump_held = want_jump
 
 
 func release_all() -> void:
-	for a in ["move_left", "move_right", "jump", "attack_light", "attack_heavy", "block", "power_1", "power_2", "swap"]:
+	for a in ["move_left", "move_right", "jump", "attack_light", "attack_heavy", "block", "power", "power_1",
+			"power_2", "power_3", "swap"]:
 		if InputMap.has_action(a):
 			Input.action_release(a)
-	_btn_touch.clear()
-	_joy_index = -1
-	_joy_vec = Vector2.ZERO
+	_touches.clear()
+	_pulse.clear()
 
 
 func _draw() -> void:
 	var op := Settings.button_opacity
-	var sc := _scale()
-	# joystick
-	var base := _joy_origin if _joy_index != -1 else _joy_default()
-	draw_circle(base, JOY_R * sc, Color(1, 1, 1, 0.07 * op))
-	draw_arc(base, JOY_R * sc, 0, TAU, 48, Color(1, 1, 1, 0.3 * op), 4)
-	draw_circle(base + _joy_vec * JOY_R * sc, 52 * sc, Color(1, 1, 1, 0.28 * op))
-	for b in buttons:
-		var c := _btn_center(b)
-		var r: float = b["r"] * sc
-		var pressed := _btn_touch.values().has(b["action"]) or Input.is_action_pressed(b["action"])
-		var col: Color = b["color"]
-		var ready := true
-		if b.has("power") and fighter and b["power"] < fighter.powers.size():
-			var cost := float(fighter.powers[b["power"]].get("cost", 30))
-			var frac := clampf(fighter.energy / cost, 0.0, 1.0)
-			ready = frac >= 1.0
-			# energy ring
-			draw_arc(c, r + 9, -PI / 2, -PI / 2 + TAU * frac, 48, Color(col, (0.95 if ready else 0.55) * op), 7.0)
-			if ready:
-				var pulse := 0.5 + 0.5 * sin(_t * 6.0)
-				draw_circle(c, r + 14 + pulse * 6, Color(col, 0.10 * op))
-		var fill := 0.38 if pressed else (0.16 if ready else 0.06)
-		draw_circle(c, r, Color(0.02, 0.03, 0.06, 0.45 * op))
-		draw_circle(c, r, Color(col, fill * op))
-		draw_arc(c, r, 0, TAU, 40, Color(col, (0.8 if ready else 0.35) * op), 4)
-		ButtonIcons.draw(self, b["icon"], c, r, Color(1, 1, 1, (0.92 if ready else 0.4) * op))
+	# finger feedback only: a ring under a held finger, and a charge arc while holding for a power
+	for idx in _touches:
+		var tc: Dictionary = _touches[idx]
+		var p: Vector2 = tc["pos"]
+		var held: float = _t - tc["t"]
+		match tc["mode"]:
+			"block":
+				draw_arc(p, 54, 0, TAU, 40, Color(0.6, 0.8, 1.0, 0.45 * op), 5.0)
+			"pending":
+				if tc["opp"] and held > 0.08 and fighter:
+					var k := clampf((held - 0.08) / (POWER_HOLD - 0.08), 0.0, 1.0)
+					var bars := fighter.bars_full()
+					var col := fighter.color.lightened(0.3) if bars > 0 else Color(1, 1, 1, 0.5)
+					draw_arc(p, 60, -PI / 2, -PI / 2 + TAU * k, 48, Color(col, 0.85 * op), 7.0)
+					if bars > 0:
+						var f := UiStyle.bold_font()
+						draw_string(f, p + Vector2(-60, -78), "POWER %d" % bars, HORIZONTAL_ALIGNMENT_CENTER, 120, 30, Color(col, op))
+	for r in _ripples:
+		var k2: float = r[1] / 0.45
+		draw_arc(r[0], 30 + 70 * k2, 0, TAU, 40, Color(r[2], (1.0 - k2) * 0.8 * op), 4.0)
+	if _hint > 0.0:
+		var a := clampf(_hint, 0.0, 1.0) * op
+		var f2 := UiStyle.bold_font()
+		var txt := "SWIPE to move  ·  TAP their side to attack  ·  HOLD your side to block  ·  HOLD their side for POWER"
+		draw_string_outline(f2, Vector2(0, size.y - 46), txt, HORIZONTAL_ALIGNMENT_CENTER, size.x, 30, 8, Color(0, 0, 0, 0.7 * a))
+		draw_string(f2, Vector2(0, size.y - 46), txt, HORIZONTAL_ALIGNMENT_CENTER, size.x, 30, Color(1, 1, 1, 0.9 * a))

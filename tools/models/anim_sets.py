@@ -68,6 +68,58 @@ SETS = {
         "buff": ("c9cee1d2-b96c-11e4-a802-0aaa78deedf9", False),        # axe: chest thump
         "dash": ("c9cc8c95-b96c-11e4-a802-0aaa78deedf9", False),
     },
+
+    # ---- unarmed fighting (weapons appear only for powers) -----------------------------------
+    # Kael: quick, kicking martial artist; his power moves keep the two-handed sword clips.
+    "kael": {
+        "idle": ("c9c63b43-b96c-11e4-a802-0aaa78deedf9", False),                    # fight idle, lead stance
+        "walk_forward": ("c9cb1b52-b96c-11e4-a802-0aaa78deedf9", True),
+        "walk_back": ("c9cadc5e-b96c-11e4-a802-0aaa78deedf9", True),
+        "run": ("c9cbfef5-b96c-11e4-a802-0aaa78deedf9", True),               # standard sprint, arms pumping
+        "jump": ("c9c9d919-b96c-11e4-a802-0aaa78deedf9", False),
+        "air_attack": ("c9c71cfd-b96c-11e4-a802-0aaa78deedf9", False),              # hurricane kick
+        "block": ("c9caf317-b96c-11e4-a802-0aaa78deedf9", False),
+        "block_hit": ("c9caee1d-b96c-11e4-a802-0aaa78deedf9", False),
+        "hit_light": ("c9cb5616-b96c-11e4-a802-0aaa78deedf9", False),
+        "hit_heavy": ("c9cb56e9-b96c-11e4-a802-0aaa78deedf9", False),
+        "knockdown": ("c9ca7f74-b96c-11e4-a802-0aaa78deedf9", False),
+        "victory": ("c9cb3a87-b96c-11e4-a802-0aaa78deedf9", False),
+        "light_1": ("c9c5f7e1-b96c-11e4-a802-0aaa78deedf9", False),                 # jab
+        "light_2": ("c9c5f8da-b96c-11e4-a802-0aaa78deedf9", False),                 # cross
+        "light_3": ("c9c7f59a-b96c-11e4-a802-0aaa78deedf9", False),                 # side kick
+        "heavy_1": ("c9cd2845-b96c-11e4-a802-0aaa78deedf9", False),                 # spinning back kick
+        "heavy_2": ("c9cd39f5-b96c-11e4-a802-0aaa78deedf9", False),                 # high kick
+        "cast_1": ("ai", "greatsword/cast_1_k1.json"),     # sword thrust: Arc Bolt
+        "cast_2": ("c9cc975d-b96c-11e4-a802-0aaa78deedf9", False),
+        "buff": ("c9cc9819-b96c-11e4-a802-0aaa78deedf9", False),
+        "dash": ("c9cc8c95-b96c-11e4-a802-0aaa78deedf9", False),                    # sword slide attack: Thunder Step
+        "ultimate": ("ai", "greatsword/heavy_1_k2.json"),  # two-handed overhead: Stormbreaker
+    },
+    # Rhex: heavy brawler; his power moves keep the two-handed axe clips.
+    "rhex": {
+        "idle": ("c9ca582c-b96c-11e4-a802-0aaa78deedf9", False),                    # bouncing guard
+        "walk_forward": ("c9cb1b52-b96c-11e4-a802-0aaa78deedf9", True),
+        "walk_back": ("c9cadc5e-b96c-11e4-a802-0aaa78deedf9", True),
+        "run": ("c9cbfef5-b96c-11e4-a802-0aaa78deedf9", True),
+        "jump": ("c9c9d919-b96c-11e4-a802-0aaa78deedf9", False),
+        "air_attack": ("c9ca9a5a-b96c-11e4-a802-0aaa78deedf9", False),              # flying knee
+        "block": ("c9caf317-b96c-11e4-a802-0aaa78deedf9", False),
+        "block_hit": ("c9caee1d-b96c-11e4-a802-0aaa78deedf9", False),
+        "hit_light": ("c9cb57a9-b96c-11e4-a802-0aaa78deedf9", False),
+        "hit_heavy": ("c9c89ed9-b96c-11e4-a802-0aaa78deedf9", False),
+        "knockdown": ("c9ca7f74-b96c-11e4-a802-0aaa78deedf9", False),
+        "victory": ("c9c706d2-b96c-11e4-a802-0aaa78deedf9", False),                 # flexing
+        "light_1": ("c9c7060b-b96c-11e4-a802-0aaa78deedf9", False),                 # jab-cross
+        "light_2": ("c9c5fab8-b96c-11e4-a802-0aaa78deedf9", False),                 # rear hook
+        "light_3": ("c9c61b83-b96c-11e4-a802-0aaa78deedf9", False),                 # elbow
+        "heavy_1": ("c9c9c626-b96c-11e4-a802-0aaa78deedf9", False),                 # uppercut
+        "heavy_2": ("c9cd3af5-b96c-11e4-a802-0aaa78deedf9", False),                 # roundhouse
+        "cast_1": ("c9cc975d-b96c-11e4-a802-0aaa78deedf9", False),                  # axe slam: Black Flame Wave
+        "cast_2": ("c9cc9819-b96c-11e4-a802-0aaa78deedf9", False),                  # power up: Hellfire Burst
+        "buff": ("c9cee1d2-b96c-11e4-a802-0aaa78deedf9", False),
+        "dash": ("c9cc8c95-b96c-11e4-a802-0aaa78deedf9", False),
+        "ultimate": ("c9cc8d52-b96c-11e4-a802-0aaa78deedf9", False),                # spinning cleave: Inferno Cleave
+    },
 }
 
 
