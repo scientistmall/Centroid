@@ -33,6 +33,8 @@ static var _sets := {}
 var _anims: AnimationLibrary   # this fighter's clips (shared, overridden by its own set)
 ## fighters stand this tall (metres), as the Mixamo models do
 const HEIGHT := 1.78
+const HEAD_AT := 0.855      # head joint height as a fraction of body height (hair not counted)
+const LOOK := 0.85          # how much of the body's turn toward the camera the head undoes
 const OVERLAY := """
 shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_back, shadows_disabled;
@@ -72,6 +74,9 @@ var _two_handed := false     # left fist is driven onto the weapon's grip by _le
 var _weapon: Node3D          # the held weapon (child of the right-hand attachment)
 var _lgrip := Vector3.ZERO   # where the left fist closes, in the weapon's own space
 var _hold := 0.0             # 0..1 how firmly the left hand is on the weapon
+var _span := 0.12            # distance between the two fists on the grip
+var _w_hand_xf := Transform3D.IDENTITY   # the weapon relative to the right hand (one-handed)
+var _two_w := 0.0            # 0 = weapon follows the right hand, 1 = hilt through both fists
 
 
 static func available(char_id: String) -> bool:
@@ -179,6 +184,13 @@ func _setup_humanoid(f: Fighter, path: String, toon: bool) -> void:
 		var bb: AABB = m.mesh.get_aabb()
 		top = maxf(top, (model.global_transform.affine_inverse() * m.global_transform * bb).end.y)
 	model.scale = Vector3.ONE * (HEIGHT / maxf(top, 0.3))
+	# size the body, not the hair: the head joint sits at the same height on every fighter, so a
+	# tall mohawk or spiky hair doesn't shrink the person under it
+	var head_b := _sk.find_bone("Head")
+	if head_b >= 0:
+		var head_y: float = (model.global_transform.affine_inverse() * (_sk.global_transform * _sk.get_bone_global_rest(head_b).origin)).y
+		if head_y > 0.3:
+			model.scale = Vector3.ONE * (HEIGHT * HEAD_AT / head_y)
 	# the shared clips, moved onto this skeleton
 	var ref_path: String = _anims.get_meta("ref", scene_path("kael"))
 	var ref: Node3D = (load(ref_path) as PackedScene).instantiate() if ResourceLoader.exists(ref_path) else null
@@ -252,11 +264,65 @@ func _build_weapon_vrm(kind: String, col: Color) -> void:
 ## (or further down a spear / axe haft), placed by two-bone IK every frame after the animation.
 func _two_hands(w: Node3D, span: float) -> void:
 	var up := w.basis.y.normalized()          # along the blade, in hand space
-	w.position -= up * span * 0.55
+	w.position -= up * span * 0.3            # the right fist sits just under the guard
 	_weapon = w
 	_lgrip = Vector3(0.0, -span, 0.0)
 	_two_handed = true
 	_hold = 1.0
+	_span = span
+	# the weapon is placed every frame by _place_two_handed (skeleton space), not by the hand
+	_w_hand_xf = w.transform
+	w.get_parent().remove_child(w)
+	_sk.add_child(w)
+
+
+## The body stands turned toward the camera (TURN) so the player sees it; the neck and head turn
+## back so the eyes stay on the opponent. Applied after the animation, about the skeleton's up.
+func _look_at_opponent() -> void:
+	var yaw := TURN * LOOK * (1.0 if fighter.state != Fighter.S.KO else 0.0)
+	for pair in [["Neck", 0.4], ["Head", 0.6]]:
+		var b := _sk.find_bone(pair[0])
+		if b < 0:
+			continue
+		var p := _sk.get_bone_parent(b)
+		var pg := _sk.get_bone_global_pose(p).basis.get_rotation_quaternion() if p >= 0 else Quaternion.IDENTITY
+		var g := pg * _sk.get_bone_pose_rotation(b)
+		# turn away from the camera (+Z) toward the side the fighter faces
+		var turn := Quaternion(Vector3.UP, yaw * float(fighter.facing) * float(pair[1]))
+		_sk.set_bone_pose_rotation(b, (pg.inverse() * turn * g).normalized())
+
+
+## Fist centre (inside the closed fingers) of one hand, in skeleton space.
+func _fist(side: String) -> Vector3:
+	var h := _sk.get_bone_global_pose(_sk.find_bone(side + "Hand")).origin
+	var kb := _sk.find_bone(side + "MiddleProximal")
+	if kb < 0:
+		return h
+	return h + (_sk.get_bone_global_pose(kb).origin - h) * 0.6
+
+
+## Two-point grip: while both fists are on the weapon, its hilt runs through both fist centres
+## (upper fist under the guard), turned about the hilt as the right hand turns. When the hands
+## part (knockdowns, victory, some casts) it rides the right hand alone; the switch is blended.
+func _place_two_handed(dt: float) -> void:
+	var g_rh := _sk.get_bone_global_pose(_sk.find_bone("RightHand"))
+	var one: Transform3D = g_rh * _w_hand_xf
+	var r := _fist("Right")
+	var l := _fist("Left")
+	var apart := r.distance_to(l)
+	var together := _hold > 0.5 and apart > 0.02 and apart < _span * 2.4
+	_two_w = move_toward(_two_w, 1.0 if together else 0.0, dt * 10.0)
+	var final := one
+	if _two_w > 0.001:
+		var blade := one.basis.y.normalized()
+		var axis := (r - l).normalized()
+		if axis.dot(blade) < 0.0:
+			axis = -axis
+		var upper := r if (r - l).dot(axis) >= 0.0 else l
+		var b := Basis(_arc_q(blade, axis)) * one.basis
+		var two := Transform3D(b, upper)
+		final = one.interpolate_with(two, _two_w)
+	_weapon.transform = final
 
 
 ## Two-bone IK for the left arm, run every frame right after the animation: the left fist closes
@@ -274,7 +340,7 @@ func _left_hand_ik() -> void:
 	var g_hd := _sk.get_bone_global_pose(hd)
 	var g_rh := _sk.get_bone_global_pose(rh)
 	# grip point in skeleton space (the weapon hangs off the right hand's attachment)
-	var grip := g_rh * (_weapon.transform * _lgrip)
+	var grip := g_rh * (_w_hand_xf * _lgrip)
 	# aim the wrist so the fist's centre, not the wrist, lands on the grip
 	var kn := _sk.find_bone("LeftMiddleProximal")
 	var fist := (_sk.get_bone_global_pose(kn).origin - g_hd.origin) * 0.75 if kn >= 0 else Vector3.ZERO
@@ -550,11 +616,14 @@ func sync() -> void:
 	if _vrm:
 		for g in _grip:
 			_sk.set_bone_pose_rotation(g[0], g[1])
+	if _vrm:
+		_look_at_opponent()
 	if _two_handed:
 		# let go when hit, knocked down or celebrating; both hands on the weapon otherwise
 		var hold := not (fighter.state in [Fighter.S.HURT, Fighter.S.KO, Fighter.S.WIN])
 		_hold = move_toward(_hold, 1.0 if hold else 0.0, dt * 6.0)
 		_left_hand_ik()
+		_place_two_handed(dt)
 	if _overlay:
 		_overlay.set_shader_parameter("flash", flash)
 	else:
