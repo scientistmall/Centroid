@@ -100,7 +100,7 @@ func _consume(what: String) -> bool:
 		_press = ""
 		if what.begins_with("power_"):
 			var g := rng.randf()
-			_goal = 1 if g < 0.45 else (2 if g < 0.8 else 3)
+			_goal = 1 if g < 0.4 else (2 if g < 0.8 else 3)
 		return true
 	return false
 
@@ -126,7 +126,7 @@ func _power_ok(f: Fighter, i: int, dist: float) -> bool:
 		"buff", "summon":
 			return true
 		"lash":
-			return dist > 200.0 and dist <= _range_of(f, i)
+			return dist > 140.0 and dist <= _range_of(f, i)
 		"drain":
 			return dist <= _range_of(f, i) and f.opponent.energy >= float(p.get("amount", 35)) * 0.8
 		"burst", "dash":
@@ -167,7 +167,7 @@ func _decide(f: Fighter, dist: float) -> void:
 	# goal power if it fits the moment, otherwise the best other affordable power that does.
 	var bars := f.bars_full()
 	# never save toward a situational power (cleanse / dispel / defend): those fire on their own
-	while _goal < f.powers.size() and f.powers[_goal - 1].get("ai_use", "") in special:
+	while _goal >= 1 and _goal < f.powers.size() and f.powers[_goal - 1].get("ai_use", "") in special:
 		_goal += 1
 	_goal = mini(_goal, f.powers.size())
 	var pick := -1
@@ -177,7 +177,7 @@ func _decide(f: Fighter, dist: float) -> void:
 			if k != _goal - 1:
 				order.append(k)
 		for k in order:
-			if k < f.powers.size() and f.energy >= float(f.powers[k].get("cost", 100.0)) + (reserve if k < 2 else 0.0) - 0.5 \
+			if k >= 0 and k < f.powers.size() and f.energy >= float(f.powers[k].get("cost", 100.0)) + (reserve if k < 2 else 0.0) - 0.5 \
 					and f.powers[k].get("ai_use", "") not in special and _power_ok(f, k, dist):
 				pick = k
 				break

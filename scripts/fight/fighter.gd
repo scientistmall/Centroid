@@ -27,6 +27,11 @@ const POISON_DPS := 15.0
 var ground_y := 880.0
 var stage_left := 140.0
 var stage_right := 1780.0
+## Round start: the fighter charges at a sprint until it blocks, backs off, attacks, or
+## reaches fighting range.
+var advance := false
+const SPRINT_SPEED := 1100.0
+const ADVANCE_STOP := 300.0
 
 var data: Dictionary = {}
 var char_id := ""
@@ -103,6 +108,8 @@ func setup(fighter_data: Dictionary) -> void:
 
 
 func reset_for_round() -> void:
+	advance = false
+	set_meta("intro_run", false)
 	hp = max_hp
 	energy = float(data.get("start_energy", 20)) * 3.0
 	vel = Vector2.ZERO
@@ -118,6 +125,8 @@ func reset_for_round() -> void:
 
 
 func set_state(s: S) -> void:
+	if advance and s not in [S.IDLE, S.WALK]:
+		_stop_advance()   # hit, blocked, attacking, jumping: the charge is over
 	state = s
 	state_time = 0.0
 
@@ -294,6 +303,21 @@ func _face_opponent() -> void:
 func _ground_control() -> void:
 	_face_opponent()
 	air_attack_used = false
+	if advance:
+		var mv0: float = inp.get("move", 0.0)
+		var acted: bool = inp.get("block", false) or inp.get("light", false) or inp.get("heavy", false) \
+			or inp.get("jump", false) or inp.get("power", false) or inp.get("power_1", false) \
+			or inp.get("power_2", false) or inp.get("power_3", false) or signf(mv0) == -facing
+		var near := opponent != null and absf(opponent.position.x - position.x) <= ADVANCE_STOP
+		if acted or near:
+			_stop_advance()
+		else:
+			vel.x = facing * SPRINT_SPEED
+			set_meta("intro_run", true)
+			set_meta("run_rate", 1.3)
+			if state != S.WALK:
+				state = S.WALK
+			return
 	if inp.get("block", false):
 		vel.x = 0.0
 		set_state(S.BLOCK)
@@ -324,6 +348,11 @@ func _ground_control() -> void:
 	var want := S.WALK if absf(mv) > 0.1 else S.IDLE
 	if state != want:
 		state = want
+
+
+func _stop_advance() -> void:
+	advance = false
+	set_meta("intro_run", false)
 
 
 func _air_control() -> void:

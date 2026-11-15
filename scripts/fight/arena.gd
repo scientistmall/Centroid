@@ -19,11 +19,12 @@ var player: Fighter
 var enemy: Fighter
 var round_no := 1
 var phase := "intro"
+var _dust_t := 0.0
 ## Opening charge: each round the fighters start at the far edges of the arena (camera pulled
 ## wide on the whole backdrop) and sprint at each other into fighting range.
-const INTRO_ZOOM := 0.62    # camera zoom while they stand at the edges
-const SPRINT := 1250.0      # px/s, about 8 m/s: a real sprint
-const SPRINT_RATE := 1.35   # sprint clip speed so the feet keep up with the ground
+const STAGE_HALF := 600.0   # px either side of the centre the fighters can move in
+const START_GAP := 470.0    # px from the centre each fighter starts a round (fighting range is 330)
+const INTRO_ZOOM := 1.0
 var time_left := 99.0
 var ground_y := 880.0
 var stage := Vector2(140, 1780)
@@ -58,8 +59,8 @@ func _ready() -> void:
 	fight = _load_json("res://data/fights/%s.json" % fight_id)
 	var vis := get_viewport().get_visible_rect().size
 	ground_y = vis.y - 190.0
-	# keep the fight between the joystick and the button cluster so fighters stay visible
-	stage = Vector2(vis.x * 0.12, vis.x * 0.80) if not Settings.left_handed else Vector2(vis.x * 0.20, vis.x * 0.88)
+	# a short arena (MCOC-like): neither fighter can back far away from the other
+	stage = Vector2(vis.x * 0.5 - STAGE_HALF, vis.x * 0.5 + STAGE_HALF)
 	_build()
 	_start_round()
 
@@ -192,14 +193,8 @@ func _start_round() -> void:
 		f.reset_for_round()
 	var mid := (stage.x + stage.y) / 2.0
 	# each round opens with the fighters at the far edges of the arena; on FIGHT! they charge in
-	var vis := get_viewport().get_visible_rect().size
-	var edge := vis.x / 2.0 / INTRO_ZOOM - 110.0
-	for f in [player, enemy]:
-		f.stage_left = mid - edge - 40.0
-		f.stage_right = mid + edge + 40.0
-	player.position = Vector2(mid - edge, ground_y)
-	enemy.position = Vector2(mid + edge, ground_y)
-	_cam_zoom = INTRO_ZOOM
+	player.position = Vector2(mid - START_GAP, ground_y)
+	enemy.position = Vector2(mid + START_GAP, ground_y)
 	_cam_x = mid
 	player.facing = 1
 	enemy.facing = -1
@@ -220,50 +215,14 @@ func _start_round() -> void:
 	hud.banner("FIGHT!")
 	shake = 18.0
 	AudioManager.sfx("gong", -4.0)
-	await _run_in(mid)
 	hud.clear_banner()
 	player.release()
 	enemy.release()
 	phase = "fight"
-
-
-## Both fighters sprint from the arena's edges to fighting range: a burst off the mark, full
-## speed, then they plant into their stance. Dust kicks up behind their feet as they run.
-func _run_in(mid: float) -> void:
-	var goals := {player: mid - 330.0, enemy: mid + 330.0}
-	var starts := {player: player.position.x, enemy: enemy.position.x}
-	var dist := absf(goals[player] - starts[player])
-	var dur := dist / SPRINT + 0.12          # the burst and the plant cost a little time
-	for f in goals:
-		f.set_meta("intro_run", true)
-		f.set_meta("run_rate", SPRINT_RATE)
-	var t := 0.0
-	var dust_t := 0.0
-	while t < dur:
-		await get_tree().physics_frame
-		var dt := get_physics_process_delta_time()
-		t += dt
-		# speed profile: 0.12 s burst, cruise, ease over the last 0.18 s
-		var u := clampf(t / dur, 0.0, 1.0)
-		var k := smoothstep(0.0, 1.0, u) * 0.25 + u * 0.75
-		k = 1.0 - pow(1.0 - k, 1.6) if u > 0.82 else k
-		for f in goals:
-			f.position.x = lerpf(starts[f], goals[f], minf(k, 1.0))
-		dust_t -= dt
-		if dust_t <= 0.0 and Vfx3D.on() and u < 0.9:
-			dust_t = 0.07
-			for f in goals:
-				var at: Vector3 = Vfx3D.world(f.position, 0.1)
-				Vfx3D.particles(at, Color(0.5, 0.42, 0.34), "dust", 6, 0.5)
-		if u > 0.85:
-			for f in goals:
-				f.set_meta("intro_run", false)
-	for f in goals:
-		f.position.x = goals[f]
-		f.set_meta("intro_run", false)
-		f.stage_left = stage.x
-		f.stage_right = stage.y
-	shake = 10.0
+	# both charge in; the run flows straight into the fight. It stops when a fighter blocks,
+	# swipes back, attacks, or reaches fighting range (Fighter.advance)
+	player.advance = true
+	enemy.advance = true
 
 
 func _wait(t: float) -> void:
@@ -271,6 +230,13 @@ func _wait(t: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# dust kicks up behind charging fighters
+	_dust_t -= delta
+	if _dust_t <= 0.0 and Vfx3D.on():
+		_dust_t = 0.07
+		for f in [player, enemy]:
+			if f and f.advance:
+				Vfx3D.particles(Vfx3D.world(f.position, 0.1), Color(0.5, 0.42, 0.34), "dust", 6, 0.5)
 	if phase == "fight":
 		time_left -= delta
 		hud.time_left = time_left

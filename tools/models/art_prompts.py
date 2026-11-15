@@ -247,6 +247,14 @@ SPLASH = {
     ("mira", 2): "Mira lashing her whip-sword in its extended whip form, a long chain of silver crescent plates on a glowing pink cable curving across the frame from the white hilt in her hand",
     ("nyra", 1): "Nyra cracking her long black whip with the silver snake-head pommel, its barbed end dripping glowing green venom, a cruel smile",
     ("nyra", 2): "Nyra reaching out with a clawed hand as dark green curse tendrils drain glowing energy toward her",
+    ("kael", 3): "Kael leaping high and driving his straight lightning longsword down with both hands as a colossal pillar of blue-white lightning crashes from the black sky",
+    ("rhex", 3): "Rhex spinning forward like a wheel of black fire, his heavy two-handed battle axe sweeping a burning ember-red arc",
+    ("mira", 3): "Mira sweeping her whip-sword in its extended whip form into a vast glowing pink crescent moon arc of light around her",
+    ("tala", 3): "Tala driving her long wind spear forward with both hands at the tip of a huge spiralling green tornado, leaves whirling",
+    ("darin", 3): "Darin slamming both massive stone gauntlets into the ground as a ring of jagged rock pillars erupts around him, dust exploding",
+    ("mael", 3): "Mael with both fists clenched at the centre of a collapsing black sphere of gravity, rocks and debris spiralling into it, violet light",
+    ("vaska", 3): "Vaska surrounded by many translucent mist copies of herself, each slashing with two short curved blades from every side",
+    ("nyra", 3): "Nyra cracking her long black barbed whip as a thicket of glowing green venom thorns bursts from the ground",
 }
 
 # ----------------------------------------------------------------------------- title wallpaper

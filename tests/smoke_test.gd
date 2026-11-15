@@ -76,7 +76,7 @@ func _test_story_player(id: String) -> void:
 ## matches, because powers cost bars and a short random match may skip one by chance.
 func _test_fight(id: String, must_use: Array) -> void:
 	stats = {"powers": 0, "hits": 0, "used": {}, "max_clones": 0, "gravity": false}
-	for attempt in 5:
+	for attempt in 6:
 		await _run_match(id, attempt == 0)
 		var missing := must_use.filter(func(n): return not stats["used"].has(n))
 		if missing.is_empty() and (not must_use.has("Mirror Double") or stats["max_clones"] > 0):
@@ -146,6 +146,8 @@ func _test_anchor_vs_pull() -> void:
 	var e: Fighter = arena.enemy
 	p.controller = null
 	e.controller = null
+	p.advance = false
+	e.advance = false
 	for anchored in [true, false]:
 		p.position.x = e.position.x - 600.0
 		p.statuses.clear()
