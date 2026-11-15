@@ -72,11 +72,11 @@ func _test_story_player(id: String) -> void:
 	await get_tree().process_frame
 
 
-## Runs AI-vs-AI matches of a fight. Power-usage checks are merged across up to
-## 3 matches, because a single short random match may skip a power by chance.
+## Runs AI-vs-AI matches of a fight. Power-usage checks are merged across up to 5
+## matches, because powers cost bars and a short random match may skip one by chance.
 func _test_fight(id: String, must_use: Array) -> void:
 	stats = {"powers": 0, "hits": 0, "used": {}, "max_clones": 0, "gravity": false}
-	for attempt in 3:
+	for attempt in 5:
 		await _run_match(id, attempt == 0)
 		var missing := must_use.filter(func(n): return not stats["used"].has(n))
 		if missing.is_empty() and (not must_use.has("Mirror Double") or stats["max_clones"] > 0):

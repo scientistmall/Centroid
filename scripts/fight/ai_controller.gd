@@ -43,7 +43,7 @@ func get_input(f: Fighter, delta: float) -> Dictionary:
 		for i in mini(2, f.powers.size()):
 			var dp: Dictionary = f.powers[i]
 			if dp.get("ai_use", "") == "defend" and f.energy >= float(dp.get("cost", 30)) \
-					and not f.has_status("anchored") and rng.randf() < 0.15 + level * 0.3:
+					and not f.has_status("anchored") and rng.randf() < 0.02 + level * 0.05:
 				out["power_%d" % (i + 1)] = true
 				return out
 	var see_mult := 0.35 if opp.is_veiled() else 1.0   # hard to read a veiled opponent
@@ -132,7 +132,7 @@ func _power_ok(f: Fighter, i: int, dist: float) -> bool:
 		"burst", "dash":
 			return dist < _range_of(f, i) + 150.0
 		"pull":
-			return dist > 220.0
+			return dist > 150.0
 		_:
 			return dist > 380.0 or i == 1
 
@@ -166,6 +166,10 @@ func _decide(f: Fighter, dist: float) -> void:
 	# Powers: the fighter saves bars toward a goal (1..3). With the goal reached it fires the
 	# goal power if it fits the moment, otherwise the best other affordable power that does.
 	var bars := f.bars_full()
+	# never save toward a situational power (cleanse / dispel / defend): those fire on their own
+	while _goal < f.powers.size() and f.powers[_goal - 1].get("ai_use", "") in special:
+		_goal += 1
+	_goal = mini(_goal, f.powers.size())
 	var pick := -1
 	if bars >= _goal and r < 0.55 + level * 0.3:
 		var order := [_goal - 1]
