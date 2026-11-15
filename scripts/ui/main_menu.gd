@@ -23,12 +23,14 @@ var _t := 0.0
 var _ring: LoadingRing
 var _pending: Array[String] = []
 var _menu: Control
+var _wall: TitleWallpaper
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	AudioManager.play_music("main_theme")
-	add_child(TitleWallpaper.new())
+	_wall = TitleWallpaper.new()
+	add_child(_wall)
 	add_child(_Logo.new())
 	_menu = Control.new()
 	_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -42,6 +44,7 @@ func _ready() -> void:
 	add_child(_ring)
 	_ring.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_ring.start_pressed.connect(_enter)
+	_wall.centroid_shown = 0.0
 	for path in PRELOAD:
 		if ResourceLoader.exists(path) and ResourceLoader.load_threaded_request(path, "", true) == OK:
 			_pending.append(path)
@@ -49,6 +52,11 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _ring != null and is_instance_valid(_ring):
+		_ring.centre_frac = _wall.centroid_at
+		# the crystal lands on the altar: hand over to the wallpaper's Centroid
+		if _ring._settle >= 1.0:
+			_wall.centroid_shown = minf(1.0, _wall.centroid_shown + delta * 3.0)
 	if _ring == null or _ring.done:
 		return
 	var total := 0.0
@@ -74,6 +82,7 @@ func _process(delta: float) -> void:
 ## Tap to start: the ring fades and the menu rises over the wallpaper.
 func _enter() -> void:
 	_booted = true
+	_wall.centroid_shown = 1.0
 	AudioManager.sfx("panel_in", -6.0)
 	var tw := create_tween()
 	tw.tween_property(_ring, "modulate:a", 0.0, 0.35)

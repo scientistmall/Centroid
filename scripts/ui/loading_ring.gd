@@ -7,6 +7,7 @@ extends Control
 signal start_pressed
 
 var progress := 0.0          # 0..1, set by whoever is loading
+var centre_frac := Vector2(0.5, 0.865)   # where the ring sits (the Centroid's place on the altar)
 var done := false
 var _shown := 0.0            # eased progress actually drawn
 var _t := 0.0
@@ -56,17 +57,17 @@ func _process(delta: float) -> void:
 
 
 func _radius() -> float:
-	return size.y * 0.055
+	return size.y * 0.11
 
 
 func _centre() -> Vector2:
-	return Vector2(size.x * 0.5, size.y * 0.865)
+	return Vector2(size.x * centre_frac.x, size.y * centre_frac.y)
 
 
 func _crystal_pos() -> Vector2:
 	var on_ring := _centre() + Vector2(cos(_angle), sin(_angle)) * _radius()
 	var k := _settle * _settle * (3.0 - 2.0 * _settle)
-	return on_ring.lerp(_centre() - Vector2(0, _radius() * 0.25), k)
+	return on_ring.lerp(_centre(), k)
 
 
 func _draw() -> void:
@@ -91,7 +92,7 @@ func _draw() -> void:
 		var k := 1.0 - float(i) / TRAIL
 		draw_circle(_trail[i], r * 0.09 * k, Color(1.0, 0.85, 0.45, 0.35 * k * k * (1.0 - _settle)))
 	var p := _crystal_pos()
-	var s := r * (0.3 + 0.12 * _settle)
+	var s := size.y * 0.06 * (0.5 + 0.5 * _settle)
 	draw_centroid(self, p, s, _t)
 	# percentage inside the ring, the caption under it
 	var f := UiStyle.bold_font()
@@ -105,7 +106,7 @@ func _draw() -> void:
 	if _tap > 0.0:
 		var pulse := 0.7 + 0.3 * sin(_t * 3.2)
 		var tfs := int(size.y * 0.042)
-		Metal.shout(self, c + Vector2(0, r + tfs * 0.95), "TAP TO START", tfs, Color(1, 1, 1, _tap * pulse), Metal.GOLD, true)
+		Metal.shout(self, Vector2(size.x * 0.5, size.y * 0.93), "TAP TO START", tfs, Color(1, 1, 1, _tap * pulse), Metal.GOLD, true)
 
 
 ## The Centroid: a star-shaped faceted crystal with a warm inner glow (also used by the wallpaper).

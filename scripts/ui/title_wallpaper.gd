@@ -24,6 +24,7 @@ const LAYOUT := {
 const FLIP: Array[String] = []
 
 var centroid_at := Vector2(0.5, 0.60)   # set from the altar's top once it is placed
+var centroid_shown := 1.0               # the boot loader hides it while its own crystal orbits
 var _t := 0.0
 var _plate: TextureRect
 var _figures: Array[Dictionary] = []
@@ -120,7 +121,7 @@ func _layout() -> void:
 		var aw := ah * _altar.texture.get_width() / float(_altar.texture.get_height())
 		_altar.size = Vector2(aw, ah)
 		_altar.position = Vector2(w * 0.5 - aw * 0.5, h * 1.0 - ah)
-		centroid_at = Vector2(0.5, (h - ah * 0.98) / h)
+		centroid_at = Vector2(0.5, (h - ah * 1.05) / h)
 	_fx.size = size
 
 
@@ -191,7 +192,9 @@ class _Glow extends Control:
 			var rr := h * (0.06 + 0.012 * (i % 5))
 			var mp := c + Vector2(cos(a) * rr * 1.6, sin(a) * rr * 0.5 - h * 0.01)
 			draw_circle(mp, h * 0.003 * (1.0 + 0.5 * sin(t * 3.0 + i)), Color(1.0, 0.9, 0.6, 0.8))
-		LoadingRing.draw_centroid(self, c, h * 0.035, t)
+		if wall.centroid_shown > 0.01:
+			modulate.a = wall.centroid_shown
+			LoadingRing.draw_centroid(self, c, h * 0.06, t)
 
 
 class _Vignette extends Control:
