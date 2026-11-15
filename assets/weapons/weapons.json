@@ -1,24 +1,24 @@
 {
  "kael_sword": {
   "grip": [
-   0.81152,
-   0.00501,
-   -0.00464
+   0.31343,
+   5e-05,
+   -0.00089
   ],
   "axis": [
    -1.0,
-   -0.0024,
-   0.00051
+   -0.00015,
+   -0.00173
   ],
   "side": [
-   0.00239,
-   -0.99986,
-   -0.01629
+   0.00173,
+   0.00347,
+   -0.99999
   ],
-  "length": 1.9857,
-  "tip_from_grip": 1.80699,
+  "length": 0.99963,
+  "tip_from_grip": 0.86968,
   "file": "res://assets/weapons/kael_sword.glb",
-  "metres": 1.0,
+  "metres": 1.05,
   "owner": "kael",
   "sheet": "res://assets/weapons/sheets/sheet_kael_sword.png",
   "look": "a straight longsword with a dark steel blade crackling with glowing light-blue lightning lines, a round silver disc guard and a navy cord-wrapped grip with a silver pommel",
@@ -26,22 +26,22 @@
  },
  "mira_blade": {
   "grip": [
-   0.85129,
-   -0.00309,
-   -0.00376
+   0.85127,
+   -0.00324,
+   -0.00456
   ],
   "axis": [
    -1.0,
-   -0.00147,
-   -0.00034
+   -0.00146,
+   0.00046
   ],
   "side": [
-   0.0002,
-   0.09482,
-   -0.99549
+   -0.00067,
+   0.14713,
+   -0.98912
   ],
-  "length": 1.9856,
-  "tip_from_grip": 1.84661,
+  "length": 1.98517,
+  "tip_from_grip": 1.8462,
   "file": "res://assets/weapons/mira_blade.glb",
   "metres": 1.05,
   "owner": "mira",
@@ -51,24 +51,24 @@
  },
  "rhex_axe": {
   "grip": [
-   0.75105,
-   -0.00993,
-   -0.00351
+   0.20097,
+   -0.25176,
+   -0.00397
   ],
   "axis": [
-   -1.0,
-   0.00016,
-   -0.00091
+   -0.66925,
+   0.74304,
+   -0.00045
   ],
   "side": [
-   0.00016,
-   1.0,
-   0.002
+   0.74304,
+   0.66925,
+   -0.00027
   ],
-  "length": 1.98392,
-  "tip_from_grip": 1.74585,
+  "length": 2.28149,
+  "tip_from_grip": 1.46016,
   "file": "res://assets/weapons/rhex_axe.glb",
-  "metres": 1.05,
+  "metres": 1.2,
   "owner": "rhex",
   "sheet": "res://assets/weapons/sheets/sheet_rhex_axe.png",
   "look": "a heavy two-handed battle axe with a large blackened-steel crescent blade, a glowing ember-red edge and a long dark wooden haft wrapped in red leather",
@@ -76,22 +76,22 @@
  },
  "tala_spear": {
   "grip": [
-   0.2357,
-   0.10854,
-   -0.09804
+   0.23616,
+   0.10863,
+   -0.09764
   ],
   "axis": [
    -0.99973,
-   -0.02195,
-   0.00793
+   -0.02156,
+   0.00841
   ],
   "side": [
-   0.01734,
-   -0.47162,
-   0.88163
+   0.01737,
+   -0.45895,
+   0.88829
   ],
-  "length": 1.98637,
-  "tip_from_grip": 1.23155,
+  "length": 1.9853,
+  "tip_from_grip": 1.23088,
   "file": "res://assets/weapons/tala_spear.glb",
   "metres": 1.95,
   "owner": "tala",

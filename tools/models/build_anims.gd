@@ -55,6 +55,21 @@ func _build(dir: String, out: String, ref: String) -> void:
 		lib.add_animation(clip, a)
 		names.append("%s (%.2fs, strike %.2fs)" % [clip, a.length, strike])
 		root.free()
+	# "ai:<file>" slots (set.txt): an HY-Motion clip from <dir>/ai, moved onto this set's skeleton
+	if FileAccess.file_exists(dir + "/set.txt"):
+		for line in FileAccess.get_file_as_string(dir + "/set.txt").split("\n"):
+			var kv := line.split("=", true, 1)
+			if kv.size() == 2 and kv[1].begins_with("ai:"):
+				var a := _ai_clip(dir + "/ai", kv[1].substr(3))
+				if a == null:
+					continue
+				a.loop_mode = Animation.LOOP_LINEAR if kv[0] in LOOP else Animation.LOOP_NONE
+				if kv[0] in LOOP:
+					_close_loop(a, 0.35)
+				a.set_meta("strike", _strike_time(a))
+				a.set_meta("source", "ai:" + kv[1].substr(3))
+				lib.add_animation(kv[0], a)
+				names.append("%s (AI %s, %.2fs, strike %.2fs)" % [kv[0], kv[1].substr(3), a.length, a.get_meta("strike")])
 	# "reverse:<clip>" slots (set.txt): the clip played backwards, e.g. walking back
 	if FileAccess.file_exists(dir + "/set.txt"):
 		for line in FileAccess.get_file_as_string(dir + "/set.txt").split("\n"):
@@ -66,6 +81,46 @@ func _build(dir: String, out: String, ref: String) -> void:
 	lib.set_meta("ref", ref)
 	ResourceSaver.save(lib, out)
 	print("ANIMS %d clips -> %s:\n  %s" % [names.size(), out, "\n  ".join(names)])
+
+
+## An AI clip retargeted onto the set's reference skeleton (the one its Mixamo clips use), with
+## the hips' ground travel removed like the Mixamo clips.
+func _ai_clip(ai_dir: String, file: String) -> Animation:
+	if _sk == null:
+		_ref = (load(_ref_path) as PackedScene).instantiate()
+		_sk = _ref.find_children("*", "Skeleton3D", true, false)[0]
+	var src := AiClips.skeleton(ai_dir)
+	var raw := AiClips.animation(ai_dir + "/" + file, src)
+	var plan := VrmRetarget._plan(src, _sk)
+	var a := VrmRetarget._convert(raw, src, _sk, plan)
+	src.free()
+	for t in a.get_track_count():
+		if a.track_get_type(t) == Animation.TYPE_POSITION_3D:
+			var p0: Vector3 = a.track_get_key_value(t, 0)
+			for k in a.track_get_key_count(t):
+				var p: Vector3 = a.track_get_key_value(t, k)
+				a.track_set_key_value(t, k, Vector3(p0.x, p.y, p0.z))
+	return a
+
+
+## Make a clip loop: its last `blend` seconds ease into its first pose.
+func _close_loop(a: Animation, blend: float) -> void:
+	for t in a.get_track_count():
+		var n := a.track_get_key_count(t)
+		if n < 2:
+			continue
+		var first = a.track_get_key_value(t, 0)
+		for k in n:
+			var time := a.track_get_key_time(t, k)
+			var w := clampf((time - (a.length - blend)) / blend, 0.0, 1.0)
+			if w <= 0.0:
+				continue
+			w = w * w * (3.0 - 2.0 * w)
+			var v = a.track_get_key_value(t, k)
+			if v is Quaternion:
+				a.track_set_key_value(t, k, (v as Quaternion).slerp(first, w))
+			elif v is Vector3:
+				a.track_set_key_value(t, k, (v as Vector3).lerp(first, w))
 
 
 ## The same motion played backwards (a walk becomes a walk back).

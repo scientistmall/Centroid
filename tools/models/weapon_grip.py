@@ -23,8 +23,8 @@ WEAPONS = os.path.join(ROOT, "assets", "weapons")
 
 # weapon id -> (grip position as a fraction of length from the handle end, real length in metres)
 SPEC = {
-    "kael_sword": (0.09, 1.0),
-    "rhex_axe": (0.12, 1.05),
+    "kael_sword": (0.13, 1.05),
+    "rhex_axe": (0.36, 1.2),
     "mira_blade": (0.07, 1.05),
     "tala_spear": (0.38, 1.95),
 }

@@ -53,8 +53,10 @@ def mat_to_quat(m):
 def main(d):
     sk = np.load(os.path.join(d, "skeleton.npz"))
     joints = sk["joints"][:22].astype(float)
+    # the clips are in floor space (feet at y = 0); lift the rest skeleton onto the same floor
+    floor = joints[:, 1].min()
     parents = sk["parents"][:22].astype(int)
-    json.dump({"names": NAMES, "rest": joints.round(5).tolist(), "parents": parents.tolist()},
+    json.dump({"names": NAMES, "rest": (joints - [0.0, floor, 0.0]).round(5).tolist(), "parents": parents.tolist()},
               open(os.path.join(d, "skeleton.json"), "w"))
     for f in sorted(glob.glob(os.path.join(d, "*_k*.npz"))):
         z = np.load(f)

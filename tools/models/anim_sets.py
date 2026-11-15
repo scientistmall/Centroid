@@ -21,13 +21,13 @@ sys.path.insert(0, HERE)
 SETS = {
     # Kael: a two-handed sword (Mixamo "Great Sword" moves)
     "greatsword": {
-        "idle": ("c9cc7140-b96c-11e4-a802-0aaa78deedf9", False),
-        "walk_forward": ("c9cc7257-b96c-11e4-a802-0aaa78deedf9", True),
+        "idle": ("ai", "idle_k1.json"),                 # AI: upright guard, both hands on the hilt
+        "walk_forward": ("ai", "walk_forward_k2.json"),
         "walk_back": "reverse:walk_forward",
         "run": ("c9ce86d8-b96c-11e4-a802-0aaa78deedf9", True),   # rifle sprint: hands together, leaning in
         "jump": ("c9cc7c0e-b96c-11e4-a802-0aaa78deedf9", False),
         "air_attack": ("c9cc8bd6-b96c-11e4-a802-0aaa78deedf9", False),
-        "block": ("c9cc815e-b96c-11e4-a802-0aaa78deedf9", False),
+        "block": ("ai", "block_k2.json"),               # AI: hilt raised before the face
         "block_hit": ("c9cc82f0-b96c-11e4-a802-0aaa78deedf9", False),
         "hit_light": ("c9cc83b2-b96c-11e4-a802-0aaa78deedf9", False),
         "hit_heavy": ("c9cc8471-b96c-11e4-a802-0aaa78deedf9", False),
@@ -35,10 +35,10 @@ SETS = {
         "victory": ("c9ccc0b3-b96c-11e4-a802-0aaa78deedf9", False),     # sheathes the sword
         "light_1": ("c9cc7d9c-b96c-11e4-a802-0aaa78deedf9", False),
         "light_2": ("c9cc7fdc-b96c-11e4-a802-0aaa78deedf9", False),
-        "light_3": ("c9cc7f1e-b96c-11e4-a802-0aaa78deedf9", False),
+        "light_3": ("ai", "light_3_k1.json"),           # AI: lunging thrust
         "heavy_1": ("c9cc8d52-b96c-11e4-a802-0aaa78deedf9", False),     # high spin attack
-        "heavy_2": ("c9cc7e5c-b96c-11e4-a802-0aaa78deedf9", False),     # overhead cleave
-        "cast_1": ("c9cc7fdc-b96c-11e4-a802-0aaa78deedf9", False),      # forward slash: Arc Bolt leaves the blade
+        "heavy_2": ("ai", "heavy_1_k2.json"),           # AI: two-handed overhead strike
+        "cast_1": ("ai", "cast_1_k1.json"),             # AI: thrust forward, Arc Bolt leaves the blade
         "cast_2": ("c9cc975d-b96c-11e4-a802-0aaa78deedf9", False),      # casting: the kneeling slam
         "buff": ("c9cc9819-b96c-11e4-a802-0aaa78deedf9", False),        # power up
         "dash": ("c9cc8c95-b96c-11e4-a802-0aaa78deedf9", False),        # slide attack: Thunder Step
@@ -46,19 +46,19 @@ SETS = {
     # Rhex: a heavy two-handed battle axe. Mixamo's axe pack is one-handed, so the two-handed
     # great-weapon moves carry it, heavier and more brutal, with the axe pack's reactions/taunt.
     "greataxe": {
-        "idle": ("c9cc946d-b96c-11e4-a802-0aaa78deedf9", False),
+        "idle": ("ai", "idle_k1.json"),                 # AI: broad stance, both hands on the haft
         "walk_forward": ("c9cc73a7-b96c-11e4-a802-0aaa78deedf9", True),
         "walk_back": "reverse:walk_forward",
         "run": ("c9ce86d8-b96c-11e4-a802-0aaa78deedf9", True),   # rifle sprint: hands together, leaning in
         "jump": ("c9cc7cd9-b96c-11e4-a802-0aaa78deedf9", False),
         "air_attack": ("c9cc8bd6-b96c-11e4-a802-0aaa78deedf9", False),
-        "block": ("c9cc8232-b96c-11e4-a802-0aaa78deedf9", False),
+        "block": ("ai", "block_k1.json"),
         "block_hit": ("c9cecdb9-b96c-11e4-a802-0aaa78deedf9", False),   # axe: block react large
         "hit_light": ("c9cedd30-b96c-11e4-a802-0aaa78deedf9", False),   # axe: react large from left
         "hit_heavy": ("c9cedebd-b96c-11e4-a802-0aaa78deedf9", False),   # axe: react large gut
         "knockdown": ("c9cc9aaa-b96c-11e4-a802-0aaa78deedf9", False),
-        "victory": ("c9cee10b-b96c-11e4-a802-0aaa78deedf9", False),     # axe: battle cry
-        "light_1": ("c9cc7e5c-b96c-11e4-a802-0aaa78deedf9", False),     # overhead chop
+        "victory": ("ai", "victory_k1.json"),           # AI: fists overhead, roaring
+        "light_1": ("ai", "light_1_k1.json"),           # AI: diagonal chop
         "light_2": ("c9cc8764-b96c-11e4-a802-0aaa78deedf9", False),     # low sweep
         "light_3": ("c9cc98d6-b96c-11e4-a802-0aaa78deedf9", False),
         "heavy_1": ("c9cc8d52-b96c-11e4-a802-0aaa78deedf9", False),     # spinning cleave
@@ -78,7 +78,7 @@ def download(set_name):
     os.makedirs(out, exist_ok=True)
     char = mixamo.ybot()
     for slot, v in spec.items():
-        if isinstance(v, str):
+        if isinstance(v, str) or v[0] == "ai":
             continue
         pid, inplace = v
         f = os.path.join(out, slot + ".fbx")
@@ -88,7 +88,12 @@ def download(set_name):
         print("saved", f, flush=True)
     with open(os.path.join(out, "set.txt"), "w") as fh:
         for slot, v in spec.items():
-            fh.write(f"{slot}={v}\n" if isinstance(v, str) else f"{slot}=mixamo:{v[0]}\n")
+            if isinstance(v, str):
+                fh.write(f"{slot}={v}\n")
+            elif v[0] == "ai":
+                fh.write(f"{slot}=ai:{v[1]}\n")
+            else:
+                fh.write(f"{slot}=mixamo:{v[0]}\n")
 
 
 if __name__ == "__main__":

@@ -76,32 +76,53 @@ static func _humanoid(src_bone: String) -> String:
 	return MIXAMO.get(src_bone.trim_prefix("mixamorig_").trim_prefix("mixamorig:"), "")
 
 
-## Per target bone: its source bone, and the rest-alignment rotation.
+## The humanoid part a bone plays (its own name if it already is one, e.g. on a VRM / hy rig).
+static func _part(bone: String) -> String:
+	var h := _humanoid(bone)
+	return h if h != "" else bone
+
+
+## The bone of `sk` that plays humanoid part `h`, or -1.
+static func _bone_for(sk: Skeleton3D, h: String) -> int:
+	for i in sk.get_bone_count():
+		if _part(sk.get_bone_name(i)) == h:
+			return i
+	return -1
+
+
+## Per target bone (by its name): its source bone, and the rest-alignment rotation. Works for
+## any pair of rigs whose bones map to humanoid parts (Mixamo, SMPL-H, VRM / hy humanoid).
 static func _plan(src: Skeleton3D, dst: Skeleton3D) -> Dictionary:
 	var by_target := {}
 	for i in src.get_bone_count():
 		var h := _humanoid(src.get_bone_name(i))
-		if h != "" and dst.find_bone(h) >= 0:
-			by_target[h] = i
+		if h == "":
+			continue
+		var d := _bone_for(dst, h)
+		if d >= 0:
+			by_target[dst.get_bone_name(d)] = i
 	# a target without UpperChest takes the top of the source spine on Chest
-	if dst.find_bone("UpperChest") < 0 and dst.find_bone("Chest") >= 0:
+	if _bone_for(dst, "UpperChest") < 0 and _bone_for(dst, "Chest") >= 0:
 		var s2 := _find_src(src, "Spine2")
 		if s2 >= 0:
-			by_target["Chest"] = s2
+			by_target[dst.get_bone_name(_bone_for(dst, "Chest"))] = s2
 	var align := {}
-	for h in by_target:
-		align[h] = Quaternion.IDENTITY
-		var child: String = AIM.get(h, "")
-		if child == "" or not by_target.has(child):
+	for name in by_target:
+		align[name] = Quaternion.IDENTITY
+		var child: String = AIM.get(_part(name), "")
+		if child == "":
 			continue
-		var t0 := dst.get_bone_global_rest(dst.find_bone(h)).origin
-		var t1 := dst.get_bone_global_rest(dst.find_bone(child)).origin
-		var s0 := src.get_bone_global_rest(by_target[h]).origin
-		var s1 := src.get_bone_global_rest(by_target[child]).origin
+		var dc := _bone_for(dst, child)
+		if dc < 0 or not by_target.has(dst.get_bone_name(dc)):
+			continue
+		var t0 := dst.get_bone_global_rest(dst.find_bone(name)).origin
+		var t1 := dst.get_bone_global_rest(dc).origin
+		var s0 := src.get_bone_global_rest(by_target[name]).origin
+		var s1 := src.get_bone_global_rest(by_target[dst.get_bone_name(dc)]).origin
 		var dt := (t1 - t0).normalized()
 		var ds := (s1 - s0).normalized()
 		if dt.length() > 0.5 and ds.length() > 0.5:
-			align[h] = _arc(dt, ds)
+			align[name] = _arc(dt, ds)
 	return {"src_of": by_target, "align": align}
 
 
@@ -176,12 +197,12 @@ static func _convert(a: Animation, src: Skeleton3D, dst: Skeleton3D, plan: Dicti
 		var t := out.add_track(Animation.TYPE_ROTATION_3D)
 		out.track_set_path(t, NodePath("%s:%s" % [skel, dst.get_bone_name(j)]))
 		tr[j] = t
-	var d_hips := dst.find_bone("Hips")
+	var d_hips := _bone_for(dst, "Hips")
 	var hp := -1
 	var ratio := 1.0
 	if hips_pos >= 0 and d_hips >= 0 and src_hips >= 0:
 		hp = out.add_track(Animation.TYPE_POSITION_3D)
-		out.track_set_path(hp, NodePath("%s:Hips" % skel))
+		out.track_set_path(hp, NodePath("%s:%s" % [skel, dst.get_bone_name(d_hips)]))
 		# hips height above the feet (a skeleton's origin may be at the hips or the floor)
 		ratio = (dst.get_bone_global_rest(d_hips).origin.y - _lowest(dst)) \
 			/ maxf(src.get_bone_global_rest(src_hips).origin.y - _lowest(src), 1e-6)
