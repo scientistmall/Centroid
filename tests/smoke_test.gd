@@ -87,7 +87,8 @@ func _test_fight(id: String, must_use: Array) -> void:
 	for n in must_use:
 		check(stats["used"].has(n), "%s: '%s' was used" % [id, n])
 	if must_use.has("Gravity Well"):
-		check(stats["gravity"], "%s: gravity pull was applied" % id)
+		# the pull itself is unit-tested above; here it lands or Darin's Stone Bulwark counters it
+		check(stats["gravity"] or stats.get("anchored", false), "%s: gravity pull was applied or countered" % id)
 	if must_use.has("Mirror Double"):
 		check(stats["max_clones"] > 0, "%s: a clone appeared" % id)
 	fights_done += 1
@@ -112,6 +113,8 @@ func _run_match(id: String, check_result: bool) -> void:
 		stats["max_clones"] = maxi(stats["max_clones"], get_tree().get_nodes_in_group("clones").size())
 		if arena.player.has_status("gravity") or arena.enemy.has_status("gravity"):
 			stats["gravity"] = true
+		if arena.player.has_status("anchored") or arena.enemy.has_status("anchored"):
+			stats["anchored"] = true
 		if arena.player.controller is PlayerController:   # relay/tag could swap it back
 			arena.player.controller = AIController.new(0.7)
 	check(arena.phase == "over", "%s finishes (%d frames, %.0f s game time)" % [id, frames, frames / 60.0])
