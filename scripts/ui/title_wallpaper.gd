@@ -13,15 +13,15 @@ const DIR := "res://assets/title/"
 ## id: [x (fraction of width), feet y (fraction of height), height (fraction of height), row]
 ## row 0 = front (leaders), 1 = middle, 2 = back. Traitors left, guardians right.
 const LAYOUT := {
-	"zerin": [0.045, 0.86, 0.50, 2], "vaska": [0.135, 0.85, 0.48, 2], "nyra": [0.215, 0.86, 0.50, 2], "corvin": [0.29, 0.84, 0.46, 2],
-	"iren": [0.71, 0.84, 0.46, 2], "mira": [0.785, 0.86, 0.50, 2], "oren": [0.865, 0.85, 0.48, 2], "lyra": [0.955, 0.86, 0.50, 2],
-	"rhex": [0.075, 0.99, 0.66, 1], "mael": [0.165, 0.96, 0.64, 1], "thane": [0.25, 0.93, 0.62, 1],
-	"kael": [0.75, 0.93, 0.62, 1], "darin": [0.835, 0.96, 0.66, 1], "tala": [0.925, 0.99, 0.64, 1],
-	"auren": [0.5, 0.80, 0.56, 1],
-	"veyr": [0.335, 1.05, 0.80, 0], "seran": [0.665, 1.05, 0.80, 0],
+	"zerin": [0.035, 0.80, 0.47, 2], "nyra": [0.115, 0.79, 0.46, 2], "vaska": [0.20, 0.78, 0.45, 2], "corvin": [0.285, 0.77, 0.44, 2],
+	"iren": [0.715, 0.77, 0.44, 2], "mira": [0.80, 0.78, 0.45, 2], "oren": [0.885, 0.79, 0.46, 2], "lyra": [0.965, 0.80, 0.47, 2],
+	"rhex": [0.065, 1.00, 0.60, 1], "mael": [0.16, 0.98, 0.59, 1], "thane": [0.25, 0.96, 0.58, 1],
+	"kael": [0.75, 0.96, 0.58, 1], "darin": [0.84, 0.98, 0.60, 1], "tala": [0.935, 1.00, 0.59, 1],
+	"auren": [0.5, 0.78, 0.52, 1],
+	"veyr": [0.345, 1.06, 0.76, 0], "seran": [0.655, 1.06, 0.76, 0],
 }
 ## cut-outs that were painted facing away from the altar, mirrored so everyone faces the centre
-const FLIP: Array[String] = []
+const FLIP: Array[String] = ["seran", "veyr", "lyra", "nyra"]
 
 var centroid_at := Vector2(0.5, 0.60)   # set from the altar's top once it is placed
 var centroid_shown := 1.0               # the boot loader hides it while its own crystal orbits
@@ -92,7 +92,9 @@ func _add_figure(id: String) -> void:
 	var on_right := x > 0.5
 	r.flip_h = FLIP.has(id)
 	# depth: back rows darker and cooler; each side tinted by its light (gold right, violet left)
-	var dim: float = [1.0, 0.8, 0.6][row]
+	var dim: float = [1.0, 0.82, 0.62][row]
+	if id == "auren":
+		dim = 0.95
 	var tint := Color(1.0, 0.97, 0.92) if on_right else Color(0.95, 0.92, 1.0)
 	if id == "auren":
 		tint = Color(1.0, 0.96, 0.88)
@@ -186,7 +188,7 @@ class _Glow extends Control:
 		var pulse := 0.85 + 0.15 * sin(t * 1.6)
 		for i in 10:
 			var k := float(i) / 9.0
-			draw_circle(c, h * (0.45 - k * 0.4) * pulse, Color(1.0, 0.8, 0.4, 0.018 + 0.03 * k))
+			draw_circle(c, h * (0.45 - k * 0.4) * pulse, Color(1.0, 0.8, 0.4, 0.008 + 0.03 * k * k))
 		for i in 14:
 			var a := t * (0.5 + 0.07 * i) + i * 2.4
 			var rr := h * (0.06 + 0.012 * (i % 5))
