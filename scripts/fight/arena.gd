@@ -20,6 +20,7 @@ var enemy: Fighter
 var round_no := 1
 var phase := "intro"
 var _dust_t := 0.0
+var _push_amt := 0.2
 ## Opening charge: each round the fighters start at the far edges of the arena (camera pulled
 ## wide on the whole backdrop) and sprint at each other into fighting range.
 const STAGE_HALF := 600.0   # px either side of the centre the fighters can move in
@@ -274,7 +275,7 @@ func _update_camera(delta: float) -> void:
 	var push := 0.0
 	if _push_t < PUSH_TIME and is_instance_valid(_push_f):
 		push = smoothstep(0.0, 0.12, _push_t) * (1.0 - smoothstep(0.32, PUSH_TIME, _push_t))
-		want_zoom += 0.2 * push
+		want_zoom += _push_amt * push
 		mid = lerpf(mid, _push_f.position.x, 0.4 * push)
 	_cam_zoom = lerpf(_cam_zoom, want_zoom, clampf(delta * (3.0 + 9.0 * push), 0.0, 1.0))
 	# keep the framed view inside the stage
@@ -334,6 +335,7 @@ var cutins_enabled := true   # tests turn the power cut-in banner off
 func _on_power(f: Fighter, power_name: String) -> void:
 	_push_t = 0.0
 	_push_f = f
+	_push_amt = 0.32 if f.power_index == 2 else 0.2   # the ultimate pushes in harder
 	# the power's name and art slide out under the caster's health bar: no screen-wide banner,
 	# no slow motion, nothing covering the fight
 	if not cutins_enabled or hud == null:
@@ -348,7 +350,8 @@ func _on_power(f: Fighter, power_name: String) -> void:
 
 ## A power connected: impact frame centred on the hit, and a heavier shake.
 func _on_special_hit(f: Fighter, attacker: Fighter) -> void:
-	shake = maxf(shake, 24.0)
+	var ult := attacker.power_index == 2 and attacker.state == Fighter.S.POWER
+	shake = maxf(shake, 38.0 if ult else 24.0)
 	if impact:
 		var at := world.get_global_transform_with_canvas() * (f.position + Vector2(0, -150))
 		impact.trigger(at, attacker.color)

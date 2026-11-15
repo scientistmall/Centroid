@@ -53,15 +53,15 @@ func _layout() -> void:
 
 	_add(Pane.new(self, "header", Rect2(m, m, w - 2 * m, head_h), {}))
 
-	# four power panels: the player's two, a wider gutter, the enemy's two
+	# six power panels: the player's three, a wider gutter, the enemy's three
 	var split := 26.0 * k
-	var cw := (w - 2 * m - 2 * g - split) / 4.0
+	var cw := (w - 2 * m - 4 * g - split) / 6.0
 	var ppow: Array = player.get("powers", [])
 	var epow: Array = enemy.get("powers", [])
-	for i in 4:
-		var mine := i < 2
+	for i in 6:
+		var mine := i < 3
 		var list: Array = ppow if mine else epow
-		var j := i % 2
+		var j := i % 3
 		if j >= list.size():
 			continue
 		var x := m + i * (cw + g) + (split - g if not mine else 0.0)
@@ -166,6 +166,8 @@ static var _art_cache: Dictionary = {}
 
 static func art_for(id: String, index: int) -> Texture2D:
 	var path := "res://assets/cutins/cutin_%s_%d.webp" % [id, index]
+	if index == 3 and not ResourceLoader.exists(path):   # until the third power's art is made
+		path = "res://assets/cutins/cutin_%s_%d.webp" % [id, 2]
 	if not _art_cache.has(path):
 		_art_cache[path] = load(path) if index > 0 and ResourceLoader.exists(path) else null
 	return _art_cache[path]
@@ -266,7 +268,9 @@ func answer(a: String) -> Array:
 
 
 static func stats(p: Dictionary) -> String:
-	var parts: Array[String] = ["COST %d" % int(p.get("cost", 0))]
+	var parts: Array[String] = []
+	if p.get("unblockable", false):
+		parts.append("UNBLOCKABLE")
 	if p.has("damage"):
 		parts.append("DMG %d" % int(p.get("damage", 0)))
 	if p.has("heal"):
@@ -395,20 +399,22 @@ class Pane extends Control:
 		var uf := UiStyle.ui_font()
 		# owner tab
 		var tfs := int(24 * k)
-		var tag := "%s · POWER %d" % [String(who.get("name", "")).to_upper(), int(info["index"])]
+		var tag := "POWER %d" % int(info["index"])
 		if not info["mine"]:
 			tag = "ENEMY · " + tag
 		var tr := Rect2(12 * k, 12 * k, MangaBriefing.text_w(bf, tag, tfs) + 24 * k, 40 * k)
 		draw_rect(tr, Color(col.darkened(0.55), 0.92))
 		draw_rect(tr, col.lightened(0.2), false, 2.0 * k)
 		draw_string(bf, tr.position + Vector2(12 * k, tr.size.y * 0.5 + tfs * 0.36), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs, Color.WHITE)
-		# the button it lives on
-		var ir := 38.0 * k
-		MangaBriefing.button(self, ButtonIcons.for_power(p), Vector2(size.x - ir - 14 * k, ir + 14 * k), ir, col.lightened(0.2))
+		# the bars it costs (power N = N full bars)
+		for b in int(info["index"]):
+			var br := Rect2(size.x - (b + 1) * 30 * k - 10 * k, 18 * k, 24 * k, 28 * k)
+			draw_rect(br, col.lightened(0.25))
+			draw_rect(br, INK, false, 2.0 * k)
 		# caption
 		var pad := 16.0 * k
-		var nfs := int(40 * k)
-		var dfs := int(25 * k)
+		var nfs := int(30 * k)
+		var dfs := int(20 * k)
 		var lines := MangaBriefing.wrap(uf, String(p.get("desc", "")), dfs, size.x - 2 * pad - 20 * k)
 		var lh := uf.get_height(dfs) * 1.12
 		var ch := pad + nfs * 1.05 + lines.size() * lh + 8 * k + 30 * k + pad

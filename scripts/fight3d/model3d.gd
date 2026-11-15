@@ -79,6 +79,7 @@ var _w_hand_xf := Transform3D.IDENTITY   # the weapon relative to the right hand
 var _two_w := 0.0
 var _wnode: Node3D           # the weapon; shown only while a power runs (summoned, then gone)
 var _wshow := 0.0            # 0..1 how far the weapon is summoned
+var _w_base_scale := Vector3.ONE   # the weapon's attachment scale, read once it is placed
 const SUMMON_IN := 0.16      # seconds for the weapon to flash into the hands
 const SUMMON_OUT := 0.3      # seconds for it to dissolve after the power            # 0 = weapon follows the right hand, 1 = hilt through both fists
 
@@ -297,7 +298,11 @@ func _summon(dt: float) -> void:
 			Vfx3D.particles(at, fighter.color, "sparks", 26, 0.6)
 	_wnode.visible = _wshow > 0.001
 	if not _two_handed:
-		_wnode.scale = Vector3.ONE * maxf(_ease_w(), 0.001)
+		# keep the attachment's own scale (rigs scaled to fighter height) and grow from it
+		if not _wnode.has_meta("s0"):
+			_wnode.set_meta("s0", _wnode.basis.get_scale())
+		var s0: Vector3 = _wnode.get_meta("s0")
+		_wnode.basis = _wnode.basis.orthonormalized().scaled(s0 * maxf(_ease_w(), 0.001))
 
 
 ## Summon curve: a quick overshoot so the weapon snaps into the hands.
@@ -502,7 +507,6 @@ func _weapon_node(kind: String, col: Color) -> Node3D:
 	_mid.position = Vector3(0, reach * 0.45, 0)
 	w.add_child(_mid)
 	_wnode = w
-	w.scale = Vector3.ONE * 0.001
 	w.visible = false
 	return w
 

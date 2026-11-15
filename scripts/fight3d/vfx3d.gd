@@ -659,6 +659,30 @@ static func rock_mesh(r: float, col: Color) -> MeshInstance3D:
 
 
 ## A jagged rock spike bursting out of the ground and sinking back.
+## A venom thorn: a thin green spike that punches out of the ground (Venom Garden).
+static func _thorn(at: Vector3, h: float) -> void:
+	if Stage3D.current == null:
+		return
+	var p := PrismMesh.new()
+	p.size = Vector3(h * 0.18, h, h * 0.18)
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.1, 0.35, 0.08)
+	m.emission_enabled = true
+	m.emission = Color(0.35, 1.0, 0.3)
+	m.emission_energy_multiplier = 1.4
+	var mi := MeshInstance3D.new()
+	mi.mesh = p
+	mi.material_override = m
+	mi.rotation.z = randf_range(-0.5, 0.5)
+	mi.position = at + Vector3(0, -h, 0)
+	Stage3D.current.world_root.add_child(mi)
+	var t := mi.create_tween()
+	t.tween_property(mi, "position:y", at.y + h * 0.45, 0.07).set_ease(Tween.EASE_OUT)
+	t.tween_interval(0.6)
+	t.tween_property(mi, "position:y", at.y - h, 0.25)
+	t.tween_callback(mi.queue_free)
+
+
 static func rock_spike(at: Vector3, h: float, life := 0.7) -> void:
 	var p := PrismMesh.new()
 	p.size = Vector3(h * 0.5, h, h * 0.4)
@@ -689,6 +713,8 @@ static func on_power(f: Fighter, pd: Dictionary) -> void:
 	var type: String = pd.get("type", "")
 	var chest := world(f.position + Vector2(0, -150))
 	var feet := world(f.position)
+	if pd.get("ultimate", false):
+		type = "ultimate"   # third powers draw only their own signature
 	match type:
 		"burst":   # Hellfire Burst: a dome of black fire
 			var r: float = float(pd.get("radius", 250.0)) / Stage3D.PPM
@@ -955,6 +981,123 @@ static func signature(f: Fighter, pd: Dictionary) -> void:
 			ring(feet + Vector3(0, 0.03, 0.1), 3.5, Color(0.7, 0.76, 0.86), 0.6, true)
 		"venom_lash", "withering_curse":
 			pass   # marks where the whip lands (on_lash)
+		# ---------------------------------------------------------------- third powers (ultimates)
+		"stormbreaker":   # a pillar of lightning from the black sky onto the target
+			var at := world(f.opponent.position) if f.opponent else feet + Vector3(f.facing * 1.6, 0, 0)
+			for i in 5:
+				var top := at + Vector3(randf_range(-0.5, 0.5), 9.0, 0.1)
+				var b := bolt(top, at + Vector3(randf_range(-0.25, 0.25), 0.0, 0.15), col, 0.45, 0.14 - i * 0.015, 3)
+				b.jitter = 0.4
+			var pm := mat(GLOW_SHADER, {"color": col, "energy": 5.0})
+			var pillar := quad(Vector2(1.3, 10.0), pm, at + Vector3(0, 5.0, 0.12))
+			pillar.scale = Vector3(0.2, 1.0, 1.0)
+			pillar.create_tween().tween_property(pillar, "scale", Vector3(1.2, 1.0, 1.0), 0.12)
+			fade_free(pillar, pm, 0.4, 0.25)
+			ring(at + Vector3(0, 0.03, 0.1), 7.0, col, 0.55, true)
+			strike(at + Vector3(0, 0.8, 0.2), col, 1.8)
+			flash(at + Vector3(0, 2.5, 1.0), col, 12.0, 14.0, 0.5)
+			decal(at, 5.0, col, "burn", 2.6)
+			particles(at + Vector3(0, 0.3, 0.2), col, "sparks", 70, 2.2)
+		"inferno_cleave":   # a wheel of black fire rolling through, scorch along the path
+			var fl := follow(f, Vector3(0, 1.0, 0.3))
+			trail(fl, Color(1.0, 0.25, 0.05), "sparks", 140, 0.18)
+			var wm := mat(FIRE_SHADER, {"edge_col": Color(1.0, 0.18, 0.03), "core_col": Color(0.02, 0.0, 0.02),
+				"edge_energy": 4.0, "core_from": 0.25, "seed": randf() * 9.0, "speed": 4.0})
+			var wheel := quad(Vector2(2.6, 2.6), wm, Vector3.ZERO, fl)
+			wheel.create_tween().set_loops(8).tween_property(wheel, "rotation:z", -TAU * f.facing, 0.12).as_relative()
+			fade_free(wheel, wm, 0.25, 0.55)
+			Stage3D.current.get_tree().create_timer(0.85).timeout.connect(fl.queue_free)
+			for i in 5:
+				decal(feet + Vector3(f.facing * (0.6 + i * 0.7), 0, 0.1), 1.8, Color(1.0, 0.25, 0.05), "scorch", 2.4)
+		"crescent_requiem":   # a vast crescent of moonlight sweeping out to the whip's reach
+			var reach := float(pd.get("reach", 540.0)) / Stage3D.PPM
+			var cm2 := mat(RING_SHADER, {"color": Color(1.0, 0.6, 0.9), "energy": 3.5, "radius": 0.42, "width": 0.06})
+			var cres := quad(Vector2(reach * 2.2, reach * 2.2), cm2, feet + Vector3(0, 1.2, 0.2))
+			cres.rotation.z = -0.6 * f.facing
+			cres.scale = Vector3.ONE * 0.2
+			var ct := cres.create_tween().set_parallel(true)
+			ct.tween_property(cres, "scale", Vector3.ONE, 0.22).set_ease(Tween.EASE_OUT)
+			ct.tween_property(cres, "rotation:z", 0.9 * f.facing, 0.3)
+			fade_free(cres, cm2, 0.35, 0.2)
+			for i in 14:
+				var a := randf() * PI
+				particles(feet + Vector3(cos(a) * reach * 0.9 * f.facing, 1.2 + sin(a) * reach * 0.6, 0.3), Color(1.0, 0.75, 0.95), "sparks", 4, 0.4)
+			decal(feet + Vector3(f.facing * reach * 0.5, 0, 0.1), 4.4, Color(1.0, 0.72, 0.9), "sigil", 2.4)
+			flash(feet + Vector3(f.facing * 1.5, 2.0, 1.0), Color(1.0, 0.7, 0.95), 7.0, 9.0, 0.45)
+		"gale_spiral":   # a spiralling tornado of wind carried with the spear
+			var fl2 := follow(f, Vector3(0, 1.1, 0.3))
+			trail(fl2, col, "sparks", 120, 0.12)
+			for k in 4:
+				var rm := mat(RING_SHADER, {"color": col, "energy": 2.2, "radius": 0.38, "width": 0.07})
+				var rr := quad(Vector2(1.6 - k * 0.2, 1.6 - k * 0.2), rm, Vector3(-f.facing * k * 0.35, 0, 0), fl2)
+				rr.rotation.y = PI / 2.0
+				rr.create_tween().set_loops(10).tween_property(rr, "rotation:x", TAU, 0.18).as_relative()
+				fade_free(rr, rm, 0.25, 0.5)
+			Stage3D.current.get_tree().create_timer(0.75).timeout.connect(fl2.queue_free)
+			particles(feet + Vector3(0, 0.3, 0.2), Color(0.5, 0.42, 0.34), "dust", 40, 1.4)
+			ring(feet + Vector3(0, 0.03, 0.1), 5.0, col, 0.5, true)
+		"mountain_breaker":   # the ground erupts in two waves of rock pillars around Darin
+			for w in 2:
+				var n := 7 + w * 3
+				for i in n:
+					var x := (i - (n - 1) / 2.0) * (0.55 + w * 0.25)
+					var at3 := feet + Vector3(x, 0.0, randf_range(-0.3, 0.6))
+					if w == 0:
+						rock_spike(at3, randf_range(1.0, 1.7), 0.6)
+					else:
+						Stage3D.current.get_tree().create_timer(0.14).timeout.connect(rock_spike.bind(at3, randf_range(1.3, 2.2), 0.55))
+			particles(feet + Vector3(0, 0.3, 0.3), Color(0.5, 0.42, 0.34), "dust", 90, 2.0)
+			decal(feet, 7.0, col, "crack", 3.0)
+			ring(feet + Vector3(0, 0.03, 0.1), 9.0, Color(1.0, 0.8, 0.5), 0.5, true)
+			flash(feet + Vector3(0, 1.0, 1.0), Color(1.0, 0.75, 0.45), 6.0, 10.0, 0.4)
+		"event_horizon":   # a black sphere swallows the space around Mael, then collapses
+			var dm := mat(DOME_SHADER, {"color": Color(0.55, 0.25, 1.0), "energy": 2.5})
+			var sph := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 1.0
+			sm.height = 2.0
+			sph.mesh = sm
+			sph.material_override = dm
+			sph.position = feet + Vector3(0, 1.2, 0.2)
+			sph.scale = Vector3.ONE * 0.1
+			Stage3D.current.world_root.add_child(sph)
+			var st := sph.create_tween()
+			st.tween_property(sph, "scale", Vector3.ONE * 2.6, 0.28).set_ease(Tween.EASE_OUT)
+			st.tween_property(sph, "scale", Vector3.ONE * 0.05, 0.22).set_ease(Tween.EASE_IN)
+			st.tween_callback(sph.queue_free)
+			glow(feet + Vector3(0, 1.2, 0.3), 1.2, Color(0.55, 0.2, 1.0), 2.0, 0.5, 2.5)
+			for i in 18:
+				var a2 := randf() * TAU
+				var rk2 := rock_mesh(randf_range(0.06, 0.14), Color(0.3, 0.25, 0.32))
+				rk2.position = feet + Vector3(cos(a2) * 3.2, 1.2 + sin(a2) * 2.0, 0.2)
+				Stage3D.current.world_root.add_child(rk2)
+				var rt := rk2.create_tween()
+				rt.tween_property(rk2, "position", feet + Vector3(0, 1.2, 0.2), randf_range(0.3, 0.5)).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+				rt.tween_callback(rk2.queue_free)
+			Stage3D.current.get_tree().create_timer(0.5).timeout.connect(flash.bind(feet + Vector3(0, 1.5, 1.0), Color(0.6, 0.3, 1.0), 10.0, 12.0, 0.4))
+			decal(feet, 6.0, col, "crack", 2.6)
+		"thousand_mirrors":   # mist images of Vaska flash in around the target and cut
+			var at4 := world(f.opponent.position) if f.opponent else feet
+			for i in 7:
+				var a3 := TAU * i / 7.0
+				var mm := mat(MIST_SHADER, {"color": Color(0.75, 0.82, 0.95), "alpha": 0.75, "seed": randf() * 9.0})
+				var img := quad(Vector2(1.0, 2.0), mm, at4 + Vector3(cos(a3) * 1.4, 1.0, 0.2 + sin(a3) * 0.4))
+				img.scale = Vector3.ONE * 0.4
+				var it := img.create_tween()
+				it.tween_interval(i * 0.04)
+				it.tween_property(img, "scale", Vector3.ONE, 0.08)
+				fade_free(img, mm, 0.35, 0.12 + i * 0.04)
+				var cut := at4 + Vector3(0, 1.0, 0.3)
+				var dir := Vector3(cos(a3 + 0.4), sin(a3 + 0.4), 0.0) * 1.2
+				Stage3D.current.get_tree().create_timer(0.06 + i * 0.05).timeout.connect(bolt.bind(cut - dir, cut + dir, Color(0.85, 0.92, 1.0), 0.15, 0.05, 0))
+			particles(at4 + Vector3(0, 1.0, 0.3), Color(0.8, 0.85, 0.95), "sparks", 50, 1.3)
+		"venom_garden":   # a thicket of venom thorns bursts out along the whip
+			var reach2 := float(pd.get("reach", 520.0)) / Stage3D.PPM
+			for i in 9:
+				var at5 := feet + Vector3(f.facing * (0.5 + i * reach2 / 9.0), 0.0, randf_range(-0.2, 0.5))
+				Stage3D.current.get_tree().create_timer(i * 0.03).timeout.connect(_thorn.bind(at5, randf_range(0.8, 1.6)))
+			decal(feet + Vector3(f.facing * reach2 * 0.55, 0, 0.1), reach2 * 1.2, Color(0.35, 1.0, 0.3), "pool", 3.0)
+			particles(feet + Vector3(f.facing * reach2 * 0.6, 0.5, 0.3), Color(0.4, 1.0, 0.35), "sparks", 60, 1.2)
 
 
 # ------------------------------------------------------------------------- hits

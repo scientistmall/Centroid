@@ -94,6 +94,8 @@ func show_power(f: Fighter, power_name: String, index: int) -> void:
 	var i := 0 if f == left else 1
 	var art: Texture2D = null
 	var path := "res://assets/cutins/cutin_%s_%d.webp" % [f.char_id, index]
+	if index == 3 and not ResourceLoader.exists(path):
+		path = "res://assets/cutins/cutin_%s_%d.webp" % [f.char_id, 2]
 	if index > 0 and ResourceLoader.exists(path):
 		art = load(path)
 	_pow[i] = {"name": power_name.to_upper(), "art": art, "col": f.color, "t": 0.0}
