@@ -19,6 +19,7 @@ const PAPER := Color("07080c")
 const INK := Color("050507")
 const ASPECT := {"wide": 1.75, "action": 1.75, "square": 1.0, "tall": 0.68, "strip": 3.0, "splash": 2.25}
 const SCREEN_FONT := 34.0         # dialogue size on screen when a panel is in focus (px)
+const RAIL := 190.0               # the button rail on the right edge (pages never go under it)
 
 const FLASHBACK_SHADER := """
 shader_type canvas_item;
@@ -111,7 +112,7 @@ func _build_ui() -> void:
 	_hint.add_theme_font_size_override("font_size", 34)
 	_hint.set_anchor(SIDE_LEFT, 1.0, true)
 	_hint.set_anchor(SIDE_TOP, 1.0, true)
-	_hint.position = Vector2(-70, -70)
+	_hint.position = Vector2(-70 - RAIL, -70)
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hint)
 
@@ -132,28 +133,33 @@ func _build_ui() -> void:
 	_card_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(_card_lines)
 
-	var bar := HBoxContainer.new()
-	bar.set_anchor(SIDE_LEFT, 1.0, true)
-	bar.set_anchor(SIDE_RIGHT, 1.0, true)
-	bar.offset_left = -740
-	bar.offset_right = -24
-	bar.offset_top = 22
-	bar.offset_bottom = 92
-	bar.alignment = BoxContainer.ALIGNMENT_END
-	bar.add_theme_constant_override("separation", 12)
-	add_child(bar)
+	# the button rail: a strip down the right edge, like the margin of a manga reader
+	var rail := _Rail.new()
+	rail.set_anchor(SIDE_LEFT, 1.0, true)
+	rail.set_anchor(SIDE_RIGHT, 1.0, true)
+	rail.set_anchor(SIDE_BOTTOM, 1.0, true)
+	rail.offset_left = -RAIL
+	rail.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(rail)
+	var bar := VBoxContainer.new()
+	bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bar.offset_left = 22
+	bar.offset_right = -26
+	bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	bar.add_theme_constant_override("separation", 26)
+	rail.add_child(bar)
 	_auto_btn = _small_button("AUTO", func(): _auto = not _auto; _auto_btn.modulate = Color(1, 0.85, 0.4) if _auto else Color.WHITE)
 	bar.add_child(_auto_btn)
 	bar.add_child(_small_button("LOG", _open_log))
-	bar.add_child(_small_button("SKIP ▶▶", _skip))
+	bar.add_child(_small_button("SKIP", _skip))
 	bar.add_child(_small_button("MENU", _open_menu))
 
 
 func _small_button(text: String, cb: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(150, 70)
-	b.add_theme_font_size_override("font_size", 28)
+	b.custom_minimum_size = Vector2(136, 84)
+	b.add_theme_font_size_override("font_size", 40)
 	b.focus_mode = Control.FOCUS_NONE
 	b.pressed.connect(cb)
 	return b
@@ -162,7 +168,7 @@ func _small_button(text: String, cb: Callable) -> Button:
 func _new_page() -> void:
 	_page = Control.new()
 	_page.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_page.size = size if size != Vector2.ZERO else Vector2(2400, 1080)
+	_page.size = (size if size != Vector2.ZERO else Vector2(2400, 1080)) - Vector2(RAIL, 0)
 	_cam.add_child(_page)
 	_fb_overlay = ColorRect.new()
 	_fb_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -441,7 +447,7 @@ func _reveal(s: Dictionary) -> void:
 
 ## Move the camera so `r` (page coordinates) fills the screen. Returns the zoom.
 func _focus(r: Rect2, time: float) -> float:
-	var vs := size
+	var vs := size - Vector2(RAIL, 0)
 	var z := clampf(minf(vs.x * 0.92 / r.size.x, vs.y * 0.86 / r.size.y), 1.0, 1.9)
 	var pos := vs / 2.0 - (r.position + r.size / 2.0) * z
 	pos.x = clampf(pos.x, vs.x - _page.size.x * z, 0.0)
@@ -564,15 +570,12 @@ func _open_log() -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 30)
 	col_box.add_child(head)
-	var back := _small_button("◀  BACK TO STORY", _close_log)
-	back.custom_minimum_size = Vector2(340, 80)
+	var back := _small_button("BACK TO STORY", _close_log)
+	back.theme_type_variation = "PrimaryButton"
+	back.custom_minimum_size = Vector2(380, 88)
 	head.add_child(back)
-	var ttl := Label.new()
-	ttl.text = "STORY LOG"
-	ttl.add_theme_font_override("font", UiStyle.title_font())
-	ttl.add_theme_font_size_override("font_size", 40)
-	ttl.add_theme_color_override("font_color", Color(1, 0.86, 0.6))
-	ttl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var ttl := InkHeading.make("STORY LOG", 72)
+	ttl.custom_minimum_size.x = 520
 	head.add_child(ttl)
 	var sc := ScrollContainer.new()
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -611,27 +614,20 @@ func _open_menu() -> void:
 	_menu_view = Control.new()
 	_menu_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_menu_view.mouse_filter = Control.MOUSE_FILTER_STOP
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.78)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_menu_view.add_child(dim)
+	_menu_view.add_child(InkBackdrop.new())
 	var vb := VBoxContainer.new()
 	vb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vb.alignment = BoxContainer.ALIGNMENT_CENTER
 	vb.add_theme_constant_override("separation", 24)
 	_menu_view.add_child(vb)
-	var t := Label.new()
-	t.text = "PAUSED"
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	t.add_theme_font_override("font", UiStyle.title_font())
-	t.add_theme_font_size_override("font_size", 72)
-	t.add_theme_color_override("font_color", Color(1, 0.86, 0.6))
-	vb.add_child(t)
+	vb.add_child(InkHeading.make("PAUSED", 140))
 	for a in [["Resume", _close_menu], ["Story Log", func(): _close_menu(); _open_log()],
 			["Chapters", func(): SceneRouter.go({"type": "chapters"})], ["Main Menu", func(): SceneRouter.go({"type": "menu"})]]:
 		var b := _small_button(a[0], a[1])
-		b.custom_minimum_size = Vector2(440, 92)
-		b.add_theme_font_size_override("font_size", 36)
+		b.custom_minimum_size = Vector2(480, 92)
+		b.add_theme_font_size_override("font_size", 50)
+		if a[0] == "Resume":
+			b.theme_type_variation = "PrimaryButton"
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		vb.add_child(b)
 	add_child(_menu_view)
@@ -1012,3 +1008,14 @@ class Bubble extends Control:
 		draw_colored_polygon(PackedVector2Array([base + side, tip, base - side]), fill)
 		draw_line(base + side, tip, edge, maxf(3.0, _fs * 0.11), true)
 		draw_line(base - side, tip, edge, maxf(3.0, _fs * 0.11), true)
+
+
+## The button rail's background: night-page ink with a white panel edge and screentone.
+class _Rail extends Control:
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Ink.NIGHT_LOW)
+		var pts := PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y)])
+		for d in Ink.tone_dots(pts, Rect2(Vector2.ZERO, size), Color.WHITE, 10.0, 2.2, Vector2(0, 1)):
+			draw_circle(d[0], d[1], Color(1, 1, 1, 0.06))
+		draw_line(Vector2(3, 0), Vector2(3, size.y), Ink.INK, 6.0)
+		draw_line(Vector2(9, 0), Vector2(9, size.y), Color(1, 1, 1, 0.85), 2.0)

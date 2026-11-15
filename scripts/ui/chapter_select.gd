@@ -21,20 +21,13 @@ func _ready() -> void:
 	_map.cs = self
 	add_child(_map)
 	_map.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	# portraits in the detail panel
-	for i in 2:
-		var p := Portrait.new()
-		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		p.clip_contents = true
-		add_child(p)
-		_portraits.append(p)
 	_play = Button.new()
 	_play.theme_type_variation = "PrimaryButton"
 	_play.add_theme_font_size_override("font_size", 64)
 	_play.pressed.connect(func(): SceneRouter.go(StoryManager.CHAPTERS[selected]["start"]))
 	add_child(_play)
 	var back := Button.new()
-	back.text = "◀  BACK"
+	back.text = "BACK"
 	back.position = Vector2(30, 24)
 	back.custom_minimum_size = Vector2(250, 92)
 	back.pressed.connect(func(): SceneRouter.go({"type": "menu"}))
@@ -65,28 +58,18 @@ func _select(i: int) -> void:
 	var ch: Dictionary = StoryManager.CHAPTERS[i]
 	var unlocked := StoryManager.is_chapter_unlocked(i)
 	var done := StoryManager.is_chapter_done(i)
-	var f: Array = ch.get("fighters", [])
-	for k in 2:
-		var p: Portrait = _portraits[k]
-		p.set_character(f[k] if k < f.size() else "", k == 1)
-		p.set_expression("determined" if k == 0 else "angry")
-		p.modulate = Color.WHITE if unlocked else Color(0.25, 0.25, 0.3)
 	_play.text = "LOCKED" if not unlocked else ("REPLAY" if done else "PLAY")
 	_play.disabled = not unlocked
 	_relayout_detail()
 
 
 func _relayout_detail() -> void:
-	if _portraits.size() < 2 or _play == null:
+	if _play == null:
 		return
 	var w := size.x
 	var h := size.y
 	var px := w * 0.64
 	var pw := w * 0.33
-	for k in 2:
-		var p: Portrait = _portraits[k]
-		p.size = Vector2(pw * 0.5, h * 0.36)
-		p.position = Vector2(px + k * pw * 0.5, h * 0.35)
 	_play.position = Vector2(px + pw * 0.15, h * 0.80)
 	_play.size = Vector2(pw * 0.7, 110)
 
@@ -120,6 +103,9 @@ class _Map extends Control:
 		if cs._nodes.is_empty():
 			cs._layout_nodes()
 		draw_rect(Rect2(0, 0, w, h), Color(0.01, 0.015, 0.03, 0.86))
+		# manga focus lines radiating from the selected chapter
+		if cs.selected < cs._nodes.size():
+			Ink.speed_lines(self, cs._nodes[cs.selected], 120.0, w * 1.2, 70, Color(1, 1, 1, 0.045), 5)
 		# faint contour lines (map feel)
 		for k in 9:
 			var pts := PackedVector2Array()
@@ -141,8 +127,8 @@ class _Map extends Control:
 			var col := Metal.GOLD if done and StoryManager.is_chapter_done(i) else (Metal.CYAN if open else Color(0.35, 0.35, 0.42))
 			if open and not StoryManager.is_chapter_done(i):
 				col = col.lerp(Color.WHITE, 0.25 + 0.25 * sin(cs._t * 4.0))
-			draw_line(nodes[i - 1], nodes[i], Color(col, 0.25), 22.0)
-			draw_line(nodes[i - 1], nodes[i], col, 6.0)
+			draw_line(nodes[i - 1], nodes[i], Ink.INK, 16.0)
+			draw_line(nodes[i - 1], nodes[i], col, 7.0)
 		# nodes
 		for i in nodes.size():
 			var ch: Dictionary = StoryManager.CHAPTERS[i]
@@ -169,6 +155,27 @@ class _Map extends Control:
 		Metal.shout(self, Vector2(px + 10, h * 0.25), String(sel_ch.get("short", "")) + "  ·  " + String(sel_ch.get("day_label", "")), 52, Metal.GOLD, Metal.GOLD, false)
 		var tf := UiStyle.bold_font()
 		draw_string(tf, Vector2(px + 12, h * 0.31), String(sel_ch.get("place", "")), HORIZONTAL_ALIGNMENT_LEFT, pw, 38, Color(0.85, 0.9, 1.0))
-		Metal.shout(self, Vector2(px + pw / 2, h * 0.60), "VS", 90, Metal.GOLD, Metal.GOLD)
+		# the matchup: each fighter's splash art in a manga panel, a red VS burst between
+		var f: Array = sel_ch.get("fighters", [])
+		var unlocked_sel := StoryManager.is_chapter_unlocked(cs.selected)
+		var tint := Color.WHITE if unlocked_sel else Color(0.22, 0.22, 0.28)
+		for k in 2:
+			var ar := Rect2(px + 4 + k * (pw * 0.5 + 6), h * 0.35, pw * 0.5 - 10, h * 0.37)
+			draw_rect(Rect2(ar.position + Vector2(7, 7), ar.size), Color(0, 0, 0, 0.85))
+			draw_rect(ar, Ink.NIGHT_LOW)
+			if k < f.size():
+				MangaBriefing.draw_cover(self, MangaBriefing.art_for(String(f[k]), 1), ar, Vector2(0.5, 0.3), tint)
+			draw_rect(ar, Ink.INK, false, 6.0)
+			draw_rect(ar.grow(-6), Color(1, 1, 1, 0.8), false, 2.0)
+		var vc := Vector2(px + pw / 2 + 2, h * 0.53)
+		var burst := PackedVector2Array()
+		for k in 28:
+			var a := TAU * k / 28.0
+			var rr := 70.0 if k % 2 == 0 else 50.0
+			burst.append(vc + Vector2(cos(a), sin(a)) * rr)
+		draw_colored_polygon(burst, Ink.RED)
+		burst.append(burst[0])
+		draw_polyline(burst, Ink.INK, 5.0, true)
+		Metal.shout(self, vc + Vector2(0, 26), "VS", 74, Color.WHITE, Ink.INK)
 		var status := "COMPLETED" if StoryManager.is_chapter_done(cs.selected) else ("NEW" if StoryManager.is_chapter_unlocked(cs.selected) else "LOCKED")
 		Metal.shout(self, Vector2(px + pw / 2, h * 0.775), status, 46, Metal.GOLD if status == "COMPLETED" else (Metal.CYAN if status == "NEW" else Color(0.6, 0.6, 0.65)), Metal.CYAN)

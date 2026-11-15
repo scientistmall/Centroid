@@ -29,12 +29,14 @@ func _ready() -> void:
 		add_child(half)
 		half.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		half.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var p := Portrait.new()
-		half.add_child(p)
-		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		p.set_character(half.char_id, i == 1)
-		p.set_expression("angry" if i == 1 else "determined")
-		half.portrait = p
+		half.art = MangaBriefing.art_for(half.char_id, 1)
+		if half.art == null:   # no splash art yet: the drawn portrait
+			var p := Portrait.new()
+			half.add_child(p)
+			p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			p.set_character(half.char_id, i == 1)
+			p.set_expression("angry" if i == 1 else "determined")
+			half.portrait = p
 		_halves.append(half)
 	var top := _Overlay.new()
 	top.vs = self
@@ -88,6 +90,7 @@ class _Half extends Control:
 	var right := false
 	var char_id := ""
 	var portrait: Portrait
+	var art: Texture2D
 
 	func _poly() -> PackedVector2Array:
 		var w := size.x
@@ -115,6 +118,27 @@ class _Half extends Control:
 		for v in poly:
 			cols.append(col.darkened(0.55).lerp(Color("05060a"), clampf(v.y / maxf(1.0, size.y), 0.0, 1.0) * 0.8))
 		draw_polygon(poly, cols)
+		if art:
+			# the fighter's splash art fills the half (cropped around their face, never stretched)
+			var x0 := poly[0].x if not right else poly[3].x
+			var x1 := poly[1].x if not right else poly[1].x
+			var rw := x1 - x0
+			var aw := float(art.get_width())
+			var ah := float(art.get_height())
+			var crop := Vector2(ah * rw / size.y, ah)
+			if crop.x > aw:
+				crop = Vector2(aw, aw * size.y / rw)
+			var fx: float = MangaBriefing.FACE.get(char_id, Vector2(0.5, 0.3)).x * aw
+			var cx := clampf(fx - crop.x * 0.5, 0.0, aw - crop.x)
+			var uvs := PackedVector2Array()
+			for v in poly:
+				uvs.append(Vector2((cx + (v.x - x0) / rw * crop.x) / aw, (v.y / size.y * crop.y) / ah))
+			draw_colored_polygon(poly, Color.WHITE, uvs, art)
+			# darken toward the bottom so the name reads
+			var shade := PackedColorArray()
+			for v in poly:
+				shade.append(Color(0, 0, 0, clampf((v.y / size.y - 0.45) * 1.4, 0.0, 0.75)))
+			draw_polygon(poly, shade)
 		# speed streaks
 		var rng := RandomNumberGenerator.new()
 		rng.seed = 3 if right else 7
@@ -132,9 +156,10 @@ class _Overlay extends Control:
 		var w := size.x
 		var h := size.y
 		var k := vs.slide(0.0)
-		# bright seam along the diagonal
-		draw_line(Vector2(w * 0.56, 0), Vector2(w * 0.44, h), Color(1, 1, 1, 0.8 * k), 6.0)
-		draw_line(Vector2(w * 0.56, 0), Vector2(w * 0.44, h), Color(Metal.GOLD, 0.5 * k), 18.0)
+		# the gutter between the two manga panels: ink, a white edge either side
+		draw_line(Vector2(w * 0.56, 0), Vector2(w * 0.44, h), Color(Ink.INK, k), 26.0)
+		draw_line(Vector2(w * 0.56 - 16, 0), Vector2(w * 0.44 - 16, h), Color(1, 1, 1, 0.9 * k), 4.0)
+		draw_line(Vector2(w * 0.56 + 16, 0), Vector2(w * 0.44 + 16, h), Color(1, 1, 1, 0.9 * k), 4.0)
 		for i in 2:
 			var id := vs.left_id if i == 0 else vs.right_id
 			var info := StoryParser.character(id)
@@ -145,8 +170,7 @@ class _Overlay extends Control:
 			var f := Metal.display_bold()
 			var nw := f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 150).x
 			var nx := x if i == 0 else x - nw
-			draw_string_outline(f, Vector2(nx, h * 0.80), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 150, 18, Color(0, 0, 0, 0.9))
-			draw_string(f, Vector2(nx, h * 0.80), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 150, Color.WHITE)
+			Ink.shout(self, Vector2(nx, h * 0.80), nm, 150, Color.WHITE, col, false, 0.0)
 			var tt := String(info.get("title", "")).to_upper()
 			var tf := Metal.display_font()
 			var tw := tf.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, 54).x
@@ -158,8 +182,19 @@ class _Overlay extends Control:
 			var sc := lerpf(3.0, 1.0, ease(vk, 0.3))
 			var c := Vector2(w * 0.5, h * 0.45)
 			draw_set_transform(c, 0.0, Vector2(sc, sc))
-			Metal.panel(self, Rect2(-120, -95, 240, 190), Metal.GOLD, 34.0, Color("4a5468"), Color("0e1118"), 0.9, [true, true, true, true])
-			Metal.shout(self, Vector2(0, 62), "VS", 170, Metal.GOLD, Metal.GOLD)
+			var burst := PackedVector2Array()
+			for b in 32:
+				var a := TAU * b / 32.0
+				var rr := 150.0 if b % 2 == 0 else 104.0
+				burst.append(Vector2(cos(a) * rr * 1.1, sin(a) * rr * 0.92))
+			var bsh := PackedVector2Array()
+			for v in burst:
+				bsh.append(v + Vector2(10, 10))
+			draw_colored_polygon(bsh, Color(0, 0, 0, 0.85))
+			draw_colored_polygon(burst, Ink.RED)
+			burst.append(burst[0])
+			draw_polyline(burst, Ink.INK, 8.0, true)
+			Metal.shout(self, Vector2(0, 58), "VS", 170, Color.WHITE, Ink.INK)
 			draw_set_transform(Vector2.ZERO)
 			if vk < 1.0:
 				draw_rect(Rect2(0, 0, w, h), Color(1, 1, 1, (1.0 - vk) * 0.4))
@@ -167,5 +202,8 @@ class _Overlay extends Control:
 		var pk := vs.slide(0.7)
 		if pk > 0.0 and vs.place != "":
 			var sy := h - 110 * pk
-			Metal.panel(self, Rect2(w * 0.22, sy, w * 0.56, 84), Metal.CYAN, 18.0, Color("2a303c"), Color("0b0d12"), 0.5, [true, true, true, true])
-			Metal.shout(self, Vector2(w / 2, sy + 70), vs.place.to_upper(), 58, Color.WHITE, Metal.CYAN)
+			Ink.panel(self, Rect2(w * 0.22, sy, w * 0.56, 84), Ink.PAPER, Ink.RED, 20.0, 8.0, true, Color(0, 0, 0, 0))
+			var pf := Ink.letter_font()
+			var pt := vs.place.to_upper()
+			var pw := pf.get_string_size(pt, HORIZONTAL_ALIGNMENT_LEFT, -1, 56).x
+			draw_string(pf, Vector2(w / 2 - pw / 2, sy + 64), pt, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, Ink.INK)

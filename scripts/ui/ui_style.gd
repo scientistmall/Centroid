@@ -80,44 +80,97 @@ static func metal_box(trim: Color, top := Color("3b4352"), bottom := Color("1013
 	return b
 
 
+static func ink_box(fill: Color, accent := Color(0, 0, 0, 0), slant := 14.0, pressed := false, tone := true,
+		frame := Color(0, 0, 0, 0)) -> StyleBoxInk:
+	var b := StyleBoxInk.new()
+	b.fill = fill
+	b.accent = accent
+	b.slant = slant
+	b.pressed = pressed
+	b.tone = tone
+	b.frame = frame
+	b.content_margin_left = 40
+	b.content_margin_right = 40
+	b.content_margin_top = 8
+	b.content_margin_bottom = 8
+	return b
+
+
+## The game-wide theme: manga panels and lettering to match the story pages (see Ink).
 static func theme() -> Theme:
 	if _theme:
 		return _theme
 	var t := Theme.new()
-	t.default_font = ui_font()
-	t.default_font_size = 36
-	var teko: Font = load("res://assets/fonts/Teko-SemiBold.woff2")
-	# heavy-metal buttons
-	t.set_stylebox("normal", "Button", metal_box(Color("6fe3ff", 0.7)))
-	t.set_stylebox("hover", "Button", metal_box(Color("aef1ff"), Color("4a5468"), Color("161b26"), 0.8))
-	t.set_stylebox("pressed", "Button", metal_box(Color("f5c84c"), Color("2a3140"), Color("0b0d12"), 0.9, 2.0))
-	t.set_stylebox("disabled", "Button", metal_box(Color(1, 1, 1, 0.15), Color("1e222b"), Color("0c0e12"), 0.0))
+	t.default_font = Ink.label_font()
+	t.default_font_size = 32
+	var letter := Ink.letter_font()
+	# buttons: paper panels with an ink outline that sink into their shadow when pressed
+	t.set_stylebox("normal", "Button", ink_box(Ink.PAPER))
+	t.set_stylebox("hover", "Button", ink_box(Color("fff4c8"), Ink.RED))
+	t.set_stylebox("pressed", "Button", ink_box(Ink.RED, Color(0, 0, 0, 0), 14.0, true))
+	t.set_stylebox("hover_pressed", "Button", ink_box(Ink.RED, Color(0, 0, 0, 0), 14.0, true))
+	t.set_stylebox("disabled", "Button", ink_box(Color("8a857a"), Color(0, 0, 0, 0), 14.0, false, false))
 	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
-	t.set_color("font_color", "Button", Color("eaf6ff"))
-	t.set_color("font_hover_color", "Button", Color.WHITE)
-	t.set_color("font_pressed_color", "Button", Color("ffe08a"))
-	t.set_color("font_disabled_color", "Button", Color(1, 1, 1, 0.3))
-	t.set_font("font", "Button", teko)
-	t.set_font_size("font_size", "Button", 48)
-	# gold primary buttons: theme_type_variation = "PrimaryButton"
+	t.set_color("font_color", "Button", Ink.INK)
+	t.set_color("font_hover_color", "Button", Ink.INK)
+	t.set_color("font_focus_color", "Button", Ink.INK)
+	t.set_color("font_pressed_color", "Button", Color.WHITE)
+	t.set_color("font_hover_pressed_color", "Button", Color.WHITE)
+	t.set_color("font_disabled_color", "Button", Color(0.2, 0.2, 0.2, 0.6))
+	t.set_font("font", "Button", letter)
+	t.set_font_size("font_size", "Button", 50)
+	# primary action: manga red with white lettering
 	t.set_type_variation("PrimaryButton", "Button")
-	t.set_stylebox("normal", "PrimaryButton", metal_box(Color("fff0b0"), Color("ffe08a"), Color("b07a22"), 0.6))
-	t.set_stylebox("hover", "PrimaryButton", metal_box(Color.WHITE, Color("fff0b0"), Color("c88e2c"), 0.9))
-	t.set_stylebox("pressed", "PrimaryButton", metal_box(Color("fff0b0"), Color("d9a640"), Color("8a5a14"), 0.9, 2.0))
-	t.set_color("font_color", "PrimaryButton", Color("1a1206"))
-	t.set_color("font_hover_color", "PrimaryButton", Color("000000"))
-	t.set_color("font_pressed_color", "PrimaryButton", Color("1a1206"))
-	t.set_color("font_color", "Label", TEXT)
-	var pbox := metal_box(Color("6fe3ff", 0.5), Color("262c38"), Color("0b0d12"), 0.4)
-	pbox.cut = 26.0
-	pbox.content_margin_left = 48
-	pbox.content_margin_right = 48
-	pbox.content_margin_top = 34
-	pbox.content_margin_bottom = 34
+	t.set_stylebox("normal", "PrimaryButton", ink_box(Ink.RED, Ink.GOLD))
+	t.set_stylebox("hover", "PrimaryButton", ink_box(Color("ff4d55"), Ink.GOLD))
+	t.set_stylebox("pressed", "PrimaryButton", ink_box(Color("a8202a"), Color(0, 0, 0, 0), 14.0, true))
+	t.set_color("font_color", "PrimaryButton", Color.WHITE)
+	t.set_color("font_hover_color", "PrimaryButton", Color.WHITE)
+	t.set_color("font_pressed_color", "PrimaryButton", Color("ffe7a8"))
+	t.set_color("font_outline_color", "PrimaryButton", Ink.INK)
+	t.set_constant("outline_size", "PrimaryButton", 8)
+	t.set_color("font_color", "Label", Color("f3eee2"))
+	t.set_color("font_outline_color", "Label", Ink.INK)
+	# panels: a night-page manga panel with a white inner frame
+	var pbox := ink_box(Color(Ink.NIGHT, 0.97), Color(0, 0, 0, 0), 0.0, false, true, Color(1, 1, 1, 0.9))
+	pbox.shadow = 12.0
+	pbox.outline = 6.0
+	pbox.content_margin_left = 54
+	pbox.content_margin_right = 54
+	pbox.content_margin_top = 38
+	pbox.content_margin_bottom = 38
 	t.set_stylebox("panel", "PanelContainer", pbox)
-	# sliders
-	t.set_stylebox("slider", "HSlider", box(Color(1, 1, 1, 0.12), Color(0, 0, 0, 0), 0, 2))
-	t.set_stylebox("grabber_area", "HSlider", box(Color("6fe3ff", 0.75), Color(0, 0, 0, 0), 0, 2))
-	t.set_stylebox("grabber_area_highlight", "HSlider", box(Color("aef1ff"), Color(0, 0, 0, 0), 0, 2))
+	# sliders: a paper track with an ink border, filled in red
+	var track := box(Ink.PAPER_SHADE, Ink.INK, 4, 0)
+	track.content_margin_top = 14
+	track.content_margin_bottom = 14
+	t.set_stylebox("slider", "HSlider", track)
+	var ga := box(Ink.RED, Ink.INK, 4, 0)
+	ga.content_margin_top = 14
+	ga.content_margin_bottom = 14
+	var gh := box(Color("ff4d55"), Ink.INK, 4, 0)
+	gh.content_margin_top = 14
+	gh.content_margin_bottom = 14
+	t.set_stylebox("grabber_area", "HSlider", ga)
+	t.set_stylebox("grabber_area_highlight", "HSlider", gh)
+	t.set_icon("grabber", "HSlider", _grabber(false))
+	t.set_icon("grabber_highlight", "HSlider", _grabber(true))
+	# scrollbars (story log)
+	t.set_stylebox("scroll", "VScrollBar", box(Color(1, 1, 1, 0.06), Color(0, 0, 0, 0), 0, 0))
+	t.set_stylebox("grabber", "VScrollBar", box(Color(Ink.PAPER, 0.5), Ink.INK, 2, 0))
+	t.set_stylebox("grabber_highlight", "VScrollBar", box(Ink.PAPER, Ink.INK, 2, 0))
 	_theme = t
 	return t
+
+
+## Slider knob: a paper diamond with an ink outline (hover: red).
+static func _grabber(hot: bool) -> Texture2D:
+	var n := 44
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var c := (n - 1) / 2.0
+	for y in n:
+		for x in n:
+			var d := absf(x - c) + absf(y - c)
+			if d <= c - 1.0:
+				img.set_pixel(x, y, Ink.INK if d > c - 6.0 else (Ink.RED if hot else Ink.PAPER))
+	return ImageTexture.create_from_image(img)

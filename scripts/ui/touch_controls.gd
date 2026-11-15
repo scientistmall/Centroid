@@ -182,7 +182,12 @@ func _draw() -> void:
 		draw_arc(r[0], 30 + 70 * k2, 0, TAU, 40, Color(r[2], (1.0 - k2) * 0.8 * op), 4.0)
 	if _hint > 0.0:
 		var a := clampf(_hint, 0.0, 1.0) * op
-		var f2 := UiStyle.bold_font()
+		# a manga caption box: ink black with a white frame
+		var f2 := Ink.label_font()
 		var txt := "SWIPE to move  ·  TAP their side to attack  ·  HOLD your side to block  ·  HOLD their side for POWER"
-		draw_string_outline(f2, Vector2(0, size.y - 46), txt, HORIZONTAL_ALIGNMENT_CENTER, size.x, 30, 8, Color(0, 0, 0, 0.7 * a))
-		draw_string(f2, Vector2(0, size.y - 46), txt, HORIZONTAL_ALIGNMENT_CENTER, size.x, 30, Color(1, 1, 1, 0.9 * a))
+		var tw := f2.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
+		var box := Rect2(size.x / 2 - tw / 2 - 28, size.y - 92, tw + 56, 58)
+		draw_rect(Rect2(box.position + Vector2(6, 6), box.size), Color(0, 0, 0, 0.6 * a))
+		draw_rect(box, Color(Ink.INK, 0.92 * a))
+		draw_rect(box.grow(-5), Color(1, 1, 1, 0.85 * a), false, 2.0)
+		draw_string(f2, Vector2(box.position.x, box.position.y + 39), txt, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, 26, Color(1, 1, 1, a))

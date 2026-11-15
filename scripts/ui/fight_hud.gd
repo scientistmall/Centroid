@@ -73,6 +73,28 @@ func _set_portrait(i: int, f: Fighter) -> void:
 		return
 	_portraits[i].set_character(f.char_id, i == 1)
 	_portraits[i].set_expression("determined")
+	# the fighter's face from their approved splash art (the drawn portrait is the fallback)
+	var fr: Control = _frames[i]
+	for c in fr.get_children():
+		if c is _Face:
+			c.queue_free()
+	var reg := MangaBriefing.face_region(f.char_id)
+	_portraits[i].visible = reg.size == Vector2.ZERO
+	if reg.size != Vector2.ZERO:
+		var fa := _Face.new()
+		fa.tex = MangaBriefing.art_for(f.char_id, 1)
+		fa.region = reg
+		fa.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		fa.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		fr.add_child(fa)
+
+
+class _Face extends Control:
+	var tex: Texture2D
+	var region: Rect2
+
+	func _draw() -> void:
+		draw_texture_rect_region(tex, Rect2(Vector2.ZERO, size), region)
 
 
 # ---------------------------------------------------------------- API used by the arena
@@ -153,11 +175,19 @@ func _draw_side(i: int, f: Fighter, w: float) -> void:
 	var fx := 26.0 if i == 0 else w - 26.0 - FRAME
 	# portrait frame (the Portrait child draws inside; we draw the frame over it after)
 	var fr := Rect2(fx, 16, FRAME, FRAME)
-	draw_rect(fr.grow(-6), Color(0.02, 0.02, 0.05))
 	var cuts := [true, false, true, false] if i == 0 else [false, true, false, true]
 	var frame_pts := Metal.chamfer(fr, 22.0, cuts)
+	var shadow := PackedVector2Array()
+	for v in frame_pts:
+		shadow.append(v + Vector2(7, 7))
+	draw_colored_polygon(shadow, Color(0, 0, 0, 0.85))
+	draw_colored_polygon(frame_pts, Ink.PAPER)
+	draw_rect(fr.grow(-6), Color(0.02, 0.02, 0.05))
 	frame_pts.append(frame_pts[0])
-	draw_polyline(frame_pts, f.color.lightened(0.2), 5.0)
+	draw_polyline(frame_pts, Ink.INK, 8.0, true)
+	var inner := Metal.chamfer(fr.grow(-7.0), 17.0, cuts)
+	inner.append(inner[0])
+	draw_polyline(inner, f.color.lightened(0.2), 3.0, true)
 	# name plate
 	var bar_x0 := fx + FRAME + 14 if i == 0 else w * 0.565
 	var bar_x1 := w * 0.435 if i == 0 else fx - 14
@@ -167,7 +197,8 @@ func _draw_side(i: int, f: Fighter, w: float) -> void:
 	var nm := f.display_name
 	var nw := nf.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 46).x
 	var nx := bar_x0 + 6 if i == 0 else bar_x1 - nw - 6
-	draw_string_outline(nf, Vector2(nx, name_y + 18), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, 8, Color(0, 0, 0, 0.9))
+	draw_string_outline(nf, Vector2(nx, name_y + 18) + Vector2(3, 3), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, 10, Color(0, 0, 0, 0.9))
+	draw_string_outline(nf, Vector2(nx, name_y + 18), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, 10, Ink.INK)
 	draw_string(nf, Vector2(nx, name_y + 18), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, Color.WHITE)
 	# health bar
 	var r := f.hp / f.max_hp
@@ -197,7 +228,7 @@ func _draw_side(i: int, f: Fighter, w: float) -> void:
 		var d := PackedVector2Array([c + Vector2(0, -12), c + Vector2(12, 0), c + Vector2(0, 12), c + Vector2(-12, 0)])
 		draw_colored_polygon(d, Metal.GOLD if lit else Color(0.15, 0.16, 0.2))
 		d.append(d[0])
-		draw_polyline(d, Color(1, 1, 1, 0.5), 2.0)
+		draw_polyline(d, Ink.INK, 4.0, true)
 
 
 func _draw_power(i: int, bar_x0: float, bar_x1: float, dir: int) -> void:
@@ -252,11 +283,29 @@ func _draw_power(i: int, bar_x0: float, bar_x1: float, dir: int) -> void:
 
 
 func _draw_timer(w: float) -> void:
-	var r := Rect2(w / 2 - 70, 14, 140, 112)
-	Metal.panel(self, r, Metal.GOLD, 20.0, Color("3b4352"), Color("10131a"), 0.5, [true, true, true, true])
+	# a manga burst balloon: paper star with an ink outline, the count in comic numerals
+	var c := Vector2(w / 2, 72)
+	var pts := PackedVector2Array()
+	var n := 18
+	for k in n * 2:
+		var a := TAU * k / (n * 2) - PI / 2
+		var rr := 76.0 if k % 2 == 0 else 58.0
+		pts.append(c + Vector2(cos(a) * rr * 1.08, sin(a) * rr * 0.8))
+	var sh := PackedVector2Array()
+	for v in pts:
+		sh.append(v + Vector2(6, 6))
+	draw_colored_polygon(sh, Color(0, 0, 0, 0.85))
+	var low := time_left < 10.0
+	draw_colored_polygon(pts, Ink.RED if low else Ink.PAPER)
+	pts.append(pts[0])
+	draw_polyline(pts, Ink.INK, 5.0, true)
 	var ts := str(int(ceil(maxf(0.0, time_left))))
-	var col := Color("ff5a4a") if time_left < 10.0 else Color.WHITE
-	Metal.shout(self, Vector2(w / 2, 104), ts, 86, col, Metal.GOLD)
+	var lf := Ink.letter_font()
+	var tw := lf.get_string_size(ts, HORIZONTAL_ALIGNMENT_LEFT, -1, 76).x
+	var tp := Vector2(w / 2 - tw / 2, 100)
+	if low:
+		draw_string_outline(lf, tp, ts, HORIZONTAL_ALIGNMENT_LEFT, -1, 76, 10, Ink.INK)
+	draw_string(lf, tp, ts, HORIZONTAL_ALIGNMENT_LEFT, -1, 76, Color.WHITE if low else Ink.INK)
 
 
 func _draw_combo(h: float) -> void:

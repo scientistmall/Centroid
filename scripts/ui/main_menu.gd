@@ -96,14 +96,14 @@ func _enter() -> void:
 
 
 func _build_menu() -> void:
-	# one row of big metal buttons along the bottom, so the whole wallpaper stays in view
+	# one compact row of manga buttons along the bottom, so the key art stays in view
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.set_anchor(SIDE_LEFT, 0.04, true)
-	row.set_anchor(SIDE_RIGHT, 0.96, true)
-	row.set_anchor(SIDE_TOP, 0.86, true)
-	row.set_anchor(SIDE_BOTTOM, 0.97, true)
-	row.add_theme_constant_override("separation", 24)
+	row.set_anchor(SIDE_LEFT, 0.0, true)
+	row.set_anchor(SIDE_RIGHT, 1.0, true)
+	row.set_anchor(SIDE_TOP, 0.875, true)
+	row.set_anchor(SIDE_BOTTOM, 0.965, true)
+	row.add_theme_constant_override("separation", 34)
 	_menu.add_child(row)
 	if StoryManager.has_save():
 		_add(row, "CONTINUE", func(): SceneRouter.go(StoryManager.resume_point), true)
@@ -120,9 +120,8 @@ func _build_menu() -> void:
 func _add(parent: Control, text: String, cb: Callable, primary := false) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(0, 104)
-	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.add_theme_font_size_override("font_size", 52 if primary else 44)
+	b.custom_minimum_size = Vector2(440 if primary else 340, 92)
+	b.add_theme_font_size_override("font_size", 56 if primary else 46)
 	b.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	if primary:
 		b.theme_type_variation = "PrimaryButton"
@@ -138,10 +137,7 @@ func _new_game() -> void:
 	_confirm = _Dialog.new()
 	add_child(_confirm)
 	_confirm.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.75)
-	_confirm.add_child(dim)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_confirm.add_child(InkBackdrop.new())
 	var panel := PanelContainer.new()
 	panel.set_anchor(SIDE_LEFT, 0.25, true)
 	panel.set_anchor(SIDE_RIGHT, 0.75, true)
@@ -201,10 +197,19 @@ class _Logo extends Control:
 		var glow := 0.5 + 0.2 * sin(t * 1.3)
 		var p := Vector2(0, h * 0.13)
 		var w := size.x
-		draw_string_outline(tf, p, "THE CENTROID", HORIZONTAL_ALIGNMENT_CENTER, w, fs, 26, Color(0.55, 0.42, 1.0, 0.18 * glow))
-		draw_string_outline(tf, p, "THE CENTROID", HORIZONTAL_ALIGNMENT_CENTER, w, fs, 10, Color(0, 0, 0, 0.9))
-		draw_string(tf, p, "THE CENTROID", HORIZONTAL_ALIGNMENT_CENTER, w, fs, Color(0.95, 0.96, 1.0))
-		Metal.shout(self, Vector2(w * 0.5, h * 0.195), "37 DAYS OF DARKNESS  ·  PART ONE", int(h * 0.036), Metal.GOLD, Metal.GOLD, true)
+		# manga title treatment: hard shadow, gold stroke, ink outline, white letters
+		var o := int(fs * 0.07)
+		draw_string_outline(tf, p + Vector2(o, o), "THE CENTROID", HORIZONTAL_ALIGNMENT_CENTER, w, fs, 30, Color(0, 0, 0, 0.9))
+		draw_string_outline(tf, p, "THE CENTROID", HORIZONTAL_ALIGNMENT_CENTER, w, fs, 30, Color(Ink.GOLD, 0.85 + 0.15 * glow))
+		draw_string_outline(tf, p, "THE CENTROID", HORIZONTAL_ALIGNMENT_CENTER, w, fs, 14, Ink.INK)
+		draw_string(tf, p, "THE CENTROID", HORIZONTAL_ALIGNMENT_CENTER, w, fs, Color(0.97, 0.97, 1.0))
+		# subtitle on a red manga ribbon
+		var sfs := int(h * 0.04)
+		var sub := "37 DAYS OF DARKNESS  ·  PART ONE"
+		var sw := Ink.letter_font().get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs).x
+		var rr := Rect2(w * 0.5 - sw / 2 - 40, h * 0.158, sw + 80, sfs * 1.3)
+		Ink.panel(self, rr, Ink.RED, Color(0, 0, 0, 0), 22.0, 6.0, true, Color(0, 0, 0, 0))
+		Ink.shout(self, Vector2(w * 0.5, rr.position.y + sfs * 1.0), sub, sfs, Color.WHITE, Color(0, 0, 0, 0), true, 0.0)
 
 
 ## Progress plaque, top right.
@@ -216,7 +221,7 @@ class _Plaque extends Control:
 		var w := size.x
 		var h := size.y
 		var r := Rect2(w - 620, 28, 590, 92)
-		Metal.panel(self, r, Metal.GOLD, 20.0, Color("2a303c"), Color("0b0d12"), 0.5)
+		Ink.panel(self, r, Ink.NIGHT, Ink.GOLD, 16.0, 7.0, true, Color(1, 1, 1, 0.85))
 		var done := StoryManager.chapters_done()
 		var day := StoryManager.days_reached()
 		Metal.shout(self, Vector2(r.position.x + 30, r.position.y + 70), "DAY %d / %d" % [day, StoryManager.TOTAL_DAYS], 56, Color.WHITE, Metal.GOLD, false)

@@ -560,21 +560,13 @@ func _resume() -> void:
 func _show_overlay(title: String, sub: String, actions: Array, col: Color) -> void:
 	for c in overlay.get_children():
 		c.queue_free()
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.7)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.add_child(dim)
+	overlay.add_child(InkBackdrop.new())
 	var vb := VBoxContainer.new()
 	vb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vb.alignment = BoxContainer.ALIGNMENT_CENTER
-	vb.add_theme_constant_override("separation", 26)
+	vb.add_theme_constant_override("separation", 22)
 	overlay.add_child(vb)
-	var t := Label.new()
-	t.text = title
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	t.add_theme_font_size_override("font_size", 120)
-	t.add_theme_color_override("font_color", col)
-	vb.add_child(t)
+	vb.add_child(InkHeading.make(title, 150, Ink.RED if col == Color.WHITE else col))
 	if sub != "":
 		var s := Label.new()
 		s.text = sub
@@ -582,12 +574,15 @@ func _show_overlay(title: String, sub: String, actions: Array, col: Color) -> vo
 		s.add_theme_font_size_override("font_size", 38)
 		s.add_theme_color_override("font_color", Color(0.8, 0.82, 0.9))
 		vb.add_child(s)
-	for a in actions:
+	for n in actions.size():
+		var a: Array = actions[n]
 		var b := Button.new()
 		b.text = a[0]
-		b.custom_minimum_size = Vector2(460, 100)
+		b.custom_minimum_size = Vector2(500, 96)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		b.add_theme_font_size_override("font_size", 44)
+		b.add_theme_font_size_override("font_size", 52)
+		if n == 0:
+			b.theme_type_variation = "PrimaryButton"
 		b.pressed.connect(a[1])
 		vb.add_child(b)
 	overlay.visible = true

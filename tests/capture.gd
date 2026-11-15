@@ -40,6 +40,7 @@ func _ready() -> void:
 	if _want("vs"): await _shot_vs()
 	if _want("briefing"): await _shot_briefing("fight01", "briefing")
 	if _want("briefing4"): await _shot_briefing("fight04", "briefing4")
+	if _want("pause"): await _shot_pause()
 	get_tree().quit()
 
 
@@ -287,3 +288,21 @@ func _shot_vs() -> void:
 	for i in 3: await get_tree().process_frame
 	await _save("vs")
 	a.queue_free()
+
+
+## The fight's pause menu and the victory screen (the shared manga overlay).
+func _shot_pause() -> void:
+	SceneRouter.current = {"type": "fight", "id": "fight01", "no_briefing": true}
+	var a = load("res://scenes/fight/arena.tscn").instantiate()
+	add_child(a)
+	for i in 240: await get_tree().physics_frame
+	a._pause()
+	for i in 20: await get_tree().process_frame
+	await _save("pause")
+	get_tree().paused = false
+	a._resume()
+	a._match_over(true)
+	for i in 20: await get_tree().process_frame
+	await _save("victory")
+	a.queue_free()
+	await get_tree().process_frame

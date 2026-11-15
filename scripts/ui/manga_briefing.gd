@@ -181,6 +181,29 @@ static func art_for(id: String, index: int) -> Texture2D:
 	return _art_cache[path]
 
 
+## Where each fighter's face is in their power-1 splash art (fractions of the art), so HUD
+## portraits can be cut from the approved art.
+const FACE := {"darin": Vector2(0.50, 0.16), "kael": Vector2(0.30, 0.21), "mael": Vector2(0.51, 0.14),
+	"mira": Vector2(0.46, 0.17), "nyra": Vector2(0.49, 0.17), "rhex": Vector2(0.51, 0.31),
+	"tala": Vector2(0.50, 0.22), "vaska": Vector2(0.49, 0.21)}
+
+
+## A square region of the fighter's splash art framing the head and shoulders, or an empty
+## Rect2 when there is no art.
+static func face_region(id: String) -> Rect2:
+	var tex := art_for(id, 1)
+	if tex == null or not FACE.has(id):
+		return Rect2()
+	var w := float(tex.get_width())
+	var h := float(tex.get_height())
+	var side := h * 0.36
+	var c: Vector2 = FACE[id] * Vector2(w, h) + Vector2(0, side * 0.12)
+	var r := Rect2(c - Vector2(side, side) * 0.5, Vector2(side, side))
+	r.position.x = clampf(r.position.x, 0.0, w - side)
+	r.position.y = clampf(r.position.y, 0.0, h - side)
+	return r
+
+
 ## Draws `tex` covering `rect` (cropped, never stretched), centred on `focus` (0..1 of the art).
 static func draw_cover(ci: CanvasItem, tex: Texture2D, rect: Rect2, focus := Vector2(0.5, 0.36), tint := Color.WHITE) -> void:
 	if tex == null:

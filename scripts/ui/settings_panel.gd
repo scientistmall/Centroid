@@ -10,26 +10,17 @@ func _ready() -> void:
 	add_to_group("back")
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.7)
-	add_child(dim)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(InkBackdrop.new())
 	var panel := PanelContainer.new()
-	panel.set_anchor(SIDE_LEFT, 0.22, true)
-	panel.set_anchor(SIDE_RIGHT, 0.78, true)
-	panel.set_anchor(SIDE_TOP, 0.07, true)
-	panel.set_anchor(SIDE_BOTTOM, 0.93, true)
+	panel.custom_minimum_size = Vector2(1320, 0)
 	add_child(panel)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 14)
+	vb.add_theme_constant_override("separation", 16)
 	panel.add_child(vb)
-	var title := Label.new()
-	title.text = "SETTINGS"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_override("font", UiStyle.title_font())
-	title.add_theme_font_size_override("font_size", 54)
-	title.add_theme_color_override("font_color", UiStyle.GOLD)
-	vb.add_child(title)
+	vb.add_child(InkHeading.make("SETTINGS", 84))
 
 	_slider(vb, "Music volume", Settings.music_volume, 0.0, 1.0, func(v): Settings.music_volume = v; AudioManager.apply_volumes())
 	_slider(vb, "Effects volume", Settings.sfx_volume, 0.0, 1.0, func(v): Settings.sfx_volume = v; AudioManager.apply_volumes(); AudioManager.sfx("hit_light"))
@@ -59,6 +50,7 @@ func _ready() -> void:
 
 	var close := Button.new()
 	close.text = "DONE"
+	close.theme_type_variation = "PrimaryButton"
 	close.custom_minimum_size = Vector2(320, 90)
 	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	close.pressed.connect(_close)
