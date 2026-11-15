@@ -28,6 +28,8 @@ const KEYS := {
 var current: Dictionary = {}
 var _fade: ColorRect
 var _busy := false
+var _exit_armed := 0.0      # main menu: a second back press within this window exits
+var _toast: Label
 
 
 func _ready() -> void:
@@ -41,6 +43,66 @@ func _ready() -> void:
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(_fade)
+	_toast = Label.new()
+	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_toast.offset_left = -500
+	_toast.offset_right = 500
+	_toast.offset_top = -170
+	_toast.offset_bottom = -110
+	_toast.add_theme_font_size_override("font_size", 34)
+	_toast.add_theme_color_override("font_color", Color(1, 0.95, 0.85))
+	_toast.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_toast.add_theme_constant_override("outline_size", 10)
+	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast.modulate.a = 0.0
+	layer.add_child(_toast)
+
+
+func _process(delta: float) -> void:
+	_exit_armed = maxf(0.0, _exit_armed - delta)
+	_toast.modulate.a = clampf(_exit_armed, 0.0, 1.0)
+
+
+# ---------------------------------------------------------------- back button
+# The phone's back button (and Esc on a PC) never quits from inside the game. It closes the
+# top-most thing first: any node in the "back" group with on_back() -> bool (the later in the
+# tree, the more on top) gets the first say. Otherwise a story / fight / chapter screen goes back
+# to the main menu, and on the main menu a second press within two seconds exits.
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		back()
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
+		get_viewport().set_input_as_handled()
+		back()
+
+
+func back() -> void:
+	if _busy:
+		return
+	var top: Node = null
+	for n in get_tree().get_nodes_in_group("back"):
+		if not n.is_inside_tree() or not n.has_method("on_back"):
+			continue
+		if n is CanvasItem and not (n as CanvasItem).is_visible_in_tree():
+			continue
+		if top == null or n.is_greater_than(top):
+			top = n
+	if top and top.on_back():
+		return
+	var scene := get_tree().current_scene
+	if scene and scene.scene_file_path == SCENES["menu"]:
+		if _exit_armed > 0.0:
+			get_tree().quit()
+		else:
+			_exit_armed = 2.0
+			_toast.text = "Press back again to exit"
+		return
+	go({"type": "menu"})
 
 
 func _setup_input() -> void:

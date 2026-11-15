@@ -16,6 +16,7 @@ var _overlay: Control
 
 
 func _ready() -> void:
+	add_to_group("back")
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -61,6 +62,12 @@ func _gui_input(event: InputEvent) -> void:
 	if ((event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed) and t > 0.4:
 		accept_event()
 		_close()
+
+
+## Phone back button: close this overlay.
+func on_back() -> bool:
+	_close()
+	return true
 
 
 func _close() -> void:

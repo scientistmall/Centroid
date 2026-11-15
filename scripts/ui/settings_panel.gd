@@ -7,6 +7,7 @@ signal closed
 
 
 func _ready() -> void:
+	add_to_group("back")
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	var dim := ColorRect.new()
@@ -98,6 +99,12 @@ func _toggle(parent: Control, text: String, on: bool, cb: Callable) -> void:
 		b.text = "ON" if v else "OFF"
 		cb.call(v))
 	row.add_child(b)
+
+
+## Phone back button: close this overlay.
+func on_back() -> bool:
+	_close()
+	return true
 
 
 func _close() -> void:

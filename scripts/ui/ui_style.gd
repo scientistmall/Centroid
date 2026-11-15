@@ -32,6 +32,25 @@ static func bold_font() -> Font:
 	return _bold_font
 
 
+static var _sharp := {}
+
+
+## A multichannel signed-distance-field copy of `f`: stays crisp when its node is scaled
+## (the story's page camera zooms panels), where a normal font would be stretched and blurred.
+static func sharp(f: Font) -> Font:
+	if not (f is FontFile):
+		return f
+	var key := f.resource_path if f.resource_path != "" else str(f.get_instance_id())
+	if not _sharp.has(key):
+		var n := FontFile.new()
+		n.data = (f as FontFile).data
+		n.multichannel_signed_distance_field = true
+		n.msdf_pixel_range = 16
+		n.msdf_size = 64
+		_sharp[key] = n
+	return _sharp[key]
+
+
 static func box(bg: Color, border: Color, bw := 2, radius := 6, bottom := 0) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg

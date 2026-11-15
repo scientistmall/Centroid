@@ -135,7 +135,7 @@ func _new_game() -> void:
 	if not StoryManager.has_save():
 		_start_new()
 		return
-	_confirm = Control.new()
+	_confirm = _Dialog.new()
 	add_child(_confirm)
 	_confirm.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var dim := ColorRect.new()
@@ -171,6 +171,16 @@ func _new_game() -> void:
 func _start_new() -> void:
 	StoryManager.new_game()
 	SceneRouter.go({"type": "story", "id": "prologue"})
+
+
+## A modal dialog the phone's back button closes.
+class _Dialog extends Control:
+	func _ready() -> void:
+		add_to_group("back")
+
+	func on_back() -> bool:
+		queue_free()
+		return true
 
 
 class _Logo extends Control:

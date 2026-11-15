@@ -30,6 +30,7 @@ var _sounded := 0
 
 
 func _ready() -> void:
+	add_to_group("back")
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -142,6 +143,13 @@ func _gui_input(event: InputEvent) -> void:
 		AudioManager.sfx("page_turn", -6.0)
 	else:
 		_close()
+
+
+## Phone back button: close the briefing (starts or resumes the fight).
+func on_back() -> bool:
+	if not _closing:
+		_close()
+	return true
 
 
 func _close() -> void:

@@ -69,9 +69,11 @@ var _auto_btn: Button
 var _wait_t := 0.0
 var _log: Array = []
 var _log_view: Control
+var _menu_view: Control
 
 
 func _ready() -> void:
+	add_to_group("back")
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	clip_contents = true
 	_build_ui()
@@ -133,7 +135,7 @@ func _build_ui() -> void:
 	var bar := HBoxContainer.new()
 	bar.set_anchor(SIDE_LEFT, 1.0, true)
 	bar.set_anchor(SIDE_RIGHT, 1.0, true)
-	bar.offset_left = -560
+	bar.offset_left = -740
 	bar.offset_right = -24
 	bar.offset_top = 22
 	bar.offset_bottom = 92
@@ -144,6 +146,7 @@ func _build_ui() -> void:
 	bar.add_child(_auto_btn)
 	bar.add_child(_small_button("LOG", _open_log))
 	bar.add_child(_small_button("SKIP ▶▶", _skip))
+	bar.add_child(_small_button("MENU", _open_menu))
 
 
 func _small_button(text: String, cb: Callable) -> Button:
@@ -184,15 +187,15 @@ func _new_page() -> void:
 func _gui_input(event: InputEvent) -> void:
 	if (event is InputEventScreenTouch and event.pressed) or \
 			(event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and not DisplayServer.is_touchscreen_available()):
-		if _log_view:
-			_close_log()
+		if _log_view or _menu_view:
+			pass   # their own buttons close them
 		else:
 			_on_tap()
 		accept_event()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("advance") or event.is_action_pressed("ui_accept"):
+	if (event.is_action_pressed("advance") or event.is_action_pressed("ui_accept")) and _log_view == null and _menu_view == null:
 		_on_tap()
 
 
@@ -221,7 +224,7 @@ func _process(delta: float) -> void:
 			and (_typing == null or _typing.done())
 	_hint.visible = waiting and index >= 0
 	_hint.modulate.a = 0.35 + 0.45 * absf(sin(Time.get_ticks_msec() / 320.0))
-	if _auto and waiting and _log_view == null:
+	if _auto and waiting and _log_view == null and _menu_view == null:
 		_wait_t += delta
 		var need := 1.4 + (0.028 * _typing.text.length() if _typing else 0.0)
 		if _waiting_card:
@@ -548,14 +551,33 @@ func _open_log() -> void:
 	_log_view = PanelContainer.new()
 	_log_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.02, 0.02, 0.04, 0.94)
+	sb.bg_color = Color(0.02, 0.02, 0.04, 1.0)
 	sb.content_margin_left = 120
 	sb.content_margin_right = 120
-	sb.content_margin_top = 110
-	sb.content_margin_bottom = 60
+	sb.content_margin_top = 30
+	sb.content_margin_bottom = 40
 	_log_view.add_theme_stylebox_override("panel", sb)
+	_log_view.mouse_filter = Control.MOUSE_FILTER_STOP
+	var col_box := VBoxContainer.new()
+	col_box.add_theme_constant_override("separation", 22)
+	_log_view.add_child(col_box)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 30)
+	col_box.add_child(head)
+	var back := _small_button("◀  BACK TO STORY", _close_log)
+	back.custom_minimum_size = Vector2(340, 80)
+	head.add_child(back)
+	var ttl := Label.new()
+	ttl.text = "STORY LOG"
+	ttl.add_theme_font_override("font", UiStyle.title_font())
+	ttl.add_theme_font_size_override("font_size", 40)
+	ttl.add_theme_color_override("font_color", Color(1, 0.86, 0.6))
+	ttl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(ttl)
 	var sc := ScrollContainer.new()
-	_log_view.add_child(sc)
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col_box.add_child(sc)
 	var vb := VBoxContainer.new()
 	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vb.add_theme_constant_override("separation", 18)
@@ -572,12 +594,64 @@ func _open_log() -> void:
 			r.text = "[color=#%s][b]%s[/b][/color]   %s" % [col.to_html(false), e[0], e[1]]
 		vb.add_child(r)
 	add_child(_log_view)
+	await get_tree().process_frame
 	sc.scroll_vertical = 1 << 20
 
 
 func _close_log() -> void:
-	_log_view.queue_free()
-	_log_view = null
+	if _log_view:
+		_log_view.queue_free()
+		_log_view = null
+
+
+## The story's pause menu (MENU button or the phone's back button).
+func _open_menu() -> void:
+	if _menu_view:
+		return
+	_menu_view = Control.new()
+	_menu_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_menu_view.mouse_filter = Control.MOUSE_FILTER_STOP
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.78)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_menu_view.add_child(dim)
+	var vb := VBoxContainer.new()
+	vb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_theme_constant_override("separation", 24)
+	_menu_view.add_child(vb)
+	var t := Label.new()
+	t.text = "PAUSED"
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.add_theme_font_override("font", UiStyle.title_font())
+	t.add_theme_font_size_override("font_size", 72)
+	t.add_theme_color_override("font_color", Color(1, 0.86, 0.6))
+	vb.add_child(t)
+	for a in [["Resume", _close_menu], ["Story Log", func(): _close_menu(); _open_log()],
+			["Chapters", func(): SceneRouter.go({"type": "chapters"})], ["Main Menu", func(): SceneRouter.go({"type": "menu"})]]:
+		var b := _small_button(a[0], a[1])
+		b.custom_minimum_size = Vector2(440, 92)
+		b.add_theme_font_size_override("font_size", 36)
+		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		vb.add_child(b)
+	add_child(_menu_view)
+
+
+func _close_menu() -> void:
+	if _menu_view:
+		_menu_view.queue_free()
+		_menu_view = null
+
+
+## Phone back button: close the log or the menu; otherwise open the menu (never quits).
+func on_back() -> bool:
+	if _log_view:
+		_close_log()
+	elif _menu_view:
+		_close_menu()
+	elif _waiting_card or not _finished:
+		_open_menu()
+	return true
 
 
 func _skip() -> void:
@@ -607,8 +681,10 @@ class PanelView extends Control:
 	var font_px := 34.0
 	var _art: Control
 	var _drift := 0.0
-	var _cursor := {}      # column -> next free y for bubbles
 	var _items: Array = []
+	var cleared := 0       # times older bubbles had to be removed to make room (should stay 0)
+	var _specs: Array = []  # [text, speaker, colour, style, who] for each bubble in _items
+	var _k := 1.0           # current text scale of this panel's bubbles
 	var _dim := false
 
 	func setup(sp: Dictionary, r: Rect2, bg: String, shown: Dictionary, flash: bool) -> void:
@@ -662,10 +738,8 @@ class PanelView extends Control:
 		_drift = 0.0
 
 	func dim(on: bool) -> void:
+		# earlier panels stay fully readable (their text is never faded)
 		_dim = on
-		for it in _items:
-			if it is Bubble:
-				(it as Bubble).modulate.a = 0.55 if on else 1.0
 
 	func _process(delta: float) -> void:
 		# slow push-in on the art (ken burns), stronger on splash / action panels
@@ -687,60 +761,101 @@ class PanelView extends Control:
 		return (i + 0.5) / cast.size()
 
 	func add_bubble(text: String, speaker: String, col: Color, style: String, who: String) -> Bubble:
-		var b := Bubble.new()
-		var pad := rect.size.x * 0.035
-		var max_w := rect.size.x * (0.86 if style == "caption" else 0.46)
-		b.build(text, speaker, col, style, font_px, max_w)
-		var sx := speaker_x(who)
-		var col_key := "c"
-		var x: float
-		if style == "caption":
-			x = pad
-			col_key = "l"
-		elif sx < 0.0:
-			x = rect.size.x - b.size.x - pad      # off-panel speaker: right edge
-			col_key = "r"
-		else:
-			x = clampf(sx * rect.size.x - b.size.x / 2.0, pad, rect.size.x - b.size.x - pad)
-			col_key = "l" if sx < 0.5 else "r"
-		# one reading order: every bubble / caption stacks below the previous one
-		col_key = "all"
-		var y: float = _cursor.get(col_key, pad + (font_px * 0.6 if speaker != "" else 0.0))
-		if speaker != "" and _cursor.has(col_key):
-			y += font_px * 0.6   # room for the name tag
-		if y + b.size.y > rect.size.y * 0.66 and not _items.is_empty():
-			# full: clear older bubbles so the panel stays readable
+		var spec := [text, speaker, col, style, who]
+		# everything said in a panel stays in it: when it fills up, the text gets a little smaller
+		# (and may use more of the panel's height) instead of older bubbles being removed
+		var k := _fit_scale(_specs + [spec])
+		if k <= 0.0:
+			cleared += 1   # really too much for one panel: start it over (should not happen)
 			for it in _items:
 				var node: Control = it
 				var t: Tween = node.create_tween()
 				t.tween_property(node, "modulate:a", 0.0, 0.2)
 				t.tween_callback(node.queue_free)
 			_items.clear()
-			_cursor.clear()
-			y = pad + (font_px * 0.6 if speaker != "" else 0.0)
-		b.position = Vector2(x, y)
-		if style != "caption":
-			var cast_n: int = (spec.get("cast", []) as Array).size()
-			if sx < 0.0:
-				b.tail_to = Vector2(rect.size.x + 40.0, y + b.size.y * 1.4) - b.position
-			elif cast_n <= 1:
-				# one character in the panel: a short tail straight down (their position in the art is unknown)
-				b.tail_to = Vector2(b.size.x * 0.5, b.size.y + font_px * 2.2)
-			else:
-				b.tail_to = Vector2(sx * rect.size.x, rect.size.y * 0.42) - b.position
-		_cursor[col_key] = y + b.size.y + font_px * 0.45
+			_specs.clear()
+			k = 1.0
+		var fp := font_px * k
+		if not is_equal_approx(k, _k):
+			for i in _items.size():
+				var sp: Array = _specs[i]
+				(_items[i] as Bubble).build(sp[0], sp[1], sp[2], sp[3], fp, _max_w(sp[3]))
+				(_items[i] as Bubble).queue_redraw()
+		_k = k
+		var b := Bubble.new()
+		b.build(text, speaker, col, style, fp, _max_w(style))
+		_items.append(b)
+		_specs.append(spec)
+		_restack(fp)
 		add_child(b)
 		move_child(b, -2)   # under the border
-		_items.append(b)
 		b.scale = Vector2(0.85, 0.85)
 		b.pivot_offset = b.size / 2.0
 		b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		return b
 
+	func _max_w(style: String) -> float:
+		return rect.size.x * (0.86 if style == "caption" else 0.46)
+
+	## The largest text scale at which all `specs` stack inside the panel: first within the top
+	## two thirds (the art stays clear), then using nearly all of it. 0 when nothing fits.
+	func _fit_scale(specs: Array) -> float:
+		for room in [0.66, 0.94]:
+			for k in [1.0, 0.92, 0.84, 0.76, 0.68, 0.6]:
+				if room > 0.9 and k > 0.92:
+					continue
+				if _stack_height(specs, font_px * k) <= rect.size.y * room or specs.size() <= 1:
+					return k
+		return 0.0
+
+	func _stack_height(specs: Array, fp: float) -> float:
+		var y := rect.size.x * 0.035
+		var probe := Bubble.new()
+		for i in specs.size():
+			var sp: Array = specs[i]
+			if sp[1] != "":
+				y += fp * 0.6   # room for the name tag
+			probe.build(sp[0], sp[1], sp[2], sp[3], fp, _max_w(sp[3]))
+			y += probe.size.y + (fp * 0.45 if i < specs.size() - 1 else 0.0)
+		probe.free()
+		return y
+
+	## Place every bubble top to bottom in reading order, each with its tail.
+	func _restack(fp: float) -> void:
+		var pad := rect.size.x * 0.035
+		var y := pad
+		var cast_n: int = (spec.get("cast", []) as Array).size()
+		for i in _items.size():
+			var b: Bubble = _items[i]
+			var sp: Array = _specs[i]
+			if sp[1] != "":
+				y += fp * 0.6
+			var sx := speaker_x(sp[4])
+			var x: float
+			if sp[3] == "caption":
+				x = pad
+			elif sx < 0.0:
+				x = rect.size.x - b.size.x - pad      # off-panel speaker: right edge
+			else:
+				x = clampf(sx * rect.size.x - b.size.x / 2.0, pad, maxf(pad, rect.size.x - b.size.x - pad))
+			b.position = Vector2(x, y)
+			b.pivot_offset = b.size / 2.0
+			b.tail_to = Vector2.ZERO
+			if sp[3] != "caption":
+				if sx < 0.0:
+					b.tail_to = Vector2(rect.size.x + 40.0, y + b.size.y * 1.4) - b.position
+				elif cast_n <= 1:
+					# one character in the panel: a short tail straight down (their place in the art is unknown)
+					b.tail_to = Vector2(b.size.x * 0.5, b.size.y + fp * 2.2)
+				else:
+					b.tail_to = Vector2(sx * rect.size.x, rect.size.y * 0.42) - b.position
+			b.queue_redraw()
+			y += b.size.y + fp * 0.45
+
 	func add_fx(text: String) -> void:
 		var l := Label.new()
 		l.text = text
-		l.add_theme_font_override("font", UiStyle.title_font())
+		l.add_theme_font_override("font", UiStyle.sharp(UiStyle.title_font()))
 		l.add_theme_font_size_override("font_size", int(font_px * 3.6))
 		l.add_theme_color_override("font_color", Color(1, 0.97, 0.9))
 		l.add_theme_color_override("font_outline_color", Color(0.02, 0.02, 0.03))
@@ -757,7 +872,7 @@ class PanelView extends Control:
 		l.rotation = deg_to_rad(randf_range(-12.0, 12.0))
 		l.scale = Vector2(1.8, 1.8)
 		l.create_tween().tween_property(l, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		_items.append(l)
+		pass   # sound-effect lettering is not part of the bubble stack
 
 
 class _Border extends Control:
@@ -800,7 +915,8 @@ class Bubble extends Control:
 		color = col
 		style = st
 		_fs = font_px
-		_font = UiStyle.ui_font() if st == "caption" else UiStyle.bold_font()
+		# signed-distance-field font: the page camera zooms panels, so plain glyphs would blur
+		_font = UiStyle.sharp(UiStyle.ui_font() if st == "caption" else UiStyle.bold_font())
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_pad = Vector2(font_px * 1.0, font_px * 0.62) if st != "caption" else Vector2(font_px * 0.7, font_px * 0.5)
 		if st == "burst":

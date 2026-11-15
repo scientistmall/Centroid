@@ -55,6 +55,7 @@ var backdrop: Backdrop
 
 
 func _ready() -> void:
+	add_to_group("back")
 	Engine.time_scale = 1.0
 	fight_id = SceneRouter.current.get("id", "fight01")
 	fight = _load_json("res://data/fights/%s.json" % fight_id)
@@ -490,6 +491,18 @@ func _retry() -> void:
 func _to_menu() -> void:
 	get_tree().paused = false
 	SceneRouter.go({"type": "menu"})
+
+
+## Phone back button: pause the fight, or resume it from the pause menu.
+func on_back() -> bool:
+	if phase == "over":
+		return true
+	if get_tree().paused:
+		if overlay.visible:
+			_resume()
+		return true
+	_pause()
+	return true
 
 
 func _pause() -> void:

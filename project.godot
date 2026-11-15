@@ -7,6 +7,7 @@ config/name="The Centroid"
 config/description="An original story-driven 2D fighting game."
 config/icon="res://icon.svg"
 run/main_scene="res://scenes/main_menu.tscn"
+config/quit_on_go_back=false
 config/features=PackedStringArray("4.7", "Mobile")
 
 [autoload]
@@ -37,6 +38,7 @@ pointing/emulate_touch_from_mouse=true
 [rendering]
 
 renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 environment/defaults/default_clear_color=Color(0, 0, 0, 1)
 
