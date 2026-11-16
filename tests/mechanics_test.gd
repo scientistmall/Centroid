@@ -79,8 +79,10 @@ func _ready() -> void:
 	await _test_evade()
 	await _test_powers_land()
 	await _test_buffer()
+	await _test_dash_in()
 	await _test_no_cross()
 	_test_equal_damage()
+	_test_dynamic_resolution()
 	_check(is_equal_approx(a.stage.y - a.stage.x, 2300.0), "stage is 2300 px wide (%d)" % int(a.stage.y - a.stage.x))
 	print("MECHANICS: %s" % ("PASS" if fails == 0 else "%d FAILED" % fails))
 	get_tree().quit(1 if fails else 0)
@@ -146,6 +148,30 @@ func _test_powers_land() -> void:
 			await _frames(110)
 			var dmg := tgt.max_hp - tgt.hp
 			_check(dmg > 0.0, "%s %s lands on %s at %d px (damage %d)" % [atk.display_name, p.get("name", "?"), tgt.display_name, int(gap), int(dmg)])
+
+
+## MCOC's medium: one swipe from far away lunges in and lands the hit; hitting a fighter while
+## they dash in is an intercept; damage numbers appear.
+func _test_dash_in() -> void:
+	var c := await _reset(600.0)
+	var hp0: float = a.enemy.hp
+	c[0].once["forward"] = true
+	await _frames(45)
+	_check(a.enemy.hp < hp0, "one swipe from 600 px lunges in and lands a medium (damage %d)" % int(hp0 - a.enemy.hp))
+	_check(a._numbers.size() > 0 and a._numbers[0].text != "", "a damage number pops on the hit (%s)" % (a._numbers[0].text if a._numbers.size() > 0 else "none"))
+	await _frames(40)
+	c = await _reset(520.0)
+	var got := [false]
+	var on_int := func(_d, _att): got[0] = true
+	a.enemy.intercepted.connect(on_int)
+	c[1].once["forward"] = true        # Rhex dashes in ...
+	await _frames(5)
+	for i in 12:
+		c[0].once["light"] = true     # ... and Kael's jab meets him
+		await _frames(3)
+	a.enemy.intercepted.disconnect(on_int)
+	_check(got[0], "hitting a fighter as they dash in is an intercept")
+	await _frames(40)
 
 
 func _test_buffer() -> void:
@@ -229,3 +255,23 @@ func _test_equal_damage() -> void:
 	Settings.difficulty = 1
 	_check(top <= Settings.MAX_AI, "the hardest fight on Hard stays under the cap (%.2f <= %.2f)" % [top, Settings.MAX_AI])
 	_check(eased < top - 0.15 and eased_dmg < 1.0, "three defeats ease the fight (skill %.2f -> %.2f, AI damage x%.2f)" % [top, eased, eased_dmg])
+
+
+## Dynamic resolution: long frames step the 3D scale down (never below the floor), headroom
+## steps it back up, and it doesn't bounce straight back after a drop.
+func _test_dynamic_resolution() -> void:
+	var st := {"slow": 0.0, "fast": 0.0, "cool": 0.0}
+	var sc := 0.85
+	for i in 60:      # one second of 25 ms frames
+		sc = Stage3D.step_scale(sc, 25.0, 0.025, st)
+	var dropped := sc
+	for i in 2000:    # a long time of slow frames: stops at the floor
+		sc = Stage3D.step_scale(sc, 25.0, 0.025, st)
+	var floor_ok := is_equal_approx(sc, Stage3D.SCALE_MIN)
+	for i in 240:     # four seconds of fast frames right after: still cooling down
+		sc = Stage3D.step_scale(sc, 16.7, 0.0167, st)
+	var held := is_equal_approx(sc, Stage3D.SCALE_MIN)
+	for i in 3600:    # a minute of fast frames: climbs back to full
+		sc = Stage3D.step_scale(sc, 16.7, 0.0167, st)
+	_check(dropped < 0.85 and floor_ok and held and is_equal_approx(sc, 1.0),
+		"dynamic resolution: drops under load (%.2f), floors at %.2f, waits, recovers to %.2f" % [dropped, Stage3D.SCALE_MIN, sc])

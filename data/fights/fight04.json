@@ -9,7 +9,7 @@
 	"enemy": "nyra",
 	"rounds_to_win": 2,
 	"round_time": 99,
-	"ai": 0.58,
+	"ai": 0.54,
 	"flag": "fight04_completed",
 	"win_next": {
 		"type": "story",

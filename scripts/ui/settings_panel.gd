@@ -28,6 +28,7 @@ func _ready() -> void:
 	_slider(vb, "Button opacity", Settings.button_opacity, 0.4, 1.0, func(v): Settings.button_opacity = v)
 	_toggle(vb, "Vibration", Settings.vibration, func(on): Settings.vibration = on)
 	_toggle(vb, "Left-handed controls", Settings.left_handed, func(on): Settings.left_handed = on)
+	_toggle(vb, "Show FPS", Settings.show_fps, func(on): Settings.show_fps = on)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	vb.add_child(row)

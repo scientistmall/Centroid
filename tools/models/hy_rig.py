@@ -121,6 +121,90 @@ def decimate(ob, target, keep=None):
     return out
 
 
+def bake_maps(hi, lo, out_prefix, H, normal_size=2048, orm_size=1024):
+    """Bake the dense source mesh's surface onto the game mesh, and keep the source's PBR maps:
+      <out>_normal.png  tangent-space normal map: the sculpted detail (and the source's own
+                        normal map) that decimation removed: muscle, folds, armour edges
+      <out>_orm.png     R = ambient occlusion (baked: contact shadow in creases),
+                        G = roughness, B = metallic (from the source's maps; the game mesh
+                        keeps the source's UVs)
+    Cycles on the CPU; the game shader reads both (assets/shaders/character.gdshader)."""
+    sc = bpy.context.scene
+    sc.render.engine = "CYCLES"
+    sc.cycles.device = "CPU"
+    sc.render.bake.margin = 8
+    src_mat = lo.material_slots[0].material
+    mat = src_mat.copy()
+    lo.material_slots[0].material = mat          # the bake target node lives on the game mesh only
+    nt = mat.node_tree
+    bpy.ops.object.select_all(action="DESELECT")
+    hi.select_set(True)
+    lo.select_set(True)
+    bpy.context.view_layer.objects.active = lo
+
+    def target(name, size):
+        img = bpy.data.images.new(name, size, size, alpha=False, float_buffer=False)
+        img.colorspace_settings.name = "Non-Color"
+        node = nt.nodes.new("ShaderNodeTexImage")
+        node.image = img
+        nt.nodes.active = node
+        node.select = True
+        return img, node
+
+    n_img, n_node = target("bake_normal", normal_size)
+    sc.cycles.samples = 2
+    bpy.ops.object.bake(type="NORMAL", use_selected_to_active=True, cage_extrusion=0.012 * H,
+                        max_ray_distance=0.03 * H, normal_space="TANGENT", margin=8)
+    # clean-up: where the ray found a hidden or flipped surface the baked normal points into the
+    # mesh (blue < 0.6); those texels become flat, and their AO is ignored below
+    npx = np.array(n_img.pixels[:], dtype=np.float32).reshape(normal_size, normal_size, 4)
+    bad = npx[:, :, 2] < 0.6
+    npx[bad, 0], npx[bad, 1], npx[bad, 2] = 0.5, 0.5, 1.0
+    n_img.pixels = npx.ravel()
+    log("normal map: %.1f%% of texels flattened" % (100.0 * bad.mean()))
+    n_img.filepath_raw = out_prefix + "_normal.png"
+    n_img.file_format = "PNG"
+    n_img.save()
+    log("baked", n_img.filepath_raw)
+    nt.nodes.remove(n_node)
+    ao_img, ao_node = target("bake_ao", orm_size)
+    sc.cycles.samples = 24
+    bpy.ops.object.bake(type="AO", use_selected_to_active=True, cage_extrusion=0.012 * H,
+                        max_ray_distance=0.03 * H, margin=8)
+    ao = np.array(ao_img.pixels[:], dtype=np.float32).reshape(orm_size, orm_size, 4)[:, :, 0]
+    k = normal_size // orm_size
+    bad_small = bad.reshape(orm_size, k, orm_size, k).mean(axis=(1, 3)) > 0.25
+    ao[bad_small] = 1.0
+    ao = np.clip(ao, 0.3, 1.0)        # creases darken; nothing goes black
+    nt.nodes.remove(ao_node)
+
+    def source_map(key, default):
+        for n in src_mat.node_tree.nodes:
+            if n.type == "TEX_IMAGE" and n.image and key in n.image.name.lower():
+                im = n.image.copy()
+                im.scale(orm_size, orm_size)
+                px = np.array(im.pixels[:], dtype=np.float32).reshape(orm_size, orm_size, 4)[:, :, 0]
+                bpy.data.images.remove(im)
+                return px
+        return np.full((orm_size, orm_size), default, dtype=np.float32)
+
+    rough = source_map("rough", 0.7)
+    metal = source_map("metal", 0.0)
+    log("roughness mean %.2f (%.2f..%.2f)  metallic mean %.2f  ao mean %.2f" % (rough.mean(), rough.min(), rough.max(), metal.mean(), ao.mean()))
+    orm = bpy.data.images.new("orm", orm_size, orm_size, alpha=False)
+    orm.colorspace_settings.name = "Non-Color"
+    out = np.ones((orm_size, orm_size, 4), dtype=np.float32)
+    out[:, :, 0], out[:, :, 1], out[:, :, 2] = ao, rough, metal
+    orm.pixels = out.ravel()
+    orm.filepath_raw = out_prefix + "_orm.png"
+    orm.file_format = "PNG"
+    orm.save()
+    log("wrote", orm.filepath_raw)
+    bpy.data.images.remove(ao_img)
+    bpy.data.images.remove(orm)
+    bpy.ops.object.select_all(action="DESELECT")
+
+
 def shrink_textures(ob, size):
     for slot in ob.material_slots:
         if not slot.material or not slot.material.node_tree:
@@ -428,6 +512,7 @@ def main():
     ap.add_argument("--tex", type=int, default=2048)
     ap.add_argument("--build", type=float, default=1.0, help="widen the body (x and depth) by this factor")
     ap.add_argument("--keep-face", action="store_true", help="decimate the face less than the rest")
+    ap.add_argument("--bake", action="store_true", help="bake <out>_normal.png and <out>_orm.png from the dense source")
     a = ap.parse_args(argv)
     reset()
     ob = import_mesh(a.src)
@@ -439,7 +524,17 @@ def main():
             vtx.co.y *= a.build
         ob.data.update()
         log("build x", a.build)
+    hi = None
+    if a.bake:
+        hi = ob.copy()
+        hi.data = ob.data.copy()
+        hi.name = "Source"
+        bpy.context.scene.collection.objects.link(hi)
     decimate(ob, a.tris, face_group(ob, a.height) if a.keep_face else None)
+    if hi:
+        os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+        bake_maps(hi, ob, os.path.splitext(os.path.abspath(a.out))[0], a.height)
+        bpy.data.objects.remove(hi, do_unlink=True)
     shrink_textures(ob, a.tex)
     J = joints(ob, a.height)
     for k in sorted(J):

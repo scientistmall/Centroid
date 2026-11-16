@@ -220,7 +220,7 @@ func _test_status_mechanics() -> void:
 	nyra._face_opponent()
 	nyra._try_power(1)
 	await _steps(90)   # powers trigger a brief cut-in slow-motion
-	check(mira.energy < 105.0, "Withering Curse drains energy (mira %.1f)" % mira.energy)
+	check(mira.energy < 135.0, "Withering Curse drains energy (mira %.1f)" % mira.energy)
 	check(nyra.energy > 90.0, "Withering Curse transfers energy to Nyra (nyra %.1f)" % nyra.energy)
 	check(mira.has_status("cursed"), "Withering Curse applies cursed")
 	var before := mira.energy

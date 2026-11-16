@@ -22,6 +22,10 @@ signal special_hit(f: Fighter, attacker: Fighter)
 ## Blocked just in time (the attacker is stunned) / dodged by a dash back.
 signal parried(f: Fighter, attacker: Fighter)
 signal evaded(f: Fighter)
+## Hit while dashing in (the attacker read the rush): MCOC's intercept.
+signal intercepted(f: Fighter, attacker: Fighter)
+## Health lost: amount, and "hit", "special" or "block" (chip). Drives the damage numbers.
+signal damaged(f: Fighter, amount: float, kind: String)
 
 enum S { IDLE, WALK, AIR, ATTACK, BLOCK, BLOCKSTUN, HURT, KO, POWER, WIN, FROZEN, DASH, DOWN }
 
@@ -43,7 +47,8 @@ const HITSTOP := {"light": 0.06, "medium": 0.08, "heavy": 0.12, "power": 0.12}
 const PARRY_WINDOW := 0.15       # block started this soon before a hit = parry
 const PARRY_STUN := 0.8
 const EVADE_WINDOW := 0.15       # the start of a dash back dodges hits
-const DASH_FWD := Vector2(1500.0, 0.2)    # speed, time
+const DASH_FWD := Vector2(2300.0, 0.28)   # speed, time: a lunge that closes about 480 px
+const LUNGE_HIT_AT := 275.0      # a dash-in strikes with a medium once this close
 const DASH_BACK := Vector2(1350.0, 0.2)
 const MEDIUM_RANGE := 330.0      # a swipe toward within this distance is a medium attack
 ## Shared frame data and damage by move slot (anim and model come from each fighter's json).
@@ -107,6 +112,9 @@ var air_attack_used := false
 var _buf: Dictionary = {}        # action -> seconds left in the buffer
 var _block_since := -9.0         # clock when the current block started (parry timing)
 var dash_dir := 0                # +1 dash forward, -1 dash back (S.DASH)
+var dash_attack := false         # this dash forward ends in a medium strike (swipe toward)
+var combo_n := 0                 # moves thrown in the current string (a combo is 5 at most)
+var _light_i := 0                # which light animation comes next in the string
 var state_serial := 0            # bumps on every state change: the 3D body restarts a clip on it
 ## Set by a 3D model: where the striking hand / foot is (fight pixels), for the hit spark.
 var strike_source: Callable
@@ -476,16 +484,24 @@ func _neutral_action() -> bool:
 		_start_dash(-1)
 		return true
 	if _take("heavy"):
+		combo_n = 1
 		_start_attack("heavy", 0)
 		return true
 	if _take("light"):
+		combo_n = 1
+		_light_i = 1
 		_start_attack("light", 0)
 		return true
 	if _take("forward"):
-		if opponent and absf(opponent.position.x - position.x) <= MEDIUM_RANGE:
+		# MCOC's medium: a dash-in attack. In range it strikes at once; from further away the
+		# fighter lunges across the gap and strikes on arrival.
+		combo_n = 1
+		_light_i = 0
+		if opponent and absf(opponent.position.x - position.x) <= LUNGE_HIT_AT:
 			_start_attack("medium", 0)
 		else:
 			_start_dash(1)
+			dash_attack = true
 		return true
 	return false
 
@@ -497,6 +513,7 @@ func _stop_advance() -> void:
 
 func _start_dash(dir: int) -> void:
 	dash_dir = dir
+	dash_attack = false
 	_face_opponent()
 	set_state(S.DASH)
 	_sfx("dash", -8.0)
@@ -507,10 +524,16 @@ func _dash_update(_delta: float) -> void:
 	var t := state_time
 	if t < d.y:
 		vel.x = facing * dash_dir * d.x * (1.0 - 0.5 * t / d.y)
-		# a dash forward stops at the opponent (they never pass each other)
-		if dash_dir > 0 and opponent and absf(opponent.position.x - position.x) <= MIN_GAP + 30.0:
-			vel.x = 0.0
-			set_state(S.IDLE)
+		if dash_dir > 0 and opponent:
+			var gap := absf(opponent.position.x - position.x)
+			if dash_attack and gap <= LUNGE_HIT_AT:
+				vel.x = 0.0
+				_start_attack("medium", 0)   # the lunge lands
+				set_meta("lunge_serial", state_serial)
+			elif gap <= MIN_GAP + 30.0:
+				# a dash forward stops at the opponent (they never pass each other)
+				vel.x = 0.0
+				set_state(S.IDLE)
 	else:
 		vel.x = 0.0
 		set_state(S.IDLE)
@@ -623,18 +646,16 @@ func _move_times() -> Vector3:
 	return Vector3(move.get("startup", 0.1), move.get("active", 0.08), move.get("recovery", 0.2))
 
 
-## MCOC combo: light, light, light, medium, medium (tap through it, or swipe for the mediums).
+## MCOC combos: up to five hits. Taps throw lights, a swipe toward throws a medium, and the fifth
+## hit is always the ender (a medium with the big knockback): M-L-L-L-M, L-L-L-L-M, L-L-M-L-M ...
 func _next_in_combo(press: String) -> Array:
-	match move_kind:
-		"light":
-			if press == "light" and chain_index < 2:
-				return ["light", chain_index + 1]
-			if press in ["light", "forward"]:
-				return ["medium", 0]
-		"medium":
-			if press in ["light", "forward"] and chain_index < 1:
-				return ["medium", 1]
-	return []
+	if move_kind == "heavy" or combo_n >= 5:
+		return []
+	if combo_n == 4:
+		return ["medium", 1]
+	if press == "light":
+		return ["light", _light_i % 3]
+	return ["medium", 0]
 
 
 func _attack_update(_delta: float) -> void:
@@ -657,6 +678,9 @@ func _attack_update(_delta: float) -> void:
 				var nx := _next_in_combo(press)
 				if not nx.is_empty():
 					_take(press)
+					combo_n += 1
+					if nx[0] == "light":
+						_light_i += 1
 					_start_attack(nx[0], nx[1])
 					return
 		if inp.get("block", false):
@@ -1026,6 +1050,11 @@ func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 	if has_status("anchored"):
 		knock = 0.0
 	var away := 1.0 if position.x >= attacker.position.x else -1.0
+	# intercept: caught while rushing in (the dash, or the lunge's strike before it comes out)
+	var lunging := state == S.ATTACK and int(get_meta("lunge_serial", -1)) == state_serial \
+		and state_time < float(move.get("startup", 0.1))
+	if (state == S.DASH and dash_dir > 0) or lunging:
+		intercepted.emit(self, attacker)
 	if is_guarding() and not m.get("unblockable", false):
 		# parry: block started just before a basic hit lands -> the attacker is stunned
 		if not special and m.get("slot", "") != "heavy" and clock - _block_since <= PARRY_WINDOW \
@@ -1042,6 +1071,7 @@ func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 		if special:
 			hp = maxf(1.0, hp - dmg * 0.10)   # specials chip through a block
 			hp_changed.emit(self)
+			damaged.emit(self, dmg * 0.10, "block")
 		stun_time = stun * 0.5
 		vel.x = away * knock * (0.5 if m.get("slot", "") == "heavy" else 0.3)
 		add_energy(7.0)
@@ -1050,6 +1080,7 @@ func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 		_sfx("block", -2.0)
 		return "block"
 	hp = maxf(0.0, hp - dmg)
+	damaged.emit(self, dmg, "special" if special else "hit")
 	flash = 1.0
 	add_energy(9.0)
 	attacker.add_energy(13.0)

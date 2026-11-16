@@ -20,10 +20,10 @@
 		"air": {"anim": "air", "startup": 0.08, "active": 0.12, "recovery": 0.17, "damage": 52, "reach": 220, "height": [-260, 10], "stun": 0.38, "knock": 190}
 	},
 	"powers": [
-		{"id": "venom_lash", "desc": "A long whip strike that poisons: 15 HP every second for 4 s. Poison cannot finish you.", "sfx": "whip", "hit_sfx": "poison", "name": "Venom Lash", "short": "VENOM", "type": "lash", "anim": "slash", "apply_status": {"poison": 4.0},
+		{"id": "venom_lash", "desc": "A long whip strike that poisons: 15 HP every second for 2.5 s. Poison cannot finish you.", "sfx": "whip", "hit_sfx": "poison", "name": "Venom Lash", "short": "VENOM", "type": "lash", "anim": "slash", "apply_status": {"poison": 2.5},
 		 "cost": 30, "damage": 55, "reach": 400, "height": [-260, -60], "startup": 0.16, "active": 0.10, "recovery": 0.3, "stun": 0.4, "knock": 200},
-		{"id": "withering_curse", "desc": "Steals up to 35 energy and halves energy gain for 4 s.", "sfx": "curse", "name": "Withering Curse", "short": "CURSE", "type": "drain", "anim": "cast", "apply_status": {"cursed": 4.0},
-		 "cost": 35, "range": 650, "amount": 105, "startup": 0.3, "active": 0.05, "recovery": 0.35},
-		{"id": "venom_garden", "name": "Venom Garden", "short": "GARDEN", "type": "lash", "anim": "slash", "sfx": "whip", "hit_sfx": "poison", "reach": 540, "height": [-280, -40], "apply_status": {"poison": 6.0}, "desc": "Nyra's whip blooms into a thicket of venom thorns that poison for 6 s. Unblockable.", "damage": 280, "startup": 0.22, "active": 0.14, "recovery": 0.45, "stun": 0.8, "knock": 220, "unblockable": true, "ultimate": true, "cost": 300}
+		{"id": "withering_curse", "desc": "Steals over half a power bar and halves energy gain for 4 s.", "sfx": "curse", "name": "Withering Curse", "short": "CURSE", "type": "drain", "anim": "cast", "apply_status": {"cursed": 4.0},
+		 "cost": 35, "range": 650, "amount": 60, "startup": 0.3, "active": 0.05, "recovery": 0.35},
+		{"id": "venom_garden", "name": "Venom Garden", "short": "GARDEN", "type": "lash", "anim": "slash", "sfx": "whip", "hit_sfx": "poison", "reach": 540, "height": [-280, -40], "apply_status": {"poison": 3.0}, "desc": "Nyra's whip blooms into a thicket of venom thorns that poison for 3 s. Unblockable.", "damage": 280, "startup": 0.22, "active": 0.14, "recovery": 0.45, "stun": 0.8, "knock": 220, "unblockable": true, "ultimate": true, "cost": 300}
 	]
 }

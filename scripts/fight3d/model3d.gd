@@ -71,7 +71,9 @@ var _serial := -1            # Fighter.state_serial last seen: a new one restart
 var _alt := false            # alternate clip name (alias) so a restart of the same clip crossfades
 var _vrm := false
 var _floor_bones: PackedInt32Array = []   # feet, hips and head: none may go under the floor
-var floor_lift := 0.0        # how far the body had to be lifted this frame (tests watch this)
+var floor_lift := 0.0
+var _blob: MeshInstance3D    # soft shadow on the floor (phones; replaces the shadow pass)
+var _bones := {}             # bone name -> index (looked up once)        # how far the body had to be lifted this frame (tests watch this)
 var _meshes: Array[MeshInstance3D] = []
 var _overlay: ShaderMaterial
 var _sk: Skeleton3D
@@ -155,6 +157,8 @@ func setup(f: Fighter, s: Stage3D) -> void:
 		add_child(fill)
 	_yaw = _target_yaw()
 	f.strike_source = strike_point_2d
+	if ArenaBuilder.blob_shadows:
+		_make_blob()
 	if _tip:
 		f.tip_source = _tip_2d
 	sync()
@@ -226,6 +230,17 @@ func _setup_humanoid(f: Fighter, path: String, toon: bool) -> void:
 		_mat.set_shader_parameter("use_flex", (_mesh.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_COLOR) != 0)
 		_mat.set_shader_parameter("model_height", _mesh.mesh.get_aabb().size.y)
 		_mat.set_shader_parameter("flash_color", f.color.lerp(Color.WHITE, 0.6))
+		# detail baked from the dense source model (hy_rig.py --bake): sculpted surface, contact
+		# shadow, roughness and metal; and a hot edge light in the fighter's colour. HIGH only.
+		var n_path := path.get_basename() + "_normal.png"
+		var o_path := path.get_basename() + "_orm.png"
+		if not ArenaBuilder.low and ResourceLoader.exists(n_path) and ResourceLoader.exists(o_path):
+			_mat.set_shader_parameter("use_maps", true)
+			_mat.set_shader_parameter("normal_tex", load(n_path))
+			_mat.set_shader_parameter("orm_tex", load(o_path))
+			_mat.set_shader_parameter("normal_depth", float(f.data.get("normal_depth", 1.0)))
+		_mat.set_shader_parameter("rim_color", f.color.lerp(Color.WHITE, 0.25))
+		_mat.set_shader_parameter("rim_energy", 0.0 if ArenaBuilder.low else 0.55)
 		for m in _meshes:
 			m.material_override = _mat
 	else:
@@ -329,7 +344,7 @@ func _look_at_opponent() -> void:
 	var body_turn := absf(angle_difference(rotation.y, fighter.facing * PI / 2.0))
 	var yaw := body_turn * LOOK * (1.0 if fighter.state != Fighter.S.KO else 0.0)
 	for pair in [["Neck", 0.4], ["Head", 0.6]]:
-		var b := _sk.find_bone(pair[0])
+		var b := _b(pair[0])
 		if b < 0:
 			continue
 		var p := _sk.get_bone_parent(b)
@@ -587,6 +602,41 @@ func _target_yaw() -> float:
 	return fighter.facing * (PI / 2.0 - (0.0 if profile else TURN))
 
 
+const BLOB_SHADER := """
+shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
+uniform float strength = 0.55;
+void fragment() {
+	float d = length(UV - vec2(0.5)) * 2.0;
+	ALBEDO = vec3(0.0);
+	ALPHA = strength * smoothstep(1.0, 0.25, d);
+}
+"""
+
+
+func _make_blob() -> void:
+	_blob = MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(1.5, 0.62)
+	q.orientation = PlaneMesh.FACE_Y
+	_blob.mesh = q
+	var sh := Shader.new()
+	sh.code = BLOB_SHADER
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	_blob.material_override = m
+	_blob.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_blob.top_level = true
+	add_child(_blob)
+
+
+## Bone index by name, looked up once.
+func _b(n: String) -> int:
+	if not _bones.has(n):
+		_bones[n] = _sk.find_bone(n)
+	return _bones[n]
+
+
 ## No clip can bury a fighter: if a foot, the hips or the head is under the floor after the
 ## animation (a clip made for another rig, a bad retarget), lift the body back onto it.
 func lowest_point() -> float:
@@ -752,6 +802,15 @@ func sync() -> void:
 	rotation.y = _yaw
 	_animate(dt)
 	_keep_on_floor()
+	if _blob:
+		# under the hips, on the floor; it shrinks and fades as the body leaves the ground
+		var floor_y := stage.to_world(Vector2(0, fighter.ground_y)).y
+		var hx := position.x
+		if _sk and _b("Hips") >= 0:
+			hx = (_sk.global_transform * _sk.get_bone_global_pose(_b("Hips")).origin).x
+		var up := clampf((position.y - floor_y) / 1.5, 0.0, 1.0)
+		_blob.global_transform = Transform3D(Basis.from_scale(Vector3.ONE * (1.0 - 0.4 * up)), Vector3(hx, floor_y + 0.015, 0.05))
+		(_blob.material_override as ShaderMaterial).set_shader_parameter("strength", 0.55 * (1.0 - 0.6 * up) * fighter.modulate.a)
 	var flash := clampf(fighter.flash, 0.0, 1.0) * 0.45
 	if fighter.state == Fighter.S.ATTACK and fighter.move_kind == "heavy" \
 			and fighter.state_time < float(fighter.move.get("startup", 0.36)):
@@ -766,8 +825,9 @@ func sync() -> void:
 		# both hands on the weapon only while it is summoned for a power
 		var hold := _wshow > 0.5 and not (fighter.state in [Fighter.S.HURT, Fighter.S.KO, Fighter.S.WIN])
 		_hold = move_toward(_hold, 1.0 if hold else 0.0, dt * 6.0)
-		_left_hand_ik()
-		_place_two_handed(dt)
+		if _wshow > 0.01 or _hold > 0.01:   # (nothing to do while the weapon is away)
+			_left_hand_ik()
+			_place_two_handed(dt)
 	if _overlay:
 		_overlay.set_shader_parameter("flash", flash)
 	else:

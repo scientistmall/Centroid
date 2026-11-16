@@ -22,6 +22,14 @@ var phase := "intro"
 var _dust_t := 0.0
 var _push_amt := 0.2
 var _shake_t := 0.0
+var _cine := 0.0               # 0..1 cinematic close-up amount
+var _cine_on := false
+var _cine_f: Fighter
+var _cine_letterbox := false
+var _bars: _Letterbox
+var _numbers: Array = []       # pooled damage-number labels
+var _num_i := 0
+var _dash_serial := {}         # Fighter -> state_serial of the last dash that raised dust
 const CAM_DEADZONE := 60.0
 ## Opening charge: each round the fighters start at the far edges of the arena (camera pulled
 ## wide on the whole backdrop) and sprint at each other into fighting range.
@@ -129,6 +137,8 @@ func _build() -> void:
 	ui.layer = 5
 	add_child(ui)
 	ui_layer = ui
+	_bars = _Letterbox.new()
+	ui.add_child(_bars)
 	hud = FightHud.new()
 	hud.left = player
 	hud.right = enemy
@@ -184,6 +194,8 @@ func _make_fighter(id: String, ctrl: Object) -> Fighter:
 	f.special_hit.connect(_on_special_hit)
 	f.parried.connect(func(d: Fighter, _a: Fighter): _pop_text(d, "PARRY!", Color(0.55, 0.9, 1.0)))
 	f.evaded.connect(func(d: Fighter): _pop_text(d, "EVADE", Color(0.85, 1.0, 0.7)))
+	f.intercepted.connect(func(d: Fighter, att: Fighter): _pop_text(att, "INTERCEPT!", Color(1.0, 0.8, 0.35)))
+	f.damaged.connect(_on_damaged)
 	world.add_child(f)
 	return f
 
@@ -272,7 +284,12 @@ func _physics_process(delta: float) -> void:
 		_dust_t = 0.16
 		for f in [player, enemy]:
 			if f and f.advance:
-				Vfx3D.particles(Vfx3D.world(f.position, 0.1), Color(0.5, 0.42, 0.34), "dust", 8, 0.5)
+				Vfx3D.puff(Vfx3D.world(f.position, 0.1), Color(0.5, 0.42, 0.34), "dust", 8, 0.5)
+	for f in [player, enemy]:
+		# a puff of dust at the feet when a fighter dashes (once per dash)
+		if f and f.state == Fighter.S.DASH and _dash_serial.get(f, -1) != f.state_serial and Vfx3D.on():
+			_dash_serial[f] = f.state_serial
+			Vfx3D.puff(Vfx3D.world(f.position, 0.1), Color(0.55, 0.48, 0.4), "dust", 10, 0.6)
 	if phase == "fight":
 		time_left -= delta
 		hud.time_left = time_left
@@ -301,6 +318,60 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	_update_camera(delta)
 	_sync_puppets()
+
+
+## Damage numbers (MCOC): a number pops from the fighter that was hit. White for basic hits,
+## larger and in the attacker's colour for specials, grey for chip through a block. Labels are
+## pooled, so a long combo makes no new nodes.
+func _on_damaged(f: Fighter, amount: float, kind: String) -> void:
+	if amount < 1.0 or effects == null:
+		return
+	if _numbers.size() < 10:
+		var nl := Label.new()
+		nl.add_theme_font_override("font", Ink.letter_font())
+		nl.add_theme_color_override("font_outline_color", Ink.INK)
+		nl.z_index = 20
+		world.add_child(nl)
+		_numbers.append(nl)
+	var l: Label = _numbers[_num_i % _numbers.size()]
+	_num_i += 1
+	var special := kind == "special"
+	l.text = str(int(round(amount)))
+	# (sizes are in fight pixels: the camera's zoom enlarges them about twice on screen)
+	l.add_theme_font_size_override("font_size", 40 if special else (22 if kind == "block" else 28))
+	l.add_theme_constant_override("outline_size", 8 if special else 6)
+	var col := Color(0.75, 0.78, 0.85) if kind == "block" else (f.opponent.color.lightened(0.45) if special and f.opponent else Color.WHITE)
+	l.add_theme_color_override("font_color", col)
+	l.modulate.a = 1.0
+	l.position = f.position + Vector2(randf_range(-60, 20) - (30.0 if special else 15.0), -235 - randf_range(0, 30))
+	l.scale = Vector2(1.5, 1.5)
+	if l.has_meta("tw") and (l.get_meta("tw") as Tween).is_valid():
+		(l.get_meta("tw") as Tween).kill()
+	var t := l.create_tween().set_parallel(true)
+	t.tween_property(l, "scale", Vector2.ONE, 0.12).set_ease(Tween.EASE_OUT)
+	t.tween_property(l, "position:y", l.position.y - 55.0, 0.8).set_ease(Tween.EASE_OUT)
+	t.tween_property(l, "modulate:a", 0.0, 0.35).set_delay(0.45)
+	l.set_meta("tw", t)
+
+
+## Cinema bars for the third power's close-up.
+class _Letterbox extends Control:
+	var amount := 0.0:
+		set(v):
+			if not is_equal_approx(v, amount):
+				amount = v
+				queue_redraw()
+
+	func _ready() -> void:
+		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		if amount <= 0.001:
+			return
+		var h := size.y * 0.11 * amount
+		draw_rect(Rect2(0, 0, size.x, h), Color.BLACK)
+		draw_rect(Rect2(0, size.y - h, size.x, h), Color.BLACK)
 
 
 ## A word that pops up over a fighter and floats away (PARRY!, EVADE).
@@ -340,6 +411,14 @@ func _update_camera(delta: float) -> void:
 		push = smoothstep(0.0, 0.12, _push_t) * (1.0 - smoothstep(0.32, PUSH_TIME, _push_t))
 		want_zoom += _push_amt * push
 		mid = lerpf(mid, _push_f.position.x, 0.4 * push)
+	# cinematic: the third power's wind-up and the K.O. pull the camera in close on one fighter
+	_cine = move_toward(_cine, 1.0 if is_instance_valid(_cine_f) and _cine_on else 0.0, delta * (7.0 if _cine_on else 4.0))
+	if _cine > 0.0 and is_instance_valid(_cine_f):
+		want_zoom = lerpf(want_zoom, minf(want_zoom + 0.9, 3.0), _cine)
+		mid = lerpf(mid, _cine_f.render_position().x, 0.8 * _cine)
+		push = maxf(push, _cine)
+	if _bars:
+		_bars.amount = move_toward(_bars.amount, 1.0 if _cine_on and _cine_letterbox else 0.0, delta * 6.0)
 	_cam_zoom = lerpf(_cam_zoom, want_zoom, clampf(delta * (3.0 + 9.0 * push), 0.0, 1.0))
 	# keep the framed view inside the stage
 	var half := vis.x / 2.0 / _cam_zoom
@@ -404,6 +483,14 @@ func _on_power(f: Fighter, power_name: String) -> void:
 	_push_t = 0.0
 	_push_f = f
 	_push_amt = 0.32 if f.power_index == 2 else 0.2   # the ultimate pushes in harder
+	if f.power_index == 2:
+		# the third power's cinematic: letterbox bars, the camera close on the caster through the
+		# wind-up (the opponent is frozen), then back out wide for the strike
+		_cine_f = f
+		_cine_on = true
+		_cine_letterbox = true
+		get_tree().create_timer(float(f.power_def.get("startup", 0.6)) * 0.85, false, true).timeout.connect(
+			func(): _cine_on = false)
 	# the power's name and art slide out under the caster's health bar: no screen-wide banner,
 	# no slow motion, nothing covering the fight
 	if not cutins_enabled or hud == null:
@@ -461,12 +548,21 @@ func _round_over(winner: Fighter, text: String = "K.O.") -> void:
 		c.pop()
 	player.statuses.erase("veil")
 	enemy.statuses.erase("veil")
-	Engine.time_scale = 0.35
+	var loser := enemy if winner == player else player
+	# the finishing blow: slow motion, the camera pulls in on the fallen fighter, a white flash
+	Engine.time_scale = 0.25
+	_cine_f = loser
+	_cine_on = true
+	_cine_letterbox = false
+	if impact:
+		impact.trigger(world.get_global_transform_with_canvas() * (loser.position + Vector2(0, -150)), Color.WHITE)
 	hud.banner(text)
 	shake = 26.0
-	await _wait(1.2)
+	await _wait(1.3)
 	Engine.time_scale = 1.0
-	var loser := enemy if winner == player else player
+	_cine_f = winner   # then across to the winner's pose
+	await _wait(0.5)
+	_cine_on = false
 	winner.celebrate()
 	loser.freeze()
 	await _wait(1.2)

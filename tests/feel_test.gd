@@ -1,6 +1,6 @@
 extends Node
 ## Does the fight LOOK controlled? Checks the 3D bodies against the fight logic (fight01):
-##   a light attack shows within a few frames of the press; a full L-L-L-M-M combo connects
+##   a light attack shows within a few frames of the press; a full five-hit combo connects
 ##   every hit with the bodies never overlapping; both fighters freeze together on each hit;
 ##   every hit restarts the reaction with a crossfade (a new clip name, no snap); heavy blows
 ##   get the heavy reaction; the AI's blocks are not accidental parries at Normal; every attack
@@ -110,7 +110,7 @@ func _ready() -> void:
 			var want_heavy: bool = a.player.move_kind == "medium" and a.player.chain_index == 1
 			if bool(a.enemy.get_meta("hurt_heavy", false)) != want_heavy:
 				heavy_ok = false
-	_check(hits == 5, "an L-L-L-M-M combo lands all 5 hits (%d)" % hits)
+	_check(hits == 5, "a five-hit combo (L-L-L-L-M) lands every hit (%d)" % hits)
 	_check(min_gap >= Fighter.MIN_GAP - 1.0, "the bodies never overlap during the combo (closest %d px)" % int(min_gap))
 	_check(both_froze == hits and hits > 0, "both fighters freeze on every hit (%d of %d)" % [both_froze, hits])
 	_check(held_pose >= hits - 1 and hits > 0, "the hit body holds its pose during hit-stop (%d of %d)" % [held_pose, hits])

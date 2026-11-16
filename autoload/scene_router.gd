@@ -31,6 +31,8 @@ var _fade: ColorRect
 var _busy := false
 var _exit_armed := 0.0      # main menu: a second back press within this window exits
 var _toast: Label
+var _fps: Label
+var _fps_t := 0.0
 
 
 func _ready() -> void:
@@ -58,6 +60,15 @@ func _ready() -> void:
 	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toast.modulate.a = 0.0
 	layer.add_child(_toast)
+	_fps = Label.new()
+	_fps.position = Vector2(14, 150)
+	_fps.add_theme_font_size_override("font_size", 24)
+	_fps.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
+	_fps.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_fps.add_theme_constant_override("outline_size", 8)
+	_fps.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fps.visible = false
+	layer.add_child(_fps)
 
 
 ## A short message near the bottom of the screen (fades out by itself).
@@ -72,6 +83,17 @@ var _toast_t := 0.0
 
 func _process(delta: float) -> void:
 	_toast_t = maxf(0.0, _toast_t - delta)
+	# "Show FPS" (Settings): frame rate, and in a fight the 3D render scale and graphics level
+	_fps.visible = Settings.show_fps
+	if Settings.show_fps:
+		_fps_t -= delta
+		if _fps_t <= 0.0:
+			_fps_t = 0.25
+			var txt := "%d FPS" % int(Engine.get_frames_per_second())
+			if Stage3D.current and is_instance_valid(Stage3D.current):
+				txt += "  ·  3D %d%%  ·  %s" % [int(round(Stage3D.current.render_scale * 100.0)),
+					["AUTO", "HIGH", "LOW", "SAFE"][Stage3D.current.level]]
+			_fps.text = txt
 	_exit_armed = maxf(0.0, _exit_armed - delta)
 	_toast.modulate.a = clampf(maxf(_exit_armed, _toast_t), 0.0, 1.0)
 

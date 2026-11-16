@@ -14,6 +14,14 @@ uniform float model_height = 1.0;     // model-space height, scales the flutter 
 uniform float rim_amount : hint_range(0.0, 1.0) = 0.35;
 uniform vec3 flash_color : source_color = vec3(1.0);
 uniform float flash = 0.0;
+// Detail maps baked from the dense source model (tools/models/hy_rig.py --bake); HIGH graphics.
+uniform bool use_maps = false;
+uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap;
+uniform sampler2D orm_tex : hint_default_white, filter_linear_mipmap;   // R ao, G roughness, B metallic
+uniform float normal_depth = 1.0;
+uniform vec3 rim_color : source_color = vec3(1.0);   // the fighter's colour: a hot edge light
+uniform float rim_power = 3.0;
+uniform float rim_energy = 0.0;
 
 void vertex() {
 	if (use_flex) {
@@ -32,10 +40,28 @@ void vertex() {
 void fragment() {
 	vec4 t = texture(albedo_tex, UV);
 	ALBEDO = t.rgb;
-	ROUGHNESS = 0.72;
-	METALLIC = 0.0;
-	SPECULAR = 0.4;
+	float fres = 0.0;
+	if (use_maps) {
+		vec3 orm = texture(orm_tex, UV).rgb;
+		NORMAL_MAP = texture(normal_tex, UV).rgb;
+		NORMAL_MAP_DEPTH = normal_depth;
+		// contact shadow in creases: on the ambient light, and a little on the colour itself so
+		// it shows under any lighting
+		AO = orm.r;
+		AO_LIGHT_AFFECT = 0.6;
+		ALBEDO *= mix(0.72, 1.0, orm.r);
+		// metal and lacquer stay tight and bright; skin and cloth keep a soft sheen, not a wet one
+		METALLIC = orm.b;
+		ROUGHNESS = mix(clamp(orm.g, 0.5, 0.92), clamp(orm.g, 0.22, 0.9), smoothstep(0.15, 0.6, orm.b));
+		SPECULAR = 0.45;
+	} else {
+		ROUGHNESS = 0.72;
+		METALLIC = 0.0;
+		SPECULAR = 0.4;
+	}
 	RIM = rim_amount;
 	RIM_TINT = 0.55;
-	EMISSION = flash_color * flash;
+	// a hot coloured edge (MCOC-style rim): strongest where the surface turns away from the eye
+	fres = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), rim_power);
+	EMISSION = flash_color * flash + rim_color * fres * rim_energy;
 }

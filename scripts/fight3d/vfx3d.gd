@@ -320,6 +320,39 @@ static func ring(pos: Vector3, size: float, col: Color, time := 0.45, ground := 
 
 
 ## One-shot particle burst. `kind`: sparks, embers, dust, motes, drips, leaves, shards.
+## A one-shot particle burst from a pool (hit sparks, dust): the node, its mesh and material are
+## reused instead of being made and freed on every hit. Same look as particles().
+static var _pool := {}   # kind -> idle CPUParticles3D nodes
+
+
+static func puff(pos: Vector3, col: Color, kind := "sparks", amount := 40, power := 1.0) -> void:
+	var list: Array = _pool.get_or_add(kind, [])
+	var p: CPUParticles3D = null
+	while not list.is_empty() and p == null:
+		var c = list.pop_back()
+		if is_instance_valid(c) and c.is_inside_tree():
+			p = c
+	if p == null:
+		p = particles(pos, col, kind, amount, power)
+		p.set_meta("vmax", p.initial_velocity_max / maxf(power, 0.01))
+		p.finished.disconnect(p.queue_free)
+		p.finished.connect(func():
+			if is_instance_valid(p):
+				(_pool.get_or_add(kind, []) as Array).append(p))
+		return
+	p.position = pos
+	if p.amount != amount:
+		p.amount = amount
+	p.initial_velocity_min = 2.0 * power
+	p.initial_velocity_max = float(p.get_meta("vmax", 6.0)) * power
+	if kind not in ["embers", "dust", "leaves"]:
+		var hot := Color(col.r * 1.6, col.g * 1.6, col.b * 1.6, 1.0)
+		p.color_ramp.set_color(0, hot)
+		p.color_ramp.set_color(1, Color(hot.r, hot.g, hot.b, 0.0))
+	p.restart()
+	p.emitting = true
+
+
 static func particles(pos: Vector3, col: Color, kind := "sparks", amount := 40, power := 1.0) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.one_shot = true
@@ -1122,14 +1155,16 @@ static func on_hit(at2d: Vector2, col: Color, blocked: bool, heavy: bool, elemen
 	var at := world(at2d, 0.4)
 	var c := Color(0.75, 0.85, 1.0) if blocked else col
 	glow(at, 0.9 if heavy else 0.55, c, 4.0, 0.16, 1.5)
-	particles(at, c, "sparks", 40 if heavy else 22, 1.4 if heavy else 1.0)
+	puff(at, c, "sparks", 32 if heavy else 16, 1.4 if heavy else 1.0)
 	if not blocked:
 		match element:
-			"lightning": strike(at, col, 0.6 if heavy else 0.4)
-			"black_flame": particles(at, col, "embers", 30, 1.0)
-			"stone", "gravity": particles(at, Color(0.5, 0.4, 0.3), "dust", 14, 0.8)
-			"moonlight": particles(at, Color(1.0, 0.8, 0.95), "motes", 20, 0.8)
-			"poison": particles(at, Color(0.4, 1.0, 0.2), "drips", 16, 0.7)
+			"lightning":
+				if heavy:
+					strike(at, col, 0.6)
+			"black_flame": puff(at, col, "embers", 18, 1.0)
+			"stone", "gravity": puff(at, Color(0.5, 0.4, 0.3), "dust", 10, 0.8)
+			"moonlight": puff(at, Color(1.0, 0.8, 0.95), "motes", 14, 0.8)
+			"poison": puff(at, Color(0.4, 1.0, 0.2), "drips", 12, 0.7)
 	if heavy:
 		ring(at, 1.8, c, 0.25)
 		flash(at, c, 4.0, 5.0, 0.2)

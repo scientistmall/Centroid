@@ -67,6 +67,9 @@ static func cyl(r_top: float, r_bot: float, h: float, sides := 12) -> CylinderMe
 
 ## LOW / SAFE graphics (see Settings.effective_graphics): no glow, fog, sky shader or shadows.
 static var low := false
+## Phones and LOW / SAFE: no real-time shadow pass (it redraws both 60k-triangle bodies); each
+## fighter gets a soft blob shadow on the floor instead (Model3D).
+static var blob_shadows := false
 
 
 static func environment(root: Node3D, sky_top: Color, horizon: Color, fog_col: Color, fog_density: float, ambient: Color) -> void:
@@ -112,7 +115,7 @@ static func lights(root: Node3D, moon: Color, rim: Color, key_energy := 1.2) -> 
 	key.light_color = moon
 	key.light_energy = key_energy
 	key.rotation_degrees = Vector3(-35, 20, 0)
-	key.shadow_enabled = not low
+	key.shadow_enabled = not low and not blob_shadows
 	key.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL   # one cascade: the fight is a small area
 	key.directional_shadow_max_distance = 30.0
 	key.shadow_opacity = 0.55   # no sun: soft shadows, not black pools
@@ -123,6 +126,14 @@ static func lights(root: Node3D, moon: Color, rim: Color, key_energy := 1.2) -> 
 	back.light_energy = 2.2
 	back.rotation_degrees = Vector3(-20, 180, 0)
 	root.add_child(back)
+	# soft fill from the camera side (three-point lighting): opens up the faces' shadow side so
+	# the baked detail reads; no shadows, so it costs no extra pass
+	if not low:
+		var fill := DirectionalLight3D.new()
+		fill.light_color = moon.lerp(Color(1.0, 0.93, 0.85), 0.5)
+		fill.light_energy = 0.32
+		fill.rotation_degrees = Vector3(-8, -25, 0)
+		root.add_child(fill)
 
 
 static func moon(root: Node3D, pos: Vector3, r: float, col: Color) -> void:

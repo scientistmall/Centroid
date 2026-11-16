@@ -15,6 +15,15 @@ const FOV := 40.0
 var viewport: SubViewport          # null in SAFE graphics: the 3D then draws straight to the screen
 var camera: Camera3D
 var level := Settings.Gfx.HIGH
+## Dynamic resolution (phones): the 3D render scale steps down when frames run long and back up
+## when there is headroom, so the fight holds its frame rate; the HUD stays at full resolution.
+const SCALE_MIN := 0.6
+var render_scale := 1.0
+var scale_max := 1.0
+var dynamic := false
+var _avg_ms := 16.7
+var _last_us := 0
+var _dyn := {"slow": 0.0, "fast": 0.0, "cool": 0.0}
 var world_root: Node3D
 var arena_id := ""
 var _vp_size := Vector2(1920, 1080)
@@ -32,12 +41,15 @@ func setup(id: String, vp_size: Vector2, ground_px: float) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	level = Settings.effective_graphics()
 	ArenaBuilder.low = level != Settings.Gfx.HIGH
+	ArenaBuilder.blob_shadows = ArenaBuilder.low or OS.has_feature("mobile") or OS.get_environment("BLOB_SHADOWS") == "1"
 	world_root = Node3D.new()
 	if level == Settings.Gfx.SAFE:
 		# no off-screen render: the world joins the screen's own viewport and draws under every
 		# canvas layer (this stage sits on the lowest one, so the picture is the same)
 		var root_vp := get_viewport()
-		root_vp.scaling_3d_scale = 0.75
+		render_scale = 0.75
+		scale_max = 0.85
+		root_vp.scaling_3d_scale = render_scale
 		tree_exiting.connect(func(): root_vp.scaling_3d_scale = 1.0)
 		add_child(world_root)
 	else:
@@ -46,9 +58,11 @@ func setup(id: String, vp_size: Vector2, ground_px: float) -> void:
 		viewport.own_world_3d = true
 		viewport.msaa_3d = Viewport.MSAA_2X if level == Settings.Gfx.HIGH else Viewport.MSAA_DISABLED
 		if level == Settings.Gfx.LOW:
-			viewport.scaling_3d_scale = 0.75
+			render_scale = 0.75
+			scale_max = 0.85
 		elif OS.has_feature("mobile"):
-			viewport.scaling_3d_scale = 0.85   # phones: dense screens, the difference doesn't show
+			render_scale = 0.85   # phones: dense screens, the difference doesn't show
+		viewport.scaling_3d_scale = render_scale
 		viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		add_child(viewport)
 		viewport.add_child(world_root)
@@ -59,6 +73,51 @@ func setup(id: String, vp_size: Vector2, ground_px: float) -> void:
 	world_root.add_child(camera)
 	_place_camera()
 	ArenaBuilder.build(id, world_root, camera.position.y, camera.position.z)
+	dynamic = OS.has_feature("mobile") or OS.get_environment("DYNRES") == "1"
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
+func _process(_delta: float) -> void:
+	if not dynamic:
+		return
+	var now := Time.get_ticks_usec()
+	if _last_us == 0:
+		_last_us = now
+		return
+	var dt := (now - _last_us) / 1e6
+	_last_us = now
+	if dt > 0.25:
+		return   # a hitch (loading, pause): not a trend
+	_avg_ms = lerpf(_avg_ms, dt * 1000.0, 0.1)
+	var s := step_scale(render_scale, _avg_ms, dt, _dyn, scale_max)
+	if not is_equal_approx(s, render_scale):
+		render_scale = s
+		(viewport if viewport else get_viewport()).scaling_3d_scale = s
+
+
+## One step of the dynamic-resolution rule (pure; tests feed it frame times). Budget: 60 fps.
+## Over budget by 15% for half a second: one step down. Comfortably inside it for three seconds
+## (and not within eight seconds of a step down): one step back up.
+static func step_scale(scale: float, avg_ms: float, dt: float, st: Dictionary, max_scale := 1.0) -> float:
+	var budget := 1000.0 / 60.0
+	st["cool"] = maxf(0.0, float(st["cool"]) - dt)
+	if avg_ms > budget * 1.15:
+		st["fast"] = 0.0
+		st["slow"] = float(st["slow"]) + dt
+		if st["slow"] >= 0.5:
+			st["slow"] = 0.0
+			st["cool"] = 8.0
+			return maxf(SCALE_MIN, scale - 0.08)
+	elif avg_ms < budget * 1.04:
+		st["slow"] = 0.0
+		st["fast"] = float(st["fast"]) + dt
+		if st["fast"] >= 3.0 and st["cool"] <= 0.0 and scale < max_scale:
+			st["fast"] = 0.0
+			return minf(max_scale, scale + 0.05)
+	else:
+		st["slow"] = 0.0
+		st["fast"] = 0.0
+	return scale
 
 
 func _place_camera() -> void:

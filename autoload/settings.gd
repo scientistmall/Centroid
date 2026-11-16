@@ -14,6 +14,7 @@ var difficulty := 1            # 0 easy, 1 normal, 2 hard
 ## draws the 3D straight to the screen (no off-screen pass) for GPUs whose drivers fail at it.
 enum Gfx { AUTO, HIGH, LOW, SAFE }
 var graphics := Gfx.AUTO
+var show_fps := false          # frame rate and 3D render scale in the corner
 var graphics_detected := 0     # 0 = not yet; else the level the black-screen check settled on
 
 ## GPU families whose drivers are known to fail at parts of the 3D pipeline: start them on LOW.
@@ -83,7 +84,7 @@ func save_settings() -> void:
 		f.store_string(JSON.stringify({
 			"music_volume": music_volume, "sfx_volume": sfx_volume, "vibration": vibration,
 			"button_scale": button_scale, "button_opacity": button_opacity,
-			"left_handed": left_handed, "difficulty": difficulty, "graphics": graphics,
+			"left_handed": left_handed, "difficulty": difficulty, "graphics": graphics, "show_fps": show_fps,
 			"graphics_detected": graphics_detected}))
 	changed.emit()
 
@@ -101,6 +102,7 @@ func load_settings() -> void:
 		left_handed = bool(d.get("left_handed", left_handed))
 		difficulty = int(d.get("difficulty", difficulty))
 		graphics = clampi(int(d.get("graphics", graphics)), 0, 3)
+		show_fps = bool(d.get("show_fps", show_fps))
 		graphics_detected = clampi(int(d.get("graphics_detected", graphics_detected)), 0, 3)
 
 
