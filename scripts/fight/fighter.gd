@@ -23,7 +23,7 @@ signal special_hit(f: Fighter, attacker: Fighter)
 signal parried(f: Fighter, attacker: Fighter)
 signal evaded(f: Fighter)
 
-enum S { IDLE, WALK, AIR, ATTACK, BLOCK, BLOCKSTUN, HURT, KO, POWER, WIN, FROZEN, DASH }
+enum S { IDLE, WALK, AIR, ATTACK, BLOCK, BLOCKSTUN, HURT, KO, POWER, WIN, FROZEN, DASH, DOWN }
 
 const GRAVITY := 3400.0
 const MAX_ENERGY := 300.0
@@ -36,7 +36,10 @@ const POISON_DPS := 15.0
 const HP := 1000.0               # every fighter: fair fights
 const BUFFER := 0.25             # seconds a press waits for its first legal tick
 const POWER_BUFFER := 0.6        # ... and a power tap
-const MIN_GAP := 112.0           # closest the two bodies get (they never pass each other)
+const MIN_GAP := 150.0           # closest the two bodies get (they never pass each other or overlap)
+const DOWN_TIME := 0.55          # knocked down by a special: on the ground this long ...
+const GETUP_TIME := 0.85         # ... then the get-up (untouchable throughout, MCOC-style)
+const HITSTOP := {"light": 0.06, "medium": 0.08, "heavy": 0.12, "power": 0.12}
 const PARRY_WINDOW := 0.15       # block started this soon before a hit = parry
 const PARRY_STUN := 0.8
 const EVADE_WINDOW := 0.15       # the start of a dash back dodges hits
@@ -46,10 +49,10 @@ const MEDIUM_RANGE := 330.0      # a swipe toward within this distance is a medi
 ## Shared frame data and damage by move slot (anim and model come from each fighter's json).
 ## [startup, active, recovery, damage, reach, stun, knock, step]
 const MOVE_TABLE := {
-	"light": [[0.08, 0.07, 0.17, 30.0, 185.0, 0.34, 120.0, 40.0], [0.08, 0.07, 0.17, 32.0, 195.0, 0.34, 130.0, 40.0],
-		[0.09, 0.07, 0.2, 36.0, 195.0, 0.38, 150.0, 30.0]],
-	"medium": [[0.12, 0.08, 0.24, 48.0, 215.0, 0.44, 160.0, 70.0], [0.13, 0.08, 0.3, 52.0, 220.0, 0.5, 420.0, 60.0]],
-	"heavy": [[0.36, 0.1, 0.38, 110.0, 230.0, 0.6, 520.0, 70.0]],
+	"light": [[0.09, 0.07, 0.18, 30.0, 215.0, 0.36, 280.0, 20.0], [0.09, 0.07, 0.18, 32.0, 220.0, 0.36, 290.0, 20.0],
+		[0.1, 0.07, 0.2, 36.0, 225.0, 0.4, 320.0, 20.0]],
+	"medium": [[0.13, 0.08, 0.24, 48.0, 245.0, 0.46, 380.0, 35.0], [0.14, 0.08, 0.32, 52.0, 250.0, 0.55, 950.0, 35.0]],
+	"heavy": [[0.36, 0.1, 0.4, 110.0, 255.0, 0.65, 900.0, 40.0]],
 }
 const POWER_DAMAGE := [130.0, 230.0, 380.0]
 const POWER_STUN := [[0.5, 300.0], [0.7, 460.0], [1.0, 560.0]]   # [stun, knock] by power level
@@ -104,6 +107,9 @@ var air_attack_used := false
 var _buf: Dictionary = {}        # action -> seconds left in the buffer
 var _block_since := -9.0         # clock when the current block started (parry timing)
 var dash_dir := 0                # +1 dash forward, -1 dash back (S.DASH)
+var state_serial := 0            # bumps on every state change: the 3D body restarts a clip on it
+## Set by a 3D model: where the striking hand / foot is (fight pixels), for the hit spark.
+var strike_source: Callable
 var _last_pose: Dictionary = {}
 var statuses: Dictionary = {}   # status name -> seconds left (veil, clear_sight, ...)
 var side := 0                   # 0 = player side, 1 = enemy side
@@ -137,7 +143,7 @@ func setup(fighter_data: Dictionary) -> void:
 		pw["cost"] = BAR * (i + 1)
 		pw["damage"] = POWER_DAMAGE[mini(i, 2)] if float(pw.get("damage", 0.0)) > 0.0 else 0.0
 		if i < 2:
-			pw["startup"] = minf(float(pw.get("startup", 0.2)), 0.08)
+			pw["startup"] = 0.18   # quick, with a wind-up you can see
 		else:
 			pw["startup"] = SP3_WINDUP
 			pw["unblockable"] = true
@@ -179,6 +185,7 @@ func set_state(s: S) -> void:
 		_stop_advance()   # hit, blocked, attacking, jumping: the charge is over
 	state = s
 	state_time = 0.0
+	state_serial += 1
 
 
 func is_grounded() -> bool:
@@ -207,7 +214,19 @@ func add_energy(amount: float) -> void:
 
 # ------------------------------------------------------------------ update
 
+## Where to draw the fighter this frame: between the last two physics ticks, so bodies and the
+## camera move smoothly on 90 / 120 Hz screens (the fight logic runs at 60 Hz).
+var _prev_pos := Vector2.ZERO
+
+
+func render_position() -> Vector2:
+	if _prev_pos == Vector2.ZERO or _prev_pos.distance_to(position) > 400.0:
+		return position
+	return _prev_pos.lerp(position, Engine.get_physics_interpolation_fraction())
+
+
 func _physics_process(delta: float) -> void:
+	_prev_pos = position
 	clock += delta
 	# read and buffer input every tick, even during hit-stop, so no press is lost
 	inp = {}
@@ -217,7 +236,10 @@ func _physics_process(delta: float) -> void:
 		_buf[k] -= delta
 		if _buf[k] <= 0.0:
 			_buf.erase(k)
+	var stunned := state in [S.HURT, S.BLOCKSTUN, S.DOWN]
 	for k in ["light", "forward", "heavy", "dash_back", "power", "power_1", "power_2", "power_3"]:
+		if stunned and k in ["light", "forward", "heavy"]:
+			continue   # no jab straight out of a stun: attacks pressed while hit don't wait
 		if inp.get(k, false):
 			# a power tap is deliberate: it waits longer for the current move to allow it
 			_buf[k] = POWER_BUFFER if k.begins_with("power") else BUFFER
@@ -252,6 +274,7 @@ func _physics_process(delta: float) -> void:
 		S.BLOCKSTUN, S.HURT: _stun_update(delta)
 		S.POWER: _power_update(delta)
 		S.DASH: _dash_update(delta)
+		S.DOWN: _down_update(delta)
 		S.KO, S.FROZEN, S.WIN: pass
 
 	# Gravity Well: dragged toward the source unless anchored.
@@ -269,7 +292,7 @@ func _physics_process(delta: float) -> void:
 		if vel.y > 0.0:
 			vel.y = 0.0
 			_on_land()
-	if is_grounded() and state in [S.HURT, S.BLOCKSTUN, S.KO, S.FROZEN, S.WIN]:
+	if is_grounded() and state in [S.HURT, S.BLOCKSTUN, S.KO, S.FROZEN, S.WIN, S.DOWN]:
 		vel.x = move_toward(vel.x, 0.0, PUSH_FRICTION * delta)
 	position.x = clampf(position.x, stage_left, stage_right)
 	_keep_side()
@@ -527,6 +550,15 @@ func _stun_update(delta: float) -> void:
 			set_state(S.BLOCK)
 
 
+func _down_update(_delta: float) -> void:
+	invuln = maxf(invuln, 0.05)
+	if state_time >= DOWN_TIME + GETUP_TIME:
+		set_state(S.IDLE)
+		invuln = 0.15
+		if not _neutral_action() and inp.get("block", false):
+			set_state(S.BLOCK)
+
+
 func _on_land() -> void:
 	match state:
 		S.AIR:
@@ -658,13 +690,31 @@ func _check_melee_hit() -> void:
 		move_hit = true
 		var result := opponent.receive_hit(self, move)
 		if result != "miss":
-			hitstop = 0.07 if move_kind != "heavy" else 0.11
-			_spawn_spark(opponent.position + Vector2(-facing * 30, -170), result == "block", move_kind == "heavy")
+			_impact(float(HITSTOP.get(move_kind, 0.07)))
+			_spawn_spark(_hit_point(), result == "block", move_kind == "heavy")
 
 
 # ------------------------------------------------------------------ powers
 
 ## Full power bars, capped by how many powers the fighter has.
+## Both fighters freeze on a connect (hit-stop), so the impact reads.
+func _impact(t: float) -> void:
+	hitstop = maxf(hitstop, t)
+	if opponent:
+		opponent.hitstop = maxf(opponent.hitstop, t)
+
+
+## Where the blow landed: at the striking hand / foot (from the 3D body), kept on the opponent.
+func _hit_point() -> Vector2:
+	var hb := opponent.hurtbox() if opponent else Rect2(position, Vector2.ONE)
+	var p := opponent.position + Vector2(-facing * 30, -170) if opponent else position
+	if strike_source.is_valid():
+		var r: Array = strike_source.call()
+		if not r.is_empty():
+			p = r[0]
+	return Vector2(clampf(p.x, hb.position.x - 10.0, hb.end.x + 10.0), clampf(p.y, hb.position.y + 20.0, hb.end.y - 20.0))
+
+
 func bars_full() -> int:
 	return mini(int(floor(energy / BAR + 0.0001)), powers.size())
 
@@ -774,7 +824,7 @@ func _power_update(_delta: float) -> void:
 					vel.x = 0.0
 					var res := opponent.receive_hit(self, power_def)
 					if res != "miss":
-						hitstop = 0.08
+						_impact(HITSTOP["power"])
 						_spawn_spark(opponent.position + Vector2(0, -170), res == "block", true)
 			elif t >= startup + active:
 				vel.x = 0.0
@@ -815,7 +865,7 @@ func _power_update(_delta: float) -> void:
 							opponent.position.x = clampf(position.x + facing * 150.0, stage_left, stage_right)
 							opponent.vel.x = 0.0
 					if res3 != "miss":
-						hitstop = 0.08
+						_impact(HITSTOP["power"])
 						_spawn_spark(opponent.position + Vector2(0, -170), res3 == "block", true)
 		"drain":
 			# Steal energy and curse the target (halved energy gain).
@@ -850,7 +900,7 @@ func _power_update(_delta: float) -> void:
 				if opponent and get_meta("power_locked", false) and absf(opponent.position.x - position.x) <= r + 150.0:
 					var res2 := opponent.receive_hit(self, power_def)
 					if res2 != "miss":
-						hitstop = 0.1
+						_impact(HITSTOP["power"])
 						_spawn_spark(opponent.position + Vector2(0, -170), res2 == "block", true)
 	if t >= startup + active + recovery:
 		set_state(S.IDLE if is_grounded() else S.AIR)
@@ -1025,9 +1075,14 @@ func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 		return "hit"
 	stun_time = stun
 	vel.x = away * knock
-	var launch: float = m.get("launch", 0.0)
-	if launch > 0.0 and not has_status("anchored"):
-		vel.y = -launch
+	# the reaction is decided once, at the hit: heavy for heavies, combo enders and specials;
+	# light hits alternate between two reactions so a combo reads hit by hit
+	var slot: String = m.get("slot", "")
+	set_meta("hurt_heavy", special or slot == "heavy" or (slot == "medium" and knock >= 900.0))
+	set_meta("hit_alt", not get_meta("hit_alt", false))
+	if special and float(m.get("damage", 0.0)) > 0.0 and attacker.power_index >= 1:
+		set_state(S.DOWN)   # powers 2 and 3 knock down (MCOC): fall, then get up untouchable
+		return "hit"
 	set_state(S.HURT)
 	return "hit"
 

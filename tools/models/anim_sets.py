@@ -6,8 +6,8 @@ by tools/models/build_anims.gd and retargeted onto each fighter's body in the ga
     godot --headless --path . -s tools/models/build_anims.gd -- greatsword
 
 Slots (what the game plays): idle, walk_forward, walk_back, run, jump, air_attack, block,
-block_hit, hit_light, hit_heavy, knockdown, victory, light_1..3, heavy_1..2, cast_1, cast_2,
-buff, dash. walk_back may be "reverse:walk_forward" (the walk played backwards).
+block_hit, hit_light, hit_light_2, hit_heavy, knockdown, get_up, victory, light_1..3, heavy_1..2,
+cast_1, cast_2, buff, dash. Dashes play walk_forward / walk_back (boxing steps) once over the dash. walk_back may be "reverse:walk_forward" (the walk played backwards).
 Picked by previewing every candidate on the fighter (tools/models/anim_preview.gd).
 """
 import os
@@ -94,6 +94,8 @@ SETS = {
         "buff": ("c9cc9819-b96c-11e4-a802-0aaa78deedf9", False),
         "dash": ("c9cc8c95-b96c-11e4-a802-0aaa78deedf9", False),                    # sword slide attack: Thunder Step
         "ultimate": ("ai", "greatsword/heavy_1_k2.json"),  # two-handed overhead: Stormbreaker
+        "hit_light_2": ("lib", "hit_light.fbx"),   # shared library: a second head-hit, alternates with hit_light
+        "get_up": ("lib", "get_up.fbx"),           # shared library: up from a knockdown
     },
     # Rhex: heavy brawler; his power moves keep the two-handed axe clips.
     "rhex": {
@@ -119,6 +121,8 @@ SETS = {
         "buff": ("c9cee1d2-b96c-11e4-a802-0aaa78deedf9", False),
         "dash": ("c9cc8c95-b96c-11e4-a802-0aaa78deedf9", False),
         "ultimate": ("c9cc8d52-b96c-11e4-a802-0aaa78deedf9", False),                # spinning cleave: Inferno Cleave
+        "hit_light_2": ("lib", "hit_light.fbx"),   # shared library: a second head-hit, alternates with hit_light
+        "get_up": ("lib", "get_up.fbx"),           # shared library: up from a knockdown
     },
 }
 
@@ -130,8 +134,8 @@ def download(set_name):
     os.makedirs(out, exist_ok=True)
     char = mixamo.ybot()
     for slot, v in spec.items():
-        if isinstance(v, str) or v[0] == "ai":
-            continue
+        if isinstance(v, str) or v[0] in ("ai", "lib"):
+            continue   # (lib: copied from the shared library, assets/animations/<file>)
         pid, inplace = v
         f = os.path.join(out, slot + ".fbx")
         if os.path.exists(f):
@@ -144,6 +148,8 @@ def download(set_name):
                 fh.write(f"{slot}={v}\n")
             elif v[0] == "ai":
                 fh.write(f"{slot}=ai:{v[1]}\n")
+            elif v[0] == "lib":
+                fh.write(f"{slot}=lib:{v[1]}\n")
             else:
                 fh.write(f"{slot}=mixamo:{v[0]}\n")
 

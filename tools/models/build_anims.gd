@@ -29,6 +29,7 @@ func _build(dir: String, out: String, ref: String) -> void:
 	_sk = null
 	_ref_path = ref
 	var lib := AnimationLibrary.new()
+	var overrides := _strike_overrides(dir)
 	var d := DirAccess.open(dir)
 	var names := []
 	for f in d.get_files():
@@ -51,6 +52,8 @@ func _build(dir: String, out: String, ref: String) -> void:
 					a.track_set_key_value(t, k, Vector3(p0.x, p.y, p0.z))
 		a.loop_mode = Animation.LOOP_LINEAR if clip in LOOP else Animation.LOOP_NONE
 		var strike := _strike_time(a)
+		a.set_meta("strike_bone", _last_limb)
+		strike = float(overrides.get(clip, strike))
 		a.set_meta("strike", strike)
 		lib.add_animation(clip, a)
 		names.append("%s (%.2fs, strike %.2fs)" % [clip, a.length, strike])
@@ -71,7 +74,8 @@ func _build(dir: String, out: String, ref: String) -> void:
 				a.loop_mode = Animation.LOOP_LINEAR if kv[0] in LOOP else Animation.LOOP_NONE
 				if kv[0] in LOOP:
 					_close_loop(a, 0.35)
-				a.set_meta("strike", _strike_time(a))
+				a.set_meta("strike", float(overrides.get(kv[0], _strike_time(a))))
+				a.set_meta("strike_bone", _last_limb)
 				a.set_meta("source", "ai:" + kv[1].substr(3))
 				lib.add_animation(kv[0], a)
 				names.append("%s (AI %s, %.2fs, strike %.2fs)" % [kv[0], kv[1].substr(3), a.length, a.get_meta("strike")])
@@ -147,18 +151,25 @@ var _sk: Skeleton3D
 var _ref_path := ""
 
 
-## The strike moment: when the fastest hand or foot peaks (ignoring the first 15% wind-up),
-## measured on Kael's skeleton. The game lines this frame up with a move's hit frame.
+## The strike moment: when the striking hand or foot is furthest out from the hips (full
+## extension), within the first 60% of the clip; the striking limb is the one that reaches out
+## the most. Measured on the set's reference skeleton. The game lines this frame up with a
+## move's hit frame and puts the hit spark on that limb ("strike_bone"). Peak speed (the old
+## measure) lands mid-swing, before the fist or foot arrives.
+var _last_limb := ""
+
+
 func _strike_time(a: Animation) -> float:
 	if _sk == null:
 		_ref = (load(_ref_path) as PackedScene).instantiate()
 		_sk = _ref.find_children("*", "Skeleton3D", true, false)[0]
 	var limbs := ["mixamorig_RightHand", "mixamorig_LeftHand", "mixamorig_RightFoot", "mixamorig_LeftFoot"]
 	var ids := limbs.map(func(b): return _sk.find_bone(b))
+	var hips := _sk.find_bone("mixamorig_Hips")
 	var dt := 1.0 / 30.0
-	var prev := []
-	var best := 0.0
-	var best_t := a.length * 0.5
+	var ext := []          # per limb: [[t, distance from the hips, horizontal], ...]
+	for k in limbs.size():
+		ext.append([])
 	var t := 0.0
 	while t <= a.length:
 		for tr in a.get_track_count():
@@ -170,18 +181,35 @@ func _strike_time(a: Animation) -> float:
 					_sk.set_bone_pose_rotation(bone, a.rotation_track_interpolate(tr, t))
 				Animation.TYPE_POSITION_3D:
 					_sk.set_bone_pose_position(bone, a.position_track_interpolate(tr, t))
-		var now := []
-		for i in ids:
-			now.append(_global(i).origin)
-		if not prev.is_empty() and t > a.length * 0.15:
-			for k in now.size():
-				var sp: float = (now[k] - prev[k]).length() / dt
-				if sp > best:
-					best = sp
-					best_t = t
-		prev = now
+		var h := _global(hips).origin
+		for k in ids.size():
+			var p := _global(ids[k]).origin - h
+			ext[k].append([t, Vector2(p.x, p.z).length()])
 		t += dt
+	var best_gain := -1.0
+	var best_t := a.length * 0.4
+	_last_limb = ""
+	for k in ids.size():
+		var base := 1e9
+		for e in ext[k]:
+			base = minf(base, e[1])
+		for e in ext[k]:
+			if e[0] >= a.length * 0.08 and e[0] <= a.length * 0.6 and e[1] - base > best_gain:
+				best_gain = e[1] - base
+				best_t = e[0]
+				_last_limb = ["right_hand", "left_hand", "right_foot", "left_foot"][k]
 	return best_t
+
+
+## Hand-set strike times from set.txt ("strike.light_1=0.31"), for clips the measure misreads.
+func _strike_overrides(dir: String) -> Dictionary:
+	var o := {}
+	if FileAccess.file_exists(dir + "/set.txt"):
+		for line in FileAccess.get_file_as_string(dir + "/set.txt").split("\n"):
+			var kv := line.split("=", true, 1)
+			if kv.size() == 2 and kv[0].begins_with("strike."):
+				o[kv[0].substr(7)] = float(kv[1])
+	return o
 
 
 ## Forward kinematics by hand (the skeleton isn't in a scene tree, so it never updates itself).

@@ -24,8 +24,11 @@ const POWER_CLIP := {
 }
 const TURN := 0.72  # radians the body turns toward the camera from pure profile (three-quarter view)
 const SHADER := preload("res://assets/shaders/character.gdshader")
-## crossfade time when switching into each kind of clip
-const BLEND := {"idle": 0.18, "walk_forward": 0.15, "walk_back": 0.15, "block": 0.08, "jump": 0.1}
+## crossfade time (real seconds) when switching into each kind of clip; actions use ACTION_BLEND
+const BLEND := {"idle": 0.18, "walk_forward": 0.12, "walk_back": 0.12, "block": 0.08, "jump": 0.1, "run": 0.12}
+const ACTION_BLEND := 0.07
+const MAX_WIND_SPEED := 2.0      # a wind-up never plays faster than this (it stays readable)
+const MAX_RECOVER_SPEED := 1.6
 
 static var _lib: AnimationLibrary
 ## per-fighter sets (data "anim_set"): assets/animations/<set>/<set>_anims.res, merged over the shared clips
@@ -64,6 +67,8 @@ var _sp_pos := Vector3.ZERO  # secondary-motion spring (world metres)
 var _sp_vel := Vector3.ZERO
 var _t := 0.0
 var _last_state := -1
+var _serial := -1            # Fighter.state_serial last seen: a new one restarts a time-mapped clip
+var _alt := false            # alternate clip name (alias) so a restart of the same clip crossfades
 var _vrm := false
 var _meshes: Array[MeshInstance3D] = []
 var _overlay: ShaderMaterial
@@ -147,6 +152,7 @@ func setup(f: Fighter, s: Stage3D) -> void:
 		fill.position = Vector3(0, 1.4, 1.4)
 		add_child(fill)
 	_yaw = _target_yaw()
+	f.strike_source = strike_point_2d
 	if _tip:
 		f.tip_source = _tip_2d
 	sync()
@@ -159,7 +165,7 @@ func _setup_mixamo(f: Fighter) -> void:
 	_mesh = model.find_children("*", "MeshInstance3D", true, false)[0]
 	_ap = AnimationPlayer.new()
 	rig.add_child(_ap)  # root_node ".." -> tracks "Skeleton3D:mixamorig_*" resolve
-	_ap.add_animation_library("", _anims)
+	_ap.add_animation_library("", _with_aliases(_anims))
 	_ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	# one shader for texture, rim, hit flash and hair / cloth motion
 	var src := _mesh.get_active_material(0) as BaseMaterial3D
@@ -208,7 +214,7 @@ func _setup_humanoid(f: Fighter, path: String, toon: bool) -> void:
 		ref.free()
 	_ap = AnimationPlayer.new()
 	_sk.get_parent().add_child(_ap)   # root_node ".." -> tracks "<Skeleton>:Bone" resolve
-	_ap.add_animation_library("", lib)
+	_ap.add_animation_library("", _with_aliases(lib))
 	_ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	if toon:
 		var src_mat := _mesh.get_active_material(0) as BaseMaterial3D
@@ -317,7 +323,9 @@ func _ease_w() -> float:
 ## The body stands turned toward the camera (TURN) so the player sees it; the neck and head turn
 ## back so the eyes stay on the opponent. Applied after the animation, about the skeleton's up.
 func _look_at_opponent() -> void:
-	var yaw := TURN * LOOK * (1.0 if fighter.state != Fighter.S.KO else 0.0)
+	# the head turns back by however far the body is turned toward the camera right now
+	var body_turn := absf(angle_difference(rotation.y, fighter.facing * PI / 2.0))
+	var yaw := body_turn * LOOK * (1.0 if fighter.state != Fighter.S.KO else 0.0)
 	for pair in [["Neck", 0.4], ["Head", 0.6]]:
 		var b := _sk.find_bone(pair[0])
 		if b < 0:
@@ -569,8 +577,21 @@ static func _part(parent: Node3D, mesh: Mesh, mat: Material, pos: Vector3) -> vo
 
 
 func _target_yaw() -> float:
-	# the model faces +Z; +PI/2 turns it to face +X (screen right)
-	return fighter.facing * (PI / 2.0 - TURN)
+	# the model faces +Z; +PI/2 turns it to face +X (screen right). Standing, the body is turned
+	# toward the camera (three-quarter view); striking, being hit or blocking a hit it turns to
+	# full profile, so fists and feet travel along the line between the fighters and land.
+	var profile := fighter.state in [Fighter.S.ATTACK, Fighter.S.POWER, Fighter.S.HURT, Fighter.S.BLOCKSTUN,
+		Fighter.S.KO, Fighter.S.DOWN]
+	return fighter.facing * (PI / 2.0 - (0.0 if profile else TURN))
+
+
+## Every clip also under "<name>~": restarting the same clip (a second hit, the same move again)
+## crossfades from the alias instead of snapping back to its first frame.
+static func _with_aliases(lib: AnimationLibrary) -> AnimationLibrary:
+	for n in lib.get_animation_list():
+		if not String(n).ends_with("~") and not lib.has_animation(String(n) + "~"):
+			lib.add_animation(String(n) + "~", lib.get_animation(n))
+	return lib
 
 
 func _has(clip: String) -> bool:
@@ -600,22 +621,40 @@ func _choose() -> Array:
 			var s: float = _anims.get_animation(j).get_meta("strike", 0.5)
 			return [j, minf(s - 0.1 + t, _anims.get_animation(j).length - 0.05)]
 		Fighter.S.BLOCK:
-			return ["block", -1.0]
+			# a held guard: the block clip stopped at its guard-up frame (no pumping loop)
+			var bl := _anims.get_animation("block")
+			return ["block", minf(float(bl.get_meta("strike", 0.15)) + 0.12, bl.length * 0.5)]
 		Fighter.S.BLOCKSTUN:
-			return [_pick("block_hit"), t]
+			# the jolt peaks just after the blocked hit, then settles back into the guard
+			var bh := _pick("block_hit")
+			var s2: float = _anims.get_animation(bh).get_meta("strike", 0.3)
+			return [bh, minf(maxf(0.0, s2 - 0.05) + t * 1.3, _anims.get_animation(bh).length)]
 		Fighter.S.HURT:
-			var heavy := f.vel.y < -200.0 or absf(f.vel.x) > 500.0
-			return [_pick("hit_heavy" if heavy else "hit_light"), t * 1.3]
+			var clip_h := "hit_heavy" if f.get_meta("hurt_heavy", false) else \
+				("hit_light_2" if f.get_meta("hit_alt", false) and _has("hit_light_2") else "hit_light")
+			clip_h = _pick(clip_h)
+			var s3: float = _anims.get_animation(clip_h).get_meta("strike", 0.3)
+			# the reaction starts just before its jolt, so the impact reads on the hit frame
+			return [clip_h, minf(maxf(0.0, s3 - 0.12) + t * 1.15, _anims.get_animation(clip_h).length)]
+		Fighter.S.DOWN:
+			# knocked down: fall (the knockdown clip), lie, then the get-up
+			if t < Fighter.DOWN_TIME:
+				var kd := _pick("knockdown")
+				var kl := _anims.get_animation(kd).length
+				return [kd, minf(t * 1.6, kl * 0.7)]
+			var gu := _pick("get_up")
+			var gl := _anims.get_animation(gu).length
+			var k := clampf((t - Fighter.DOWN_TIME) / Fighter.GETUP_TIME, 0.0, 1.0)
+			return [gu, gl * (0.25 + 0.75 * k)]
 		Fighter.S.KO:
 			return [_pick("knockdown"), t]
 		Fighter.S.WIN:
 			return [_pick("victory"), t]
 		Fighter.S.DASH:
-			# dash forward: a burst of the run; dash back: the back-step, played fast
-			if f.dash_dir > 0:
-				return [_pick("run"), -1.0]
-			var wb := _pick("walk_back")
-			return [wb, fmod(t * 2.2, _anims.get_animation(wb).length)]
+			# one boxing step, forward or back, played across the dash
+			var dc := _pick("walk_forward" if f.dash_dir > 0 else "walk_back")
+			var dur: float = (Fighter.DASH_FWD if f.dash_dir > 0 else Fighter.DASH_BACK).y
+			return [dc, _anims.get_animation(dc).length * clampf(t / dur, 0.0, 1.0)]
 		Fighter.S.ATTACK:
 			var clip := "air_attack"
 			if f.move_kind == "light":
@@ -623,7 +662,7 @@ func _choose() -> Array:
 			elif f.move_kind == "medium":
 				clip = "heavy_%d" % (f.chain_index + 1)
 			elif f.move_kind == "heavy":
-				clip = "heavy_2"
+				clip = "heavy_1"
 			clip = _pick(clip)
 			return [clip, _timeline(clip, t, f.move.get("startup", 0.1), f.move.get("active", 0.08), f.move.get("recovery", 0.2))]
 		Fighter.S.POWER:
@@ -639,16 +678,35 @@ func _choose() -> Array:
 
 
 ## Map game time in a move to clip time so the clip's strike lands on the move's active frame.
+## The wind-up is the clip's last stretch before the strike, played at most MAX_WIND_SPEED, the
+## recovery at most MAX_RECOVER_SPEED: the move reads as a move, not a flicker between poses.
 func _timeline(clip: String, t: float, su: float, ac: float, re: float) -> float:
 	var a := _anims.get_animation(clip)
 	var s: float = a.get_meta("strike", a.length * 0.4)
-	var wind := minf(s, 0.45)
-	var follow := clampf(a.length - s - 0.1, 0.0, 0.6)
+	var wind := minf(s, maxf(su, 0.01) * MAX_WIND_SPEED)
+	var follow := clampf(a.length - s - 0.08, 0.0, maxf(re, 0.01) * MAX_RECOVER_SPEED)
 	if t < su:
 		return s - wind + wind * (t / maxf(su, 0.001))
 	if t < su + ac:
-		return s + 0.1 * ((t - su) / maxf(ac, 0.001))
-	return minf(s + 0.1 + follow * ((t - su - ac) / maxf(re, 0.001)), a.length)
+		return s + 0.08 * ((t - su) / maxf(ac, 0.001))
+	return minf(s + 0.08 + follow * ((t - su - ac) / maxf(re, 0.001)), a.length)
+
+
+## Where the striking hand or foot of the current attack is, in fight (2D logic) pixels; the hit
+## spark goes there. Empty when there is no skeleton or attack clip.
+func strike_point_2d() -> Array:
+	if _sk == null or fighter == null:
+		return []
+	var base := _clip.trim_suffix("~")
+	if base == "" or not _has(base):
+		return []
+	var limb: String = _anims.get_animation(base).get_meta("strike_bone", "right_hand")
+	var bname: String = {"right_hand": "RightHand", "left_hand": "LeftHand", "right_foot": "RightFoot",
+		"left_foot": "LeftFoot"}.get(limb, "RightHand")
+	var b := _sk.find_bone(bname)
+	if b < 0:
+		return []
+	return [stage.to_logic(_sk.global_transform * _sk.get_bone_global_pose(b).origin)]
 
 
 func sync() -> void:
@@ -658,11 +716,18 @@ func sync() -> void:
 	if dt <= 0.0:
 		dt = 1.0 / 60.0
 	_t += dt
-	position = stage.to_world(fighter.position)
-	_yaw = lerp_angle(_yaw, _target_yaw(), 0.35)
+	position = stage.to_world(fighter.render_position())
+	if fighter.hitstop > 0.0:
+		# impact: the body holds, with a small shake on the one that was hit
+		if fighter.state in [Fighter.S.HURT, Fighter.S.BLOCKSTUN, Fighter.S.DOWN]:
+			position.x += sin(_t * 90.0) * 0.012
+	_yaw = lerp_angle(_yaw, _target_yaw(), 1.0 - exp(-dt * 22.0))
 	rotation.y = _yaw
 	_animate(dt)
 	var flash := clampf(fighter.flash, 0.0, 1.0) * 0.45
+	if fighter.state == Fighter.S.ATTACK and fighter.move_kind == "heavy" \
+			and fighter.state_time < float(fighter.move.get("startup", 0.36)):
+		flash = maxf(flash, 0.18 + 0.14 * sin(_t * 40.0))   # a heavy's wind-up glows: it can be seen coming
 	if _vrm:
 		for g in _grip:
 			_sk.set_bone_pose_rotation(g[0], g[1])
@@ -684,19 +749,33 @@ func sync() -> void:
 		m.transparency = 1.0 - fighter.modulate.a
 
 
-## Drive the AnimationPlayer by hand so every switch crossfades, even for time-mapped attacks.
+## Drive the AnimationPlayer by hand. Clip time follows the fight logic exactly (time-mapped
+## moves), while crossfades always run in real time: the clip is placed one frame before its
+## target and then advanced by the real frame time, so a switch blends over ACTION_BLEND seconds
+## however fast the move's clip time runs.
 func _animate(dt: float) -> void:
 	var pick := _choose()
 	var clip: String = pick[0]
 	var time: float = pick[1]
-	var new_state := fighter.state != _last_state
+	var serial: int = fighter.state_serial
+	var restart := serial != _serial and time >= 0.0
+	_serial = serial
 	_last_state = fighter.state
 	var length := _anims.get_animation(clip).length
-	if clip != _clip or (new_state and time >= 0.0 and time < _ap.current_animation_position - 0.05):
-		_ap.play(clip, BLEND.get(clip, 0.07))
+	var current := _clip.trim_suffix("~")
+	if clip != current or restart:
+		var name := clip
+		if clip == current:
+			_alt = not _alt   # the same clip again: switch to its alias so it crossfades
+			name = clip + "~" if _alt else clip
+		else:
+			_alt = false
+		_ap.play(name, BLEND.get(clip, ACTION_BLEND))
+		_clip = name
 		if time >= 0.0:
-			_ap.seek(clampf(time, 0.0, length), false)
-		_clip = clip
+			_ap.seek(maxf(0.0, clampf(time, 0.0, length) - dt), false)
+	if fighter.hitstop > 0.0:
+		return   # hit-stop: both bodies hold the impact pose
 	if time < 0.0:
 		var rate := 1.0
 		if fighter.get_meta("intro_run", false):
@@ -705,11 +784,13 @@ func _animate(dt: float) -> void:
 			rate = clampf(absf(fighter.vel.x) / maxf(fighter.walk_speed, 1.0), 0.6, 1.5)
 		_ap.advance(dt * rate)
 	else:
-		var d := clampf(time, 0.0, length) - _ap.current_animation_position
-		if d < -0.001 or d > 0.6:
-			_ap.seek(clampf(time, 0.0, length), false)
-			d = 0.0
-		_ap.advance(maxf(d, 0.0))
+		var target := clampf(time, 0.0, length)
+		if target >= dt:
+			_ap.seek(target - dt, false)
+			_ap.advance(dt)
+		else:
+			_ap.seek(0.0, false)
+			_ap.advance(target)
 
 
 ## Spring that lags behind movement; the shader bends coats and hair by it.

@@ -21,6 +21,8 @@ var round_no := 1
 var phase := "intro"
 var _dust_t := 0.0
 var _push_amt := 0.2
+var _shake_t := 0.0
+const CAM_DEADZONE := 60.0
 ## Opening charge: each round the fighters start at the far edges of the arena (camera pulled
 ## wide on the whole backdrop) and sprint at each other into fighting range.
 const STAGE_HALF := 1150.0  # px either side of the centre the fighters can move in (walls)
@@ -286,7 +288,9 @@ func _physics_process(delta: float) -> void:
 		fog_back.density = fog.density
 	if shake > 0.0:
 		shake = maxf(0.0, shake - delta * 40.0)
-		_shake_px = Vector2(randf_range(-shake, shake), randf_range(-shake, shake))
+		# a decaying shudder (not white noise): reads as an impact, doesn't blur the fight
+		_shake_t += delta
+		_shake_px = Vector2(sin(_shake_t * TAU * 25.0), cos(_shake_t * TAU * 19.0) * 0.6) * shake
 	else:
 		_shake_px = Vector2.ZERO
 
@@ -323,8 +327,10 @@ func _update_camera(delta: float) -> void:
 	if player == null or enemy == null:
 		return
 	var vis := get_viewport().get_visible_rect().size
-	var mid := (player.position.x + enemy.position.x) / 2.0
-	var dist := absf(player.position.x - enemy.position.x)
+	var pp := player.render_position()
+	var ep := enemy.render_position()
+	var mid := (pp.x + ep.x) / 2.0
+	var dist := absf(pp.x - ep.x)
 	# close framing at fighting range (fighters about half the screen tall), out as they separate
 	var want_zoom := clampf(vis.x * 0.85 / maxf(1.0, dist + 200.0), INTRO_ZOOM if phase == "intro" else 1.0, 2.3)
 	# special-move push: ease in on the caster, hold, ease back (no slow motion)
@@ -339,7 +345,12 @@ func _update_camera(delta: float) -> void:
 	var half := vis.x / 2.0 / _cam_zoom
 	var lo := minf(stage.x - 60.0 + half, vis.x / 2.0)
 	var hi := maxf(stage.y + 60.0 - half, vis.x / 2.0)
-	_cam_x = lerpf(_cam_x, clampf(mid, lo, hi), clampf(delta * (4.0 + 8.0 * push), 0.0, 1.0))
+	# pan only when the action drifts off-centre (a dead zone), so combos don't swim the view
+	var want_x := clampf(mid, lo, hi)
+	var off := want_x - _cam_x
+	if absf(off) > CAM_DEADZONE or push > 0.0:
+		var goal := want_x - signf(off) * (0.0 if push > 0.0 else CAM_DEADZONE * 0.5)
+		_cam_x = lerpf(_cam_x, goal, clampf(delta * (8.0 + 8.0 * push), 0.0, 1.0))
 	if stage3d:
 		world.transform = stage3d.frame(_cam_x, _cam_zoom, _shake_px)
 	else:
@@ -408,14 +419,14 @@ func _on_power(f: Fighter, power_name: String) -> void:
 ## A power connected: impact frame centred on the hit, and a heavier shake.
 func _on_special_hit(f: Fighter, attacker: Fighter) -> void:
 	var ult := attacker.power_index == 2 and attacker.state == Fighter.S.POWER
-	shake = maxf(shake, 38.0 if ult else 24.0)
+	shake = maxf(shake, 24.0 if ult else 16.0)
 	if impact:
 		var at := world.get_global_transform_with_canvas() * (f.position + Vector2(0, -150))
 		impact.trigger(at, attacker.color)
 
 
 func _on_hit(f: Fighter, heavy: bool) -> void:
-	shake = maxf(shake, 14.0 if heavy else 6.0)
+	shake = maxf(shake, 8.0 if heavy else 3.0)
 	if hud:
 		hud.register_hit(f == enemy)   # player's combo grows when the enemy is hit
 

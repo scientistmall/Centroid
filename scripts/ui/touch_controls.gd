@@ -19,7 +19,8 @@ const SWIPE_TIME := 0.35    # ... within this time of the touch (a resting block
 
 var fighter: Fighter
 var _touches := {}          # index -> {start, pos, t, opp, mode}
-var _pulse := {}            # action -> frames left pressed
+var _pulse := {}            # action -> seconds left pressed (time-based: never shorter than PULSE)
+const PULSE := 0.05         # at least three physics ticks, on any screen refresh rate
 var _t := 0.0
 var _hint := 7.0            # first seconds of a fight: a one-line reminder of the controls
 var _gauge_flash := 0.0     # the gauge punches when tapped
@@ -44,8 +45,8 @@ func _process(delta: float) -> void:
 	_t += delta
 	_hint = maxf(0.0, _hint - delta)
 	for a in _pulse.keys():
-		_pulse[a] -= 1
-		if _pulse[a] <= 0:
+		_pulse[a] -= delta
+		if _pulse[a] <= 0.0:
 			Input.action_release(a)
 			_pulse.erase(a)
 	for idx in _touches.keys():
@@ -79,7 +80,7 @@ func _tap_gauge() -> void:
 
 func _press_once(action: String) -> void:
 	Input.action_press(action)
-	_pulse[action] = 2
+	_pulse[action] = PULSE
 
 
 func _input(event: InputEvent) -> void:

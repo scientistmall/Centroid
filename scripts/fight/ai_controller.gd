@@ -18,6 +18,8 @@ var _react_at := -1.0       # when the planned reaction (block / evade) starts
 var _react := ""            # "block" or "evade"
 var _clock := 0.0
 var _tap := 0.0             # light-attack tapping rhythm in a combo
+var _combo_left := 0        # hits still to throw in the committed combo
+var _breath := 0.0          # a short pause after a combo or a block (readable, punishable)
 
 
 func _init(difficulty: float = 0.5) -> void:
@@ -68,6 +70,15 @@ func get_input(f: Fighter, delta: float) -> Dictionary:
 		else:
 			_react = ""
 		_react_at = _clock + reaction_time() * rng.randf_range(0.8, 1.25)
+		# a reactive block starts no earlier than the parry window allows, so it is an ordinary
+		# block; a deliberate parry (timed into the window) is a separate roll, on harder levels
+		if _react == "block" and opp.state == Fighter.S.ATTACK:
+			var hit_at: float = _clock - opp.state_time + float(opp.move.get("startup", 0.1))
+			var parry := level >= 0.6 and opp.move_kind != "heavy" and rng.randf() < (level - 0.55) * 0.6
+			if parry:
+				_react_at = hit_at - Fighter.PARRY_WINDOW * 0.6
+			else:
+				_react_at = maxf(_react_at, hit_at - Fighter.PARRY_WINDOW + 0.02)
 	if _react != "" and _clock >= _react_at:
 		if _react == "evade":
 			out["dash_back"] = true
@@ -95,12 +106,19 @@ func get_input(f: Fighter, delta: float) -> Dictionary:
 				out["power_%d" % (i + 1)] = true
 				return out
 
-	# ---- its own plan
+	# ---- its own plan (kept while a combo is being thrown: no change of mind mid-string)
 	_think -= delta
 	_plan_time -= delta
-	if _think <= 0.0:
-		_think = lerpf(0.5, 0.18, level) * rng.randf_range(0.7, 1.3)
+	_breath = maxf(0.0, _breath - delta)
+	if _breath > 0.0:
+		return out
+	var committed := _plan == "combo" and _combo_left > 0 and f.state in [Fighter.S.ATTACK, Fighter.S.IDLE, Fighter.S.DASH]
+	if _think <= 0.0 and not committed:
+		_think = lerpf(0.5, 0.2, level) * rng.randf_range(0.8, 1.2)
 		_decide(f, dist)
+		if _plan == "combo":
+			var r := rng.randf()
+			_combo_left = 5 if r < 0.25 + level * 0.3 else (3 if r < 0.75 else 2)
 
 	match _plan:
 		"approach":
@@ -111,13 +129,18 @@ func get_input(f: Fighter, delta: float) -> Dictionary:
 		"retreat":
 			out["dash_back"] = _consume("dash_back")
 		"combo":
-			if dist > 250.0:
+			if dist > 280.0:
 				out["forward"] = f.state == Fighter.S.IDLE
-			else:
+			elif _combo_left > 0:
+				# a steady rhythm, one press per hit: light, light, light, then the mediums
 				_tap -= delta
-				if _tap <= 0.0:
-					_tap = rng.randf_range(0.1, 0.2)
+				if _tap <= 0.0 and f.state in [Fighter.S.IDLE, Fighter.S.ATTACK]:
+					_tap = 0.14
 					out["light"] = true
+					_combo_left -= 1
+					if _combo_left == 0:
+						_breath = rng.randf_range(0.35, 0.6) * lerpf(1.3, 0.7, level)
+						_plan = "wait"
 		"heavy":
 			if dist > 250.0:
 				out["forward"] = f.state == Fighter.S.IDLE

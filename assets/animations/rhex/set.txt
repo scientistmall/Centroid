@@ -1,4 +1,4 @@
-idle=mixamo:c9ca582c-b96c-11e4-a802-0aaa78deedf9
+idle=mixamo:c9c63b43-b96c-11e4-a802-0aaa78deedf9
 walk_forward=mixamo:c9cb1b52-b96c-11e4-a802-0aaa78deedf9
 walk_back=mixamo:c9cadc5e-b96c-11e4-a802-0aaa78deedf9
 run=mixamo:c9cbfef5-b96c-11e4-a802-0aaa78deedf9
@@ -20,3 +20,5 @@ cast_2=mixamo:c9cc9819-b96c-11e4-a802-0aaa78deedf9
 buff=mixamo:c9cee1d2-b96c-11e4-a802-0aaa78deedf9
 dash=mixamo:c9cc8c95-b96c-11e4-a802-0aaa78deedf9
 ultimate=mixamo:c9cc8d52-b96c-11e4-a802-0aaa78deedf9
+hit_light_2=lib:hit_light.fbx
+get_up=lib:get_up.fbx

@@ -20,3 +20,5 @@ cast_2=mixamo:c9cc975d-b96c-11e4-a802-0aaa78deedf9
 buff=mixamo:c9cc9819-b96c-11e4-a802-0aaa78deedf9
 dash=mixamo:c9cc8c95-b96c-11e4-a802-0aaa78deedf9
 ultimate=ai:greatsword/heavy_1_k2.json
+hit_light_2=lib:hit_light.fbx
+get_up=lib:get_up.fbx
