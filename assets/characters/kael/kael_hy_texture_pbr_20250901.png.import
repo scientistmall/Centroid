@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bpxhnuym8hxic"
-path="res://.godot/imported/kael_hy_texture_pbr_20250901.png-4afe7518655be6990e183ea2ddd4ab32.ctex"
+path.s3tc="res://.godot/imported/kael_hy_texture_pbr_20250901.png-4afe7518655be6990e183ea2ddd4ab32.s3tc.ctex"
+path.etc2="res://.godot/imported/kael_hy_texture_pbr_20250901.png-4afe7518655be6990e183ea2ddd4ab32.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "78fbc7924f01937083125d31ed3139a0"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/characters/kael/kael_hy_texture_pbr_20250901.png"
-dest_files=["res://.godot/imported/kael_hy_texture_pbr_20250901.png-4afe7518655be6990e183ea2ddd4ab32.ctex"]
+dest_files=["res://.godot/imported/kael_hy_texture_pbr_20250901.png-4afe7518655be6990e183ea2ddd4ab32.s3tc.ctex", "res://.godot/imported/kael_hy_texture_pbr_20250901.png-4afe7518655be6990e183ea2ddd4ab32.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

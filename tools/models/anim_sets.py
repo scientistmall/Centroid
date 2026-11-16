@@ -97,7 +97,7 @@ SETS = {
     },
     # Rhex: heavy brawler; his power moves keep the two-handed axe clips.
     "rhex": {
-        "idle": ("c9ca582c-b96c-11e4-a802-0aaa78deedf9", False),                    # bouncing guard
+        "idle": ("c9c63b43-b96c-11e4-a802-0aaa78deedf9", False),                    # fight idle, lead stance (fists clear of the face)
         "walk_forward": ("c9cb1b52-b96c-11e4-a802-0aaa78deedf9", True),
         "walk_back": ("c9cadc5e-b96c-11e4-a802-0aaa78deedf9", True),
         "run": ("c9cbfef5-b96c-11e4-a802-0aaa78deedf9", True),

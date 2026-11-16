@@ -47,6 +47,8 @@ func setup(id: String, vp_size: Vector2, ground_px: float) -> void:
 		viewport.msaa_3d = Viewport.MSAA_2X if level == Settings.Gfx.HIGH else Viewport.MSAA_DISABLED
 		if level == Settings.Gfx.LOW:
 			viewport.scaling_3d_scale = 0.75
+		elif OS.has_feature("mobile"):
+			viewport.scaling_3d_scale = 0.85   # phones: dense screens, the difference doesn't show
 		viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		add_child(viewport)
 		viewport.add_child(world_root)

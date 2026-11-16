@@ -129,20 +129,23 @@ func setup(f: Fighter, s: Stage3D) -> void:
 		_setup_humanoid(f, hy_path(f.char_id), true)
 	else:
 		_setup_mixamo(f)
-	# coloured back-light and soft fill, as for the mannequin
+	# coloured back-light and soft fill, as for the mannequin. Each light is another pass over a
+	# 60k-triangle body: phones keep only the rim on HIGH, LOW / SAFE use the scene lights alone.
 	var col := f.color
-	var rim := OmniLight3D.new()
-	rim.light_color = col
-	rim.light_energy = 3.0
-	rim.omni_range = 2.6
-	rim.position = Vector3(0, 1.2, -0.9)
-	add_child(rim)
-	var fill := OmniLight3D.new()
-	fill.light_color = col.lightened(0.5)
-	fill.light_energy = 0.6
-	fill.omni_range = 3.0
-	fill.position = Vector3(0, 1.4, 1.4)
-	add_child(fill)
+	if not ArenaBuilder.low:
+		var rim := OmniLight3D.new()
+		rim.light_color = col
+		rim.light_energy = 3.0
+		rim.omni_range = 2.6
+		rim.position = Vector3(0, 1.2, -0.9)
+		add_child(rim)
+	if not ArenaBuilder.low and not OS.has_feature("mobile"):
+		var fill := OmniLight3D.new()
+		fill.light_color = col.lightened(0.5)
+		fill.light_energy = 0.6
+		fill.omni_range = 3.0
+		fill.position = Vector3(0, 1.4, 1.4)
+		add_child(fill)
 	_yaw = _target_yaw()
 	if _tip:
 		f.tip_source = _tip_2d
@@ -607,12 +610,20 @@ func _choose() -> Array:
 			return [_pick("knockdown"), t]
 		Fighter.S.WIN:
 			return [_pick("victory"), t]
+		Fighter.S.DASH:
+			# dash forward: a burst of the run; dash back: the back-step, played fast
+			if f.dash_dir > 0:
+				return [_pick("run"), -1.0]
+			var wb := _pick("walk_back")
+			return [wb, fmod(t * 2.2, _anims.get_animation(wb).length)]
 		Fighter.S.ATTACK:
 			var clip := "air_attack"
 			if f.move_kind == "light":
 				clip = "light_%d" % (f.chain_index + 1)
-			elif f.move_kind == "heavy":
+			elif f.move_kind == "medium":
 				clip = "heavy_%d" % (f.chain_index + 1)
+			elif f.move_kind == "heavy":
+				clip = "heavy_2"
 			clip = _pick(clip)
 			return [clip, _timeline(clip, t, f.move.get("startup", 0.1), f.move.get("active", 0.08), f.move.get("recovery", 0.2))]
 		Fighter.S.POWER:

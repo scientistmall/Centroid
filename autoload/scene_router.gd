@@ -14,8 +14,9 @@ const SCENES := {
 const KEYS := {
 	"move_left": [KEY_A, KEY_LEFT],
 	"move_right": [KEY_D, KEY_RIGHT],
-	"jump": [KEY_W, KEY_UP, KEY_SPACE],
 	"attack_light": [KEY_J],
+	"attack_medium": [],
+	"dash_back": [],
 	"attack_heavy": [KEY_K],
 	"block": [KEY_L, KEY_S, KEY_DOWN],
 	"power_1": [KEY_U],

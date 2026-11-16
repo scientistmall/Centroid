@@ -1,6 +1,9 @@
 class_name AIController
 extends RefCounted
-## Simple fighting AI. `level` 0..1 controls reaction speed, blocking and aggression.
+## MCOC-style fighting AI. `level` 0..1 sets reaction time, how often it blocks / parries /
+## evades, and aggression. It uses the same inputs as the player: light (combo), forward
+## (medium in range, dash when far), heavy, dash back, block, powers. It reacts to what it sees
+## after a human-like delay, never instantly.
 
 var level := 0.5
 var _think := 0.0
@@ -10,6 +13,11 @@ var _press := ""
 var _block_time := 0.0
 var rng := RandomNumberGenerator.new()
 var _goal := 1    # which power (1..3) the AI is saving bars for; re-rolled after each power
+var _threat_id := ""        # the opponent action currently being reacted to
+var _react_at := -1.0       # when the planned reaction (block / evade) starts
+var _react := ""            # "block" or "evade"
+var _clock := 0.0
+var _tap := 0.0             # light-attack tapping rhythm in a combo
 
 
 func _init(difficulty: float = 0.5) -> void:
@@ -17,25 +25,65 @@ func _init(difficulty: float = 0.5) -> void:
 	rng.randomize()
 
 
+func reaction_time() -> float:
+	return lerpf(0.32, 0.12, level)
+
+
 func get_input(f: Fighter, delta: float) -> Dictionary:
-	var out := {"move": 0.0, "jump": false, "light": false, "heavy": false, "block": false, "power_1": false, "power_2": false, "power_3": false}
+	_clock += delta
+	var out := {"forward": false, "dash_back": false, "light": false, "heavy": false, "block": false,
+		"power_1": false, "power_2": false, "power_3": false}
 	var opp := f.opponent
 	if opp == null or not opp.is_alive():
 		return out
-	var dx := opp.position.x - f.position.x
-	var dist := absf(dx)
-	var toward := signf(dx)
+	var dist := absf(opp.position.x - f.position.x)
 
-	# Reactive blocking against attacks and incoming projectiles.
+	# ---- reacting to the opponent (after a reaction delay, decided once per threat)
+	var tid := ""
+	var special := false
+	if opp.state == Fighter.S.ATTACK and dist < 380.0:
+		# one id per attack (its kind and the moment it started)
+		tid = "a_%s_%d_%d" % [opp.move_kind, opp.chain_index, int((opp.clock - opp.state_time) * 1000.0)]
+	elif opp.state == Fighter.S.POWER and opp.state_time < 0.4:
+		tid = "p_%d" % int((opp.clock - opp.state_time) * 1000.0)
+		special = true
+	for pr in f.get_tree().get_nodes_in_group("projectiles"):
+		if pr.owner_fighter == opp and absf(pr.position.x - f.position.x) < 520.0:
+			tid = "pr_%d" % pr.get_instance_id()
+			special = true
+	if tid != "" and tid != _threat_id:
+		_threat_id = tid
+		var see := 0.35 if opp.is_veiled() else 1.0
+		var unblockable: bool = special and opp.state == Fighter.S.POWER and opp.power_def.get("unblockable", false)
+		var r := rng.randf()
+		var p_block := (0.3 + level * 0.45) * see * (0.5 if special else 1.0)
+		var p_evade := (0.05 + level * 0.15) * see
+		if unblockable or (opp.move_kind == "heavy" and opp.state == Fighter.S.ATTACK):
+			p_evade += 0.15 + level * 0.25   # heavies and unblockables: dash back instead
+			p_block = 0.0 if unblockable else p_block * 0.5
+		if r < p_evade:
+			_react = "evade"
+		elif r < p_evade + p_block:
+			_react = "block"
+		else:
+			_react = ""
+		_react_at = _clock + reaction_time() * rng.randf_range(0.8, 1.25)
+	if _react != "" and _clock >= _react_at:
+		if _react == "evade":
+			out["dash_back"] = true
+			_react = ""
+			return out
+		_block_time = 0.3 + rng.randf() * 0.35
+		_react = ""
 	_block_time = maxf(0.0, _block_time - delta)
-	var threatened := opp.state in [Fighter.S.ATTACK, Fighter.S.POWER] and dist < 340.0 and opp.state_time < 0.15
-	for p in f.get_tree().get_nodes_in_group("projectiles"):
-		if p.owner_fighter == opp and absf(p.position.x - f.position.x) < 380.0:
-			threatened = true
-	# Defensive powers (e.g. Stone Bulwark) against projectiles and pulls.
+	if _block_time > 0.0:
+		out["block"] = true
+		return out
+
+	# ---- defensive powers (e.g. Stone Bulwark) against projectiles and pulls
 	var danger := false
-	for p in f.get_tree().get_nodes_in_group("projectiles"):
-		if p.owner_fighter == opp and absf(p.position.x - f.position.x) < 650.0:
+	for pr2 in f.get_tree().get_nodes_in_group("projectiles"):
+		if pr2.owner_fighter == opp and absf(pr2.position.x - f.position.x) < 650.0:
 			danger = true
 	if opp.state == Fighter.S.POWER and opp.state_time < 0.25 and opp.power_def.get("type", "") in ["pull", "projectile"]:
 		danger = true
@@ -46,50 +94,41 @@ func get_input(f: Fighter, delta: float) -> Dictionary:
 					and not f.has_status("anchored") and rng.randf() < 0.02 + level * 0.05:
 				out["power_%d" % (i + 1)] = true
 				return out
-	var see_mult := 0.35 if opp.is_veiled() else 1.0   # hard to read a veiled opponent
-	if threatened and _block_time <= 0.0 and rng.randf() < (0.035 + level * 0.09) * see_mult:
-		_block_time = 0.35 + rng.randf() * 0.3
-	if _block_time > 0.0:
-		out["block"] = true
-		return out
 
+	# ---- its own plan
 	_think -= delta
 	_plan_time -= delta
 	if _think <= 0.0:
-		_think = lerpf(0.55, 0.18, level) * rng.randf_range(0.7, 1.3)
+		_think = lerpf(0.5, 0.18, level) * rng.randf_range(0.7, 1.3)
 		_decide(f, dist)
 
 	match _plan:
 		"approach":
-			out["move"] = toward
-		"retreat":
-			out["move"] = -toward
-		"jump_in":
-			out["move"] = toward
-			out["jump"] = _consume("jump")
-		"combo":
-			if dist > 175.0:
-				out["move"] = toward
+			if dist > Fighter.MEDIUM_RANGE:
+				out["forward"] = f.state == Fighter.S.IDLE   # dash in
 			else:
-				out["light"] = rng.randf() < 0.5
-				out["heavy"] = rng.randf() < 0.06 + level * 0.06
+				_plan = "combo"
+		"retreat":
+			out["dash_back"] = _consume("dash_back")
+		"combo":
+			if dist > 250.0:
+				out["forward"] = f.state == Fighter.S.IDLE
+			else:
+				_tap -= delta
+				if _tap <= 0.0:
+					_tap = rng.randf_range(0.1, 0.2)
+					out["light"] = true
 		"heavy":
-			if dist > 190.0:
-				out["move"] = toward
+			if dist > 250.0:
+				out["forward"] = f.state == Fighter.S.IDLE
 			else:
 				out["heavy"] = _consume("heavy")
-		"power_1":
-			out["power_1"] = _consume("power_1")
-		"power_3":
-			if dist > float(_range_of(f, 2)):
-				out["move"] = toward
+		"power_1", "power_2", "power_3":
+			var k := int(_plan.substr(6)) - 1
+			if dist > float(_range_of(f, k)):
+				out["forward"] = f.state == Fighter.S.IDLE
 			else:
-				out["power_3"] = _consume("power_3")
-		"power_2":
-			if dist > float(_range_of(f, 1)):
-				out["move"] = toward
-			else:
-				out["power_2"] = _consume("power_2")
+				out[_plan] = _consume(_plan)
 		"wait":
 			pass
 	return out
@@ -184,14 +223,14 @@ func _decide(f: Fighter, dist: float) -> void:
 	if pick >= 0:
 		_choose("power_%d" % (pick + 1), "power_%d" % (pick + 1))
 	elif dist > 420.0:
-		_choose("jump_in" if r > 0.85 else "approach", "jump")
-	elif dist < 200.0:
+		_choose("approach", "")
+	elif dist < 260.0:
 		if r < 0.5 + level * 0.2:
 			_choose("combo", "")
 		elif r < 0.72:
 			_choose("heavy", "heavy")
 		elif r < 0.85:
-			_choose("retreat", "")
+			_choose("retreat", "dash_back")
 		else:
 			_choose("wait", "")
 	else:

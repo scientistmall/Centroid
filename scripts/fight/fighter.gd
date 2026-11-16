@@ -1,9 +1,16 @@
 class_name Fighter
 extends Node2D
-## One fighter: movement, combo attacks, blocking, powers, hit reactions.
-## Driven by a controller (player or AI) that returns an input Dictionary:
-##   move: float (-1..1), jump/light/heavy/power_1/power_2: bool (just pressed),
+## One fighter: MCOC-style mechanics. Driven by a controller (player or AI) that returns an
+## input Dictionary each tick:
+##   light / forward / heavy / dash_back / power / power_1..3: bool (just pressed)
 ##   block: bool (held)
+## `forward` is the swipe toward the opponent: a medium attack in range, a dash forward when far.
+## Presses are buffered for BUFFER seconds and run on the first tick they are legal, so a tap
+## during an attack, a stun or hit-stop is not lost.
+## Rules: the two fighters never cross (fixed sides per round); blocking stops basic attacks
+## completely (specials chip 10%, the third power is unblockable); blocking just before a hit
+## parries (the attacker is stunned); the start of a dash back evades. Every fighter uses the
+## same move numbers (MOVE_TABLE) and 1000 HP; difficulty scales player/AI damage.
 
 signal hp_changed(f: Fighter)
 signal energy_changed(f: Fighter)
@@ -12,8 +19,11 @@ signal got_hit(f: Fighter, heavy: bool)
 signal power_used(f: Fighter, power_name: String)
 ## A power (not a normal attack) connected: drives the impact frame.
 signal special_hit(f: Fighter, attacker: Fighter)
+## Blocked just in time (the attacker is stunned) / dodged by a dash back.
+signal parried(f: Fighter, attacker: Fighter)
+signal evaded(f: Fighter)
 
-enum S { IDLE, WALK, AIR, ATTACK, BLOCK, BLOCKSTUN, HURT, KO, POWER, WIN, FROZEN }
+enum S { IDLE, WALK, AIR, ATTACK, BLOCK, BLOCKSTUN, HURT, KO, POWER, WIN, FROZEN, DASH }
 
 const GRAVITY := 3400.0
 const MAX_ENERGY := 300.0
@@ -23,6 +33,26 @@ const BODY_H := 285.0
 const PASSIVE_ENERGY := 4.0      # per second
 const PUSH_FRICTION := 2600.0
 const POISON_DPS := 15.0
+const HP := 1000.0               # every fighter: fair fights
+const BUFFER := 0.25             # seconds a press waits for its first legal tick
+const POWER_BUFFER := 0.6        # ... and a power tap
+const MIN_GAP := 112.0           # closest the two bodies get (they never pass each other)
+const PARRY_WINDOW := 0.15       # block started this soon before a hit = parry
+const PARRY_STUN := 0.8
+const EVADE_WINDOW := 0.15       # the start of a dash back dodges hits
+const DASH_FWD := Vector2(1500.0, 0.2)    # speed, time
+const DASH_BACK := Vector2(1350.0, 0.2)
+const MEDIUM_RANGE := 330.0      # a swipe toward within this distance is a medium attack
+## Shared frame data and damage by move slot (anim and model come from each fighter's json).
+## [startup, active, recovery, damage, reach, stun, knock, step]
+const MOVE_TABLE := {
+	"light": [[0.08, 0.07, 0.17, 30.0, 185.0, 0.34, 120.0, 40.0], [0.08, 0.07, 0.17, 32.0, 195.0, 0.34, 130.0, 40.0],
+		[0.09, 0.07, 0.2, 36.0, 195.0, 0.38, 150.0, 30.0]],
+	"medium": [[0.12, 0.08, 0.24, 48.0, 215.0, 0.44, 160.0, 70.0], [0.13, 0.08, 0.3, 52.0, 220.0, 0.5, 420.0, 60.0]],
+	"heavy": [[0.36, 0.1, 0.38, 110.0, 230.0, 0.6, 520.0, 70.0]],
+}
+const POWER_DAMAGE := [130.0, 230.0, 380.0]
+const SP3_WINDUP := 0.6          # the ultimate's cinematic: the opponent is frozen while it winds up
 
 var ground_y := 880.0
 var stage_left := 140.0
@@ -69,6 +99,9 @@ var power_def: Dictionary = {}
 var power_index := 0          # which of the three powers is running (2 = the unblockable ultimate)
 var power_fired := false
 var air_attack_used := false
+var _buf: Dictionary = {}        # action -> seconds left in the buffer
+var _block_since := -9.0         # clock when the current block started (parry timing)
+var dash_dir := 0                # +1 dash forward, -1 dash back (S.DASH)
 var _last_pose: Dictionary = {}
 var statuses: Dictionary = {}   # status name -> seconds left (veil, clear_sight, ...)
 var side := 0                   # 0 = player side, 1 = enemy side
@@ -93,12 +126,20 @@ func setup(fighter_data: Dictionary) -> void:
 	color = Color(data.get("color", "#ffffff"))
 	element = data.get("element", "")
 	weapon = data.get("weapon", "sword")
-	max_hp = float(data.get("max_hp", 1000))
+	max_hp = HP
 	walk_speed = float(data.get("walk_speed", 430))
 	jump_vel = float(data.get("jump_velocity", 1300))
 	powers = data.get("powers", [])
 	for i in powers.size():
-		(powers[i] as Dictionary)["cost"] = BAR * (i + 1)
+		var pw: Dictionary = powers[i]
+		pw["cost"] = BAR * (i + 1)
+		pw["damage"] = POWER_DAMAGE[mini(i, 2)] if float(pw.get("damage", 0.0)) > 0.0 else 0.0
+		if i < 2:
+			pw["startup"] = minf(float(pw.get("startup", 0.2)), 0.08)
+		else:
+			pw["startup"] = SP3_WINDUP
+			pw["unblockable"] = true
+		pw.erase("armor")
 	costume = PortraitArt.look_for(char_id).get("fighter", {})
 	if element != "" and _emitter == null:
 		_emitter = Vfx.element_emitter(element, color)
@@ -119,6 +160,7 @@ func reset_for_round() -> void:
 	clear_statuses()
 	move = {}
 	queued = ""
+	_buf.clear()
 	set_state(S.FROZEN)
 	hp_changed.emit(self)
 	energy_changed.emit(self)
@@ -159,6 +201,24 @@ func add_energy(amount: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	clock += delta
+	# read and buffer input every tick, even during hit-stop, so no press is lost
+	inp = {}
+	if controller and state not in [S.FROZEN, S.KO, S.WIN]:
+		inp = controller.get_input(self, delta)
+	for k in _buf.keys():
+		_buf[k] -= delta
+		if _buf[k] <= 0.0:
+			_buf.erase(k)
+	for k in ["light", "forward", "heavy", "dash_back", "power", "power_1", "power_2", "power_3"]:
+		if inp.get(k, false):
+			# a power tap is deliberate: it waits longer for the current move to allow it
+			_buf[k] = POWER_BUFFER if k.begins_with("power") else BUFFER
+	if inp.get("block", false) and state not in [S.BLOCK, S.BLOCKSTUN]:
+		if not get_meta("block_held", false):
+			_block_since = clock
+		set_meta("block_held", true)
+	elif not inp.get("block", false):
+		set_meta("block_held", false)
 	if hitstop > 0.0:
 		hitstop -= delta
 		queue_redraw()
@@ -176,10 +236,6 @@ func _physics_process(delta: float) -> void:
 	if state not in [S.FROZEN, S.KO, S.WIN]:
 		add_energy(PASSIVE_ENERGY * delta)
 
-	inp = {}
-	if controller and state not in [S.FROZEN, S.KO, S.WIN]:
-		inp = controller.get_input(self, delta)
-
 	match state:
 		S.IDLE, S.WALK: _ground_control()
 		S.AIR: _air_control()
@@ -187,6 +243,7 @@ func _physics_process(delta: float) -> void:
 		S.BLOCK: _block_update()
 		S.BLOCKSTUN, S.HURT: _stun_update(delta)
 		S.POWER: _power_update(delta)
+		S.DASH: _dash_update(delta)
 		S.KO, S.FROZEN, S.WIN: pass
 
 	# Gravity Well: dragged toward the source unless anchored.
@@ -207,6 +264,7 @@ func _physics_process(delta: float) -> void:
 	if is_grounded() and state in [S.HURT, S.BLOCKSTUN, S.KO, S.FROZEN, S.WIN]:
 		vel.x = move_toward(vel.x, 0.0, PUSH_FRICTION * delta)
 	position.x = clampf(position.x, stage_left, stage_right)
+	_keep_side()
 	_update_visual_motion(delta)
 	var target_alpha := 0.16 if is_veiled() else 1.0
 	modulate.a = move_toward(modulate.a, target_alpha, delta * 4.0)
@@ -300,17 +358,65 @@ func _face_opponent() -> void:
 		facing = 1 if opponent.position.x > position.x else -1
 
 
+## Buffered press: true (and used up) if `k` was pressed within the last BUFFER seconds.
+func _take(k: String) -> bool:
+	if _buf.has(k):
+		_buf.erase(k)
+		return true
+	return false
+
+
+func _has_buf(k: String) -> bool:
+	return _buf.has(k)
+
+
+## The fighters never pass each other: the player side stays left of the enemy side, at least
+## MIN_GAP apart. When one is against a wall the other is held off instead.
+func _keep_side() -> void:
+	if opponent == null or is_in_group("clones") or not is_instance_valid(opponent):
+		return
+	if opponent.state == S.KO or state == S.KO:
+		return
+	var left := side == 0
+	if left and position.x > opponent.position.x - MIN_GAP:
+		position.x = maxf(stage_left, opponent.position.x - MIN_GAP)
+		if position.x > opponent.position.x - MIN_GAP:   # pinned at the wall: move the other
+			opponent.position.x = minf(stage_right, position.x + MIN_GAP)
+		if vel.x > 0.0:
+			vel.x = 0.0
+	elif not left and position.x < opponent.position.x + MIN_GAP:
+		position.x = minf(stage_right, opponent.position.x + MIN_GAP)
+		if position.x < opponent.position.x + MIN_GAP:
+			opponent.position.x = maxf(stage_left, position.x - MIN_GAP)
+		if vel.x < 0.0:
+			vel.x = 0.0
+
+
+## Is this fighter guarding right now (or about to, with block held)?
+func is_guarding() -> bool:
+	if state in [S.BLOCK, S.BLOCKSTUN]:
+		return true
+	if not get_meta("block_held", false):
+		return false
+	if state in [S.IDLE, S.WALK]:
+		return true
+	if state == S.ATTACK and move_kind != "air":
+		var tm := _move_times()
+		return state_time >= tm.x + tm.y   # recovery can be blocked out of
+	return false
+
+
 func _ground_control() -> void:
 	_face_opponent()
 	air_attack_used = false
 	if advance:
-		var mv0: float = inp.get("move", 0.0)
-		var acted: bool = inp.get("block", false) or inp.get("light", false) or inp.get("heavy", false) \
-			or inp.get("jump", false) or inp.get("power", false) or inp.get("power_1", false) \
-			or inp.get("power_2", false) or inp.get("power_3", false) or signf(mv0) == -facing
+		var acted: bool = inp.get("block", false) or _has_buf("light") or _has_buf("forward") \
+			or _has_buf("heavy") or _has_buf("dash_back") or _has_buf("power") or _has_buf("power_1") \
+			or _has_buf("power_2") or _has_buf("power_3")
 		var near := opponent != null and absf(opponent.position.x - position.x) <= ADVANCE_STOP
 		if acted or near:
 			_stop_advance()
+			vel.x = 0.0
 		else:
 			vel.x = facing * SPRINT_SPEED
 			set_meta("intro_run", true)
@@ -318,36 +424,39 @@ func _ground_control() -> void:
 			if state != S.WALK:
 				state = S.WALK
 			return
+	vel.x = 0.0
+	if state == S.WALK:
+		state = S.IDLE
+	if _neutral_action():
+		return
 	if inp.get("block", false):
-		vel.x = 0.0
 		set_state(S.BLOCK)
-		return
-	if inp.get("power", false) and _try_power(bars_full() - 1):
-		return
-	if inp.get("power_3", false) and _try_power(2):
-		return
-	if inp.get("power_1", false) and _try_power(0):
-		return
-	if inp.get("power_2", false) and _try_power(1):
-		return
-	if inp.get("light", false):
-		_start_attack("light", 0)
-		return
-	if inp.get("heavy", false):
+
+
+## What a fighter can start from neutral (idle, end of a block, end of a stun), in MCOC
+## priority: specials, dash back, attacks, dash forward. True if something started.
+func _neutral_action() -> bool:
+	if _take("power") and _try_power(bars_full() - 1):
+		return true
+	for i in 3:
+		if _take("power_%d" % (i + 1)) and _try_power(i):
+			return true
+	if _take("dash_back"):
+		_start_dash(-1)
+		return true
+	if _take("heavy"):
 		_start_attack("heavy", 0)
-		return
-	var mv: float = inp.get("move", 0.0)
-	if inp.get("jump", false):
-		vel.y = -jump_vel * (0.6 if has_status("gravity") else 1.0)
-		_sfx("jump", -6.0)
-		vel.x = mv * walk_speed * 0.95
-		set_state(S.AIR)
-		return
-	var backward: bool = signf(mv) == -facing
-	vel.x = mv * walk_speed * (0.72 if backward else 1.0)
-	var want := S.WALK if absf(mv) > 0.1 else S.IDLE
-	if state != want:
-		state = want
+		return true
+	if _take("light"):
+		_start_attack("light", 0)
+		return true
+	if _take("forward"):
+		if opponent and absf(opponent.position.x - position.x) <= MEDIUM_RANGE:
+			_start_attack("medium", 0)
+		else:
+			_start_dash(1)
+		return true
+	return false
 
 
 func _stop_advance() -> void:
@@ -355,39 +464,59 @@ func _stop_advance() -> void:
 	set_meta("intro_run", false)
 
 
+func _start_dash(dir: int) -> void:
+	dash_dir = dir
+	_face_opponent()
+	set_state(S.DASH)
+	_sfx("dash", -8.0)
+
+
+func _dash_update(_delta: float) -> void:
+	var d := DASH_FWD if dash_dir > 0 else DASH_BACK
+	var t := state_time
+	if t < d.y:
+		vel.x = facing * dash_dir * d.x * (1.0 - 0.5 * t / d.y)
+		# a dash forward stops at the opponent (they never pass each other)
+		if dash_dir > 0 and opponent and absf(opponent.position.x - position.x) <= MIN_GAP + 30.0:
+			vel.x = 0.0
+			set_state(S.IDLE)
+	else:
+		vel.x = 0.0
+		set_state(S.IDLE)
+		# dash forward flows straight into an attack if one was pressed during it
+		_neutral_action()
+
+
+## The start of a dash back is evasive (MCOC dexterity).
+func is_evading() -> bool:
+	return state == S.DASH and dash_dir < 0 and state_time <= EVADE_WINDOW
+
+
 func _air_control() -> void:
-	if not air_attack_used and (inp.get("light", false) or inp.get("heavy", false)):
-		air_attack_used = true
-		var m: Dictionary = data.get("moves", {}).get("air", {})
-		if not m.is_empty():
-			move = m
-			move_kind = "air"
-			move_hit = false
-			queued = ""
-			set_state(S.ATTACK)
-			_sfx("swing_light", -3.0)
+	pass   # (no jumping in MCOC rules: AIR is only a knock-up)
 
 
 func _block_update() -> void:
 	_face_opponent()
 	vel.x = 0.0
-	# Powers can be fired straight out of a block (e.g. Stone Bulwark).
-	if inp.get("power", false) and _try_power(bars_full() - 1):
-		return
-	if inp.get("power_3", false) and _try_power(2):
-		return
-	if inp.get("power_1", false) and _try_power(0):
-		return
-	if inp.get("power_2", false) and _try_power(1):
-		return
+	# specials and dash back can be used straight out of a block
+	if _has_buf("power") or _has_buf("power_1") or _has_buf("power_2") or _has_buf("power_3") or _has_buf("dash_back"):
+		if _neutral_action():
+			return
 	if not inp.get("block", false):
 		set_state(S.IDLE)
+		_neutral_action()
 
 
 func _stun_update(delta: float) -> void:
 	stun_time -= delta
 	if stun_time <= 0.0 and is_grounded():
+		if state == S.BLOCKSTUN and inp.get("block", false):
+			set_state(S.BLOCK)   # keep guarding: no gap between blocked hits
+			return
 		set_state(S.IDLE)
+		if not _neutral_action() and inp.get("block", false):
+			set_state(S.BLOCK)
 
 
 func _on_land() -> void:
@@ -403,39 +532,74 @@ func _on_land() -> void:
 
 # ------------------------------------------------------------------ attacks
 
+## The fighter's json move for a slot (its animation and hit height); "medium" uses the json's
+## heavy chain, the charged "heavy" uses its last heavy move.
+func _json_move(kind: String, idx: int) -> Dictionary:
+	var mv: Dictionary = data.get("moves", {})
+	var src: Array = mv.get("light", []) if kind == "light" else mv.get("heavy", [])
+	if src.is_empty():
+		return {}
+	if kind == "heavy":
+		return src[src.size() - 1]
+	return src[mini(idx, src.size() - 1)]
+
+
 func _chain(kind: String) -> Array:
-	return data.get("moves", {}).get(kind, [])
+	return MOVE_TABLE.get(kind, [])
+
+
+## A move: the shared numbers (MOVE_TABLE) over the fighter's own animation and hit height.
+func _make_move(kind: String, idx: int) -> Dictionary:
+	var row: Array = MOVE_TABLE[kind][idx]
+	var m := _json_move(kind, idx).duplicate()
+	m["startup"] = row[0]
+	m["active"] = row[1]
+	m["recovery"] = row[2]
+	m["damage"] = row[3]
+	m["reach"] = row[4]
+	m["stun"] = row[5]
+	m["knock"] = row[6]
+	m["step"] = row[7]
+	m.erase("launch")
+	m["slot"] = kind
+	return m
 
 
 func _start_attack(kind: String, idx: int) -> void:
 	var chain := _chain(kind)
 	if idx >= chain.size():
 		return
-	move = chain[idx]
+	move = _make_move(kind, idx)
 	move_kind = kind
 	chain_index = idx
 	move_hit = false
 	queued = ""
 	_face_opponent()
 	set_state(S.ATTACK)
-	_sfx("swing_heavy" if kind == "heavy" else "swing_light", -3.0)
+	_sfx("swing_heavy" if kind != "light" else "swing_light", -3.0)
 
 
 func _move_times() -> Vector3:
 	return Vector3(move.get("startup", 0.1), move.get("active", 0.08), move.get("recovery", 0.2))
 
 
+## MCOC combo: light, light, light, medium, medium (tap through it, or swipe for the mediums).
+func _next_in_combo(press: String) -> Array:
+	match move_kind:
+		"light":
+			if press == "light" and chain_index < 2:
+				return ["light", chain_index + 1]
+			if press in ["light", "forward"]:
+				return ["medium", 0]
+		"medium":
+			if press in ["light", "forward"] and chain_index < 1:
+				return ["medium", 1]
+	return []
+
+
 func _attack_update(_delta: float) -> void:
 	var tm := _move_times()
 	var t := state_time
-	# buffer the next press
-	if inp.get("light", false):
-		queued = "light"
-	elif inp.get("heavy", false):
-		queued = "heavy"
-	if inp.get("block", false) and t >= tm.x + tm.y and move_kind != "air":
-		set_state(S.BLOCK)
-		return
 	if move_kind != "air" and is_grounded():
 		if t < tm.x + tm.y:
 			vel.x = facing * float(move.get("step", 0.0)) / maxf(0.01, tm.x + tm.y)
@@ -443,16 +607,28 @@ func _attack_update(_delta: float) -> void:
 			vel.x = 0.0
 	if t >= tm.x and t < tm.x + tm.y and not move_hit:
 		_check_melee_hit()
-	if t >= tm.x + tm.y and queued != "" and move_kind != "air":
-		# cancel recovery into the next hit of a chain
-		if queued == move_kind and chain_index + 1 < _chain(move_kind).size():
-			_start_attack(move_kind, chain_index + 1)
+	if t >= tm.x + tm.y and move_kind != "air":
+		# after the hit: a special cancels the combo (MCOC), then the next combo hit
+		if _has_buf("power") or _has_buf("power_1") or _has_buf("power_2") or _has_buf("power_3"):
+			if _neutral_action():
+				return
+		for press in ["light", "forward"]:
+			if _has_buf(press):
+				var nx := _next_in_combo(press)
+				if not nx.is_empty():
+					_take(press)
+					_start_attack(nx[0], nx[1])
+					return
+		if inp.get("block", false):
+			set_state(S.BLOCK)
 			return
-		if queued == "heavy" and move_kind == "light":
-			_start_attack("heavy", 0)
+		if _has_buf("dash_back"):
+			_take("dash_back")
+			_start_dash(-1)
 			return
 	if t >= tm.x + tm.y + tm.z:
 		set_state(S.IDLE if is_grounded() else S.AIR)
+		_neutral_action()
 
 
 func attack_rect(m: Dictionary) -> Rect2:
@@ -500,12 +676,37 @@ func _try_power(i: int) -> bool:
 	move_hit = false
 	_face_opponent()
 	vel.x = 0.0
+	# lock on: if the opponent is within the power's reach it lands on them (and the effect is
+	# drawn there); otherwise it plays out at the end of its reach, visibly missing
+	var reach := power_reach(p)
+	var locked := opponent != null and absf(opponent.position.x - position.x) <= reach
+	set_meta("power_locked", locked)
+	set_meta("power_at", opponent.position if locked else position + Vector2(facing * minf(reach, 900.0), 0.0))
+	if i == 2 and opponent and locked:
+		# the ultimate's cinematic: the opponent is frozen while it winds up (MCOC special 3)
+		opponent.hitstop = maxf(opponent.hitstop, float(p.get("startup", SP3_WINDUP)) + 0.05)
 	set_state(S.POWER)
 	power_used.emit(self, p.get("name", "Power"))
 	if Vfx3D.on():
 		Vfx3D.charge(self, p)
 	_sfx(p.get("sfx", "bolt_cast"))
 	return true
+
+
+## How far a power reaches (px, horizontally) for lock-on.
+static func power_reach(p: Dictionary) -> float:
+	match String(p.get("type", "")):
+		"burst":
+			return maxf(float(p.get("radius", 250.0)), 420.0)
+		"lash":
+			return float(p.get("reach", 400.0))
+		"drain":
+			return float(p.get("range", 650.0))
+		"dash":
+			return float(p.get("speed", 2200.0)) * float(p.get("active", 0.2)) + MIN_GAP + 60.0
+		"projectile", "pull":
+			return 4000.0
+	return 0.0
 
 
 func _power_update(_delta: float) -> void:
@@ -550,16 +751,18 @@ func _power_update(_delta: float) -> void:
 				Vfx3D.on_power(self, power_def)
 			if t >= startup and t < startup + active:
 				invuln = 0.05
-				vel.x = facing * float(power_def.get("speed", 2200))
-				if not move_hit and opponent and _dash_rect().intersects(opponent.hurtbox()):
+				# rush in and strike; stop at the opponent (never through them)
+				vel.x = 0.0 if move_hit else facing * float(power_def.get("speed", 2200))
+				if not move_hit and opponent and (_dash_rect().intersects(opponent.hurtbox()) \
+						or absf(opponent.position.x - position.x) <= MIN_GAP + 30.0):
 					move_hit = true
+					vel.x = 0.0
 					var res := opponent.receive_hit(self, power_def)
 					if res != "miss":
 						hitstop = 0.08
 						_spawn_spark(opponent.position + Vector2(0, -170), res == "block", true)
 			elif t >= startup + active:
 				vel.x = 0.0
-				_resolve_overlap()
 		"buff":
 			if t >= startup and not power_fired:
 				power_fired = true
@@ -627,9 +830,9 @@ func _power_update(_delta: float) -> void:
 			if t >= startup and not power_fired:
 				power_fired = true
 				Vfx3D.on_power(self, power_def)
-				var r: float = power_def.get("radius", 250.0)
-				_spawn_burst(r)
-				if opponent and absf(opponent.position.x - position.x) <= r and absf(opponent.position.y - position.y) < 260:
+				var r: float = power_reach(power_def)
+				_spawn_burst(float(power_def.get("radius", 250.0)))
+				if opponent and get_meta("power_locked", false) and absf(opponent.position.x - position.x) <= r + 150.0:
 					var res2 := opponent.receive_hit(self, power_def)
 					if res2 != "miss":
 						hitstop = 0.1
@@ -744,25 +947,41 @@ func _spawn_spark(at: Vector2, blocked: bool, heavy: bool) -> void:
 
 # ------------------------------------------------------------------ damage
 
-## Returns "hit", "block" or "miss".
+## Returns "hit", "block", "parry" or "miss".
 func receive_hit(attacker: Fighter, m: Dictionary) -> String:
 	if state == S.KO or invuln > 0.0 or state == S.FROZEN:
 		return "miss"
-	var dmg: float = float(m.get("damage", 40.0)) * attacker.damage_mult()
+	var special := m.has("cost")
+	if is_evading() and not m.get("unblockable", false):
+		evaded.emit(self)
+		return "miss"
+	var dmg: float = float(m.get("damage", 40.0)) * attacker.damage_mult() * Settings.damage_mult(attacker.side == 1)
 	var stun: float = m.get("stun", 0.3)
 	var knock: float = m.get("knock", 180.0)
 	if has_status("anchored"):
 		knock = 0.0
 	var away := 1.0 if position.x >= attacker.position.x else -1.0
-	var from_front := int(signf(attacker.position.x - position.x)) == facing or is_equal_approx(attacker.position.x, position.x)
-	if state in [S.BLOCK, S.BLOCKSTUN] and from_front and not m.get("unblockable", false):
-		hp = maxf(1.0, hp - dmg * 0.12)
-		stun_time = stun * 0.55
-		vel.x = away * knock * 0.7
+	if is_guarding() and not m.get("unblockable", false):
+		# parry: block started just before a basic hit lands -> the attacker is stunned
+		if not special and m.get("slot", "") != "heavy" and clock - _block_since <= PARRY_WINDOW \
+				and attacker.state == S.ATTACK:
+			parried.emit(self, attacker)
+			attacker.stun_time = PARRY_STUN
+			attacker.vel.x = -away * 120.0
+			attacker.set_state(S.HURT)
+			attacker.set_meta("parried", true)
+			add_energy(10.0)
+			set_state(S.BLOCK)
+			_sfx("block", 0.0)
+			return "parry"
+		if special:
+			hp = maxf(1.0, hp - dmg * 0.10)   # specials chip through a block
+			hp_changed.emit(self)
+		stun_time = stun * 0.5
+		vel.x = away * knock * (0.5 if m.get("slot", "") == "heavy" else 0.3)
 		add_energy(7.0)
 		attacker.add_energy(5.0)
 		set_state(S.BLOCKSTUN)
-		hp_changed.emit(self)
 		_sfx("block", -2.0)
 		return "block"
 	hp = maxf(0.0, hp - dmg)

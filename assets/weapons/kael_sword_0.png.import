@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cyh1avhv7wf0q"
-path="res://.godot/imported/kael_sword_0.png-a423f7497a0d89519b2c4bc09004dc20.ctex"
+path.s3tc="res://.godot/imported/kael_sword_0.png-a423f7497a0d89519b2c4bc09004dc20.s3tc.ctex"
+path.etc2="res://.godot/imported/kael_sword_0.png-a423f7497a0d89519b2c4bc09004dc20.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "3d22ed3dbb5393a1e292c3c9ce923bb5"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/weapons/kael_sword_0.png"
-dest_files=["res://.godot/imported/kael_sword_0.png-a423f7497a0d89519b2c4bc09004dc20.ctex"]
+dest_files=["res://.godot/imported/kael_sword_0.png-a423f7497a0d89519b2c4bc09004dc20.s3tc.ctex", "res://.godot/imported/kael_sword_0.png-a423f7497a0d89519b2c4bc09004dc20.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

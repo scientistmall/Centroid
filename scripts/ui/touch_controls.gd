@@ -1,31 +1,28 @@
 class_name TouchControls
 extends Control
-## Gesture controls, no buttons on screen (the fight stays clear):
-##   swipe / drag toward or away from the opponent ... walk that way (held drag keeps walking)
-##   quick flick toward the opponent ................. heavy attack
-##   swipe up ........................................ jump
-##   swipe down (tag fights) ......................... swap fighters
-##   tap the opponent's side of the screen ........... light attack (tap again to chain the combo)
-##   hold your own side .............................. block
-##   tap the POWER GAUGE (bottom corner, your side) .. fire the highest power whose bars are full
-##                                                     (1, 2 or 3 bars; the third is unblockable)
-## "Opponent's side" is the half of the screen the opponent is on. No touch markers are drawn:
-## the only control on screen is the power gauge (MCOC style). Feeds the same input actions as
-## the keyboard (Input.action_press / action_release).
+## MCOC touch controls. Nothing on screen but the two power gauges; the player is always on the
+## left half, the opponent on the right half.
+##   tap the opponent's half ............. light attack (keep tapping: L, L, L, M, M combo)
+##   swipe toward the opponent ........... medium attack in range, dash forward when far
+##   hold the opponent's half ............ heavy attack (fires at HEAVY_FIRE or on release)
+##   hold your own half .................. block, from the first touch (just before a hit = PARRY)
+##   swipe back .......................... dash back (just before a hit = EVADE)
+##   tap your power gauge ................ the highest power whose bars are full
+##   swipe down (tag fights) ............. swap fighters
+## Feeds the same input actions as the keyboard (Input.action_press / action_release).
 
-const MOVE_PX := 46.0       # drag distance before a touch becomes movement
-const TAP_TIME := 0.24      # a tap is released within this
-const FLICK_TIME := 0.2     # a flick is a short, fast swipe
-const FLICK_PX := 90.0
-const BLOCK_DELAY := 0.1    # holding your own side this long starts blocking
-const JUMP_PX := 90.0
+const TAP_TIME := 0.25      # a tap is released within this
+const HEAVY_HOLD := 0.3     # released after holding this long = heavy
+const HEAVY_FIRE := 0.45    # held this long = heavy fires without waiting for the release
+const SWIPE_PX := 70.0      # a swipe moves this far ...
+const SWIPE_TIME := 0.35    # ... within this time of the touch (a resting block thumb never swipes)
 
 var fighter: Fighter
 var _touches := {}          # index -> {start, pos, t, opp, mode}
 var _pulse := {}            # action -> frames left pressed
-var _gauge_flash := 0.0     # the gauge punches when tapped
 var _t := 0.0
-var _hint := 6.0            # first seconds of a fight: a one-line reminder of the gestures
+var _hint := 7.0            # first seconds of a fight: a one-line reminder of the controls
+var _gauge_flash := 0.0     # the gauge punches when tapped
 
 
 func _ready() -> void:
@@ -38,19 +35,9 @@ func set_fighter(f: Fighter) -> void:
 	queue_redraw()
 
 
-## Which half of the screen the opponent is on (true = right).
-func _opp_right() -> bool:
-	if fighter and fighter.opponent:
-		return fighter.opponent.position.x >= fighter.position.x
-	return true
-
-
+## The opponent's half: always the right (the player keeps the left side; they never cross).
 func _is_opp_side(p: Vector2) -> bool:
-	return (p.x >= size.x * 0.5) == _opp_right()
-
-
-func _toward_sign() -> float:
-	return 1.0 if _opp_right() else -1.0
+	return p.x >= size.x * 0.5
 
 
 func _process(delta: float) -> void:
@@ -63,10 +50,9 @@ func _process(delta: float) -> void:
 			_pulse.erase(a)
 	for idx in _touches.keys():
 		var tc: Dictionary = _touches[idx]
-		var held: float = _t - tc["t"]
-		if tc["mode"] == "pending" and not tc["opp"] and held >= BLOCK_DELAY:
-			tc["mode"] = "block"
-			Input.action_press("block")
+		if tc["mode"] == "pending" and _t - tc["t"] >= HEAVY_FIRE:
+			tc["mode"] = "done"
+			_press_once("attack_heavy")
 	_gauge_flash = maxf(0.0, _gauge_flash - delta * 4.0)
 	queue_redraw()
 
@@ -74,9 +60,15 @@ func _process(delta: float) -> void:
 ## The power gauge: bottom corner on the player's side (the right corner for left-handed play).
 func gauge_rect() -> Rect2:
 	var k := Settings.button_scale
-	var gs := Vector2(500, 150) * k
+	var gs := Vector2(460, 136) * k
 	var x := size.x - gs.x - 30.0 if Settings.left_handed else 30.0
-	return Rect2(Vector2(x, size.y - gs.y - 26.0), gs)
+	return Rect2(Vector2(x, size.y - gs.y - 40.0), gs)
+
+
+## The opponent's gauge (display only), mirrored in the other corner.
+func enemy_gauge_rect() -> Rect2:
+	var g := gauge_rect()
+	return Rect2(Vector2(size.x - g.end.x, g.position.y), g.size)
 
 
 func _tap_gauge() -> void:
@@ -95,68 +87,67 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			var on_gauge := gauge_rect().grow(16.0).has_point(event.position)
-			_touches[event.index] = {"start": event.position, "pos": event.position, "t": _t,
-				"opp": _is_opp_side(event.position), "mode": "gauge" if on_gauge else "pending"}
-			if on_gauge:
+			var p: Vector2 = event.position
+			var mode := "pending"
+			if gauge_rect().has_point(p):
+				mode = "gauge"
 				_tap_gauge()
+			elif not _is_opp_side(p):
+				mode = "block"
+				Input.action_press("block")   # block from the very first frame of the touch
+			_touches[event.index] = {"start": p, "pos": p, "t": _t, "opp": _is_opp_side(p), "mode": mode}
 		elif _touches.has(event.index):
 			_release(event.index, event.position)
 	elif event is InputEventScreenDrag and _touches.has(event.index):
 		var tc: Dictionary = _touches[event.index]
 		tc["pos"] = event.position
+		if tc["mode"] not in ["pending", "block"]:
+			return
 		var d: Vector2 = event.position - tc["start"]
-		if tc["mode"] in ["pending", "block"]:
-			if -d.y > JUMP_PX and absf(d.y) > absf(d.x) * 1.3:
-				if tc["mode"] == "block":
-					Input.action_release("block")
-				tc["mode"] = "done"
-				_press_once("jump")
-			elif d.y > JUMP_PX and absf(d.y) > absf(d.x) * 1.3 and InputMap.has_action("swap"):
-				if tc["mode"] == "block":
-					Input.action_release("block")
-				tc["mode"] = "done"
-				_press_once("swap")   # tag fights: swipe down swaps fighters
-			elif absf(d.x) > MOVE_PX:
-				if tc["mode"] == "block":
-					Input.action_release("block")
-				tc["mode"] = "move"
-		if tc["mode"] == "move":
-			_apply_move(d.x)
+		if _t - tc["t"] > SWIPE_TIME:
+			return   # a resting thumb drifting is not a swipe
+		if d.y > SWIPE_PX and absf(d.y) > absf(d.x) * 1.3 and InputMap.has_action("swap"):
+			_end_block(tc)
+			tc["mode"] = "done"
+			_press_once("swap")
+		elif absf(d.x) > SWIPE_PX and absf(d.x) > absf(d.y):
+			_end_block(tc)
+			tc["mode"] = "done"
+			_press_once("attack_medium" if d.x > 0.0 else "dash_back")
 
 
-func _release(idx: int, pos: Vector2) -> void:
+func _end_block(tc: Dictionary) -> void:
+	if tc["mode"] == "block":
+		tc["mode"] = "pending"
+		if not _any_block_touch(tc):
+			Input.action_release("block")
+
+
+func _any_block_touch(except: Dictionary) -> bool:
+	for k in _touches:
+		if _touches[k] != except and _touches[k]["mode"] == "block":
+			return true
+	return false
+
+
+func _release(idx: int, _pos: Vector2) -> void:
 	var tc: Dictionary = _touches[idx]
 	var held: float = _t - tc["t"]
-	var d: Vector2 = pos - tc["start"]
 	match tc["mode"]:
 		"pending":
-			if held <= TAP_TIME and tc["opp"]:
-				_press_once("attack_light")
+			if tc["opp"]:
+				_press_once("attack_heavy" if held >= HEAVY_HOLD else "attack_light")
 		"block":
-			Input.action_release("block")
-		"move":
-			_apply_move(0.0)
-			if held <= FLICK_TIME and absf(d.x) > FLICK_PX and signf(d.x) == _toward_sign():
-				_press_once("attack_heavy")
+			_touches.erase(idx)
+			if not _any_block_touch({}):
+				Input.action_release("block")
+			return
 	_touches.erase(idx)
 
 
-func _apply_move(dx: float) -> void:
-	if dx < -MOVE_PX * 0.5:
-		Input.action_press("move_left")
-		Input.action_release("move_right")
-	elif dx > MOVE_PX * 0.5:
-		Input.action_press("move_right")
-		Input.action_release("move_left")
-	else:
-		Input.action_release("move_left")
-		Input.action_release("move_right")
-
-
 func release_all() -> void:
-	for a in ["move_left", "move_right", "jump", "attack_light", "attack_heavy", "block", "power", "power_1",
-			"power_2", "power_3", "swap"]:
+	for a in ["move_left", "move_right", "attack_light", "attack_medium", "attack_heavy", "dash_back", "block",
+			"power", "power_1", "power_2", "power_3", "swap"]:
 		if InputMap.has_action(a):
 			Input.action_release(a)
 	_touches.clear()
@@ -169,20 +160,18 @@ func _draw() -> void:
 		# yours (tap it) in your corner, the opponent's mirrored in theirs so you can see it coming
 		_draw_gauge(fighter, gauge_rect(), Settings.left_handed, true, op)
 		if fighter.opponent:
-			var g := gauge_rect()
-			var er := Rect2(Vector2(size.x - g.end.x, g.position.y), g.size)
-			_draw_gauge(fighter.opponent, er, not Settings.left_handed, false, op * 0.9)
+			_draw_gauge(fighter.opponent, enemy_gauge_rect(), not Settings.left_handed, false, op * 0.9)
 	if _hint > 0.0:
 		# a manga caption box above the gauges: ink black with a white frame
 		var a := clampf(_hint, 0.0, 1.0) * op
 		var f2 := Ink.label_font()
-		var txt := "SWIPE to move  ·  TAP their side to attack  ·  HOLD your side to block  ·  TAP your POWER gauge"
-		var tw := f2.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
+		var txt := "TAP right: attack  ·  SWIPE right: medium / dash  ·  HOLD right: heavy  ·  HOLD left: block  ·  SWIPE left: dash back  ·  TAP gauge: power"
+		var tw := f2.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
 		var box := Rect2(size.x / 2 - tw / 2 - 28, gauge_rect().position.y - 80, tw + 56, 58)
 		draw_rect(Rect2(box.position + Vector2(6, 6), box.size), Color(0, 0, 0, 0.6 * a))
 		draw_rect(box, Color(Ink.INK, 0.92 * a))
 		draw_rect(box.grow(-5), Color(1, 1, 1, 0.85 * a), false, 2.0)
-		draw_string(f2, Vector2(box.position.x, box.position.y + 39), txt, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, 26, Color(1, 1, 1, a))
+		draw_string(f2, Vector2(box.position.x, box.position.y + 38), txt, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, 24, Color(1, 1, 1, a))
 
 
 ## MCOC-style special meter: a round emblem with the number of full bars, three slanted bars

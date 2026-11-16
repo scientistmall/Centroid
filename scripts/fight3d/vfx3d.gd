@@ -205,6 +205,16 @@ static func on() -> bool:
 	return Stage3D.current != null and is_instance_valid(Stage3D.current)
 
 
+## Where a power lands: the opponent when they were in its range as it fired, otherwise the end
+## of its reach (Fighter sets "power_at"), so the effect is drawn exactly where the hit is judged.
+static func target_of(f: Fighter) -> Vector2:
+	if f.has_meta("power_at"):
+		return f.get_meta("power_at")
+	if f.opponent:
+		return f.opponent.position
+	return f.position + Vector2(f.facing * 250.0, 0)
+
+
 static func world(p2d: Vector2, z := 0.25) -> Vector3:
 	var w := Stage3D.current.to_world(p2d)
 	w.z = z
@@ -277,6 +287,8 @@ static func fade_free(n: Node3D, m: ShaderMaterial, time: float, delay := 0.0) -
 
 
 static func flash(pos: Vector3, col: Color, energy := 6.0, rng := 6.0, time := 0.35) -> void:
+	if OS.has_feature("mobile") or ArenaBuilder.low:
+		return   # a new light means a shader recompile and another pass on phones: the effects glow alone
 	var l := OmniLight3D.new()
 	l.light_color = col
 	l.light_energy = energy
@@ -564,11 +576,12 @@ static func on_projectile(p: Projectile) -> void:
 			arcs.start(col)
 			f.tree_exiting.connect(arcs.queue_free)
 			trail(f, col, "sparks", 70, 0.07)
-			var l := OmniLight3D.new()
-			l.light_color = col
-			l.light_energy = 3.0
-			l.omni_range = 4.0
-			f.add_child(l)
+			if not (OS.has_feature("mobile") or ArenaBuilder.low):
+				var l := OmniLight3D.new()
+				l.light_color = col
+				l.light_energy = 3.0
+				l.omni_range = 4.0
+				f.add_child(l)
 		"flame_wave":
 			for i in 3:
 				var fm := mat(FIRE_SHADER, {"edge_col": Color(1.0, 0.16, 0.03), "core_col": Color(0.015, 0.0, 0.02),
@@ -576,11 +589,12 @@ static func on_projectile(p: Projectile) -> void:
 				var fq := quad(Vector2(1.1, 1.4), fm, Vector3((i - 1) * 0.35 * p.dir, 0.05, 0.02 * i), f)
 				fq.position.y = -0.2 + 0.7
 			trail(f, Color(1.0, 0.3, 0.05), "embers", 50, 0.06)
-			var l2 := OmniLight3D.new()
-			l2.light_color = Color(1.0, 0.25, 0.05)
-			l2.light_energy = 3.5
-			l2.omni_range = 4.5
-			f.add_child(l2)
+			if not (OS.has_feature("mobile") or ArenaBuilder.low):
+				var l2 := OmniLight3D.new()
+				l2.light_color = Color(1.0, 0.25, 0.05)
+				l2.light_energy = 3.5
+				l2.omni_range = 4.5
+				f.add_child(l2)
 		"wind":
 			for i in 2:
 				var wm := mat(RING_SHADER, {"color": col, "energy": 2.5, "radius": 0.6, "width": 0.12})
@@ -963,7 +977,7 @@ static func signature(f: Fighter, pd: Dictionary) -> void:
 			decal(feet + Vector3(f.facing * 0.5, 0, 0.1), 3.0, col, "crack", 2.4)
 		"gravity_well":   # debris dragged in toward the target
 			if f.opponent:
-				var at := world(f.opponent.position + Vector2(0, -120))
+				var at := world(target_of(f) + Vector2(0, -120))
 				for i in 12:
 					var a := randf() * TAU
 					var rk := rock_mesh(randf_range(0.05, 0.11), Color(0.3, 0.25, 0.32))
@@ -972,7 +986,7 @@ static func signature(f: Fighter, pd: Dictionary) -> void:
 					var t := rk.create_tween()
 					t.tween_property(rk, "position", at, randf_range(0.35, 0.6)).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 					t.tween_callback(rk.queue_free)
-				decal(world(f.opponent.position), 3.2, col, "crack", 1.8)
+				decal(world(target_of(f)), 3.2, col, "crack", 1.8)
 		"purify":
 			decal(feet, 3.6, Color(1.0, 0.72, 0.9), "sigil", 2.2)
 		"clear_sight", "piercing_gale":
@@ -983,7 +997,7 @@ static func signature(f: Fighter, pd: Dictionary) -> void:
 			pass   # marks where the whip lands (on_lash)
 		# ---------------------------------------------------------------- third powers (ultimates)
 		"stormbreaker":   # a pillar of lightning from the black sky onto the target
-			var at := world(f.opponent.position) if f.opponent else feet + Vector3(f.facing * 1.6, 0, 0)
+			var at := world(target_of(f))
 			for i in 5:
 				var top := at + Vector3(randf_range(-0.5, 0.5), 9.0, 0.1)
 				var b := bolt(top, at + Vector3(randf_range(-0.25, 0.25), 0.0, 0.15), col, 0.45, 0.14 - i * 0.015, 3)
@@ -1077,7 +1091,7 @@ static func signature(f: Fighter, pd: Dictionary) -> void:
 			Stage3D.current.get_tree().create_timer(0.5).timeout.connect(flash.bind(feet + Vector3(0, 1.5, 1.0), Color(0.6, 0.3, 1.0), 10.0, 12.0, 0.4))
 			decal(feet, 6.0, col, "crack", 2.6)
 		"thousand_mirrors":   # mist images of Vaska flash in around the target and cut
-			var at4 := world(f.opponent.position) if f.opponent else feet
+			var at4 := world(target_of(f))
 			for i in 7:
 				var a3 := TAU * i / 7.0
 				var mm := mat(MIST_SHADER, {"color": Color(0.75, 0.82, 0.95), "alpha": 0.75, "seed": randf() * 9.0})

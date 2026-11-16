@@ -19,10 +19,10 @@
 		{
 			"threat": "black_flame_wave",
 			"answers": [
-				"jump",
+				"block",
 				"power_2"
 			],
-			"tip": "It hugs the ground: jump over it, or Thunder Step straight through."
+			"tip": "Block it (it only chips), or answer with Thunder Step: it rushes in and strikes first."
 		},
 		{
 			"threat": "hellfire_burst",
@@ -30,7 +30,7 @@
 				"block",
 				"back"
 			],
-			"tip": "You can't interrupt it. Block, or back away until the flames die."
+			"tip": "Block it, or swipe back to dash out of the flames."
 		}
 	]
 }

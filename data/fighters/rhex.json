@@ -27,6 +27,6 @@
 		 "cost": 35, "damage": 100, "speed": 950, "startup": 0.28, "active": 0.05, "recovery": 0.35, "stun": 0.5, "knock": 300, "y": -75, "life": 2.2},
 		{"id": "hellfire_burst", "desc": "Rhex erupts in black flame. Armoured while charging: it cannot be interrupted.", "sfx": "fire_burst", "name": "Hellfire Burst", "short": "BURST", "type": "burst", "anim": "burst", "armor": true,
 		 "cost": 50, "damage": 170, "radius": 270, "startup": 0.36, "active": 0.12, "recovery": 0.45, "stun": 0.7, "knock": 520, "launch": 800},
-		{"id": "inferno_cleave", "name": "Inferno Cleave", "short": "CLEAVE", "type": "dash", "anim": "dash", "sfx": "dash", "hit_sfx": "fire_burst", "speed": 2100, "desc": "Rhex charges through his opponent in a spinning wheel of black fire. Unblockable.", "damage": 340, "startup": 0.2, "active": 0.26, "recovery": 0.45, "stun": 0.9, "knock": 520, "unblockable": true, "ultimate": true, "cost": 300}
+		{"id": "inferno_cleave", "name": "Inferno Cleave", "short": "CLEAVE", "type": "dash", "anim": "dash", "sfx": "dash", "hit_sfx": "fire_burst", "speed": 2100, "desc": "Rhex charges into his opponent in a spinning wheel of black fire. Unblockable.", "damage": 340, "startup": 0.2, "active": 0.26, "recovery": 0.45, "stun": 0.9, "knock": 520, "unblockable": true, "ultimate": true, "cost": 300}
 	]
 }

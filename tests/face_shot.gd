@@ -15,4 +15,27 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(out)
+	# close-ups of the enemy's face: head turned toward the opponent (as in the fight), then
+	# square to the camera
+	var args := OS.get_cmdline_user_args()
+	if args.size() > 1 and args[1] == "close":
+		var m = a._puppets[a.enemy]
+		a.set_process(false)   # the fight camera stops following
+		var cam: Camera3D = a.stage3d.camera
+		for k in 2:
+			if k == 1:
+				m.set_physics_process(false)
+				m.set_process(false)
+				m.rotation.y = 0.0
+			for i in 6:
+				await get_tree().process_frame
+			var sk: Skeleton3D = m._sk
+			var hb := sk.find_bone("Head")
+			var hp: Vector3 = sk.global_transform * sk.get_bone_global_pose(hb).origin
+			cam.global_position = hp + Vector3(0, 0.08, 0.75)
+			cam.look_at(hp + Vector3(0, 0.05, 0))
+			cam.h_offset = 0.0
+			cam.v_offset = 0.0
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(out.replace(".png", "_close%d.png" % k))
 	get_tree().quit()

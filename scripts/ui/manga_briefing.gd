@@ -287,7 +287,7 @@ func answer(a: String) -> Array:
 	match a:
 		"jump": return ["jump", Color(0.6, 1.0, 0.72), "JUMP"]
 		"block": return ["block", Color(0.62, 0.8, 1.0), "BLOCK"]
-		"back": return ["back", Color(0.85, 0.85, 0.9), "BACK OFF"]
+		"back": return ["back", Color(0.85, 0.85, 0.9), "DASH BACK"]
 		"attack_light": return ["attack_light", Color(0.9, 0.92, 1.0), "LIGHT"]
 		"attack_heavy": return ["attack_heavy", Color(1.0, 0.72, 0.42), "HEAVY"]
 	if a.begins_with("power_"):

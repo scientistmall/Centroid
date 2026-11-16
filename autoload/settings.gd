@@ -24,6 +24,8 @@ signal changed
 
 func _ready() -> void:
 	load_settings()
+	if OS.has_feature("mobile"):
+		Engine.max_fps = 60   # steady frames (and battery) on 90/120 Hz screens
 
 
 ## The 3D level to use now (HIGH, LOW or SAFE).
@@ -46,6 +48,13 @@ func graphics_info() -> String:
 	var lvl: String = ["AUTO", "HIGH", "LOW", "SAFE"][effective_graphics()]
 	return "%s  ·  %s  ·  %s  ·  using %s" % [names.get(method, method), RenderingServer.get_video_adapter_name(),
 		RenderingServer.get_video_adapter_api_version(), lvl]
+
+
+## Damage scale by difficulty: the AI hits harder on Hard and softer on Easy, the player the
+## other way round. Every fighter shares the same move numbers, so this is the only difference.
+func damage_mult(attacker_is_ai: bool) -> float:
+	var t: Array = [[1.15, 0.8], [1.0, 1.0], [0.9, 1.25]][clampi(difficulty, 0, 2)]
+	return t[1] if attacker_is_ai else t[0]
 
 
 func ai_multiplier() -> float:

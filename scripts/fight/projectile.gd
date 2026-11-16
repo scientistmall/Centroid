@@ -41,6 +41,9 @@ func rect() -> Rect2:
 
 
 func _physics_process(delta: float) -> void:
+	if not is_instance_valid(owner_fighter):
+		queue_free()
+		return
 	life += delta
 	if params.get("arc", false) and life < 0.22:
 		position.y -= 220.0 * delta   # rocks rise before they launch
@@ -48,15 +51,10 @@ func _physics_process(delta: float) -> void:
 		return
 	position.x += dir * speed * delta
 	queue_redraw()
-	if life > max_life or position.x < -200 or position.x > 2200:
+	if life > max_life or position.x < owner_fighter.stage_left - 400.0 or position.x > owner_fighter.stage_right + 400.0:
 		queue_free()
 		return
-	# projectiles from opposite owners cancel each other
-	for other in get_tree().get_nodes_in_group("projectiles"):
-		if other != self and other.owner_fighter != owner_fighter and other.rect().intersects(rect()):
-			_pop()
-			other._pop()
-			return
+	# (projectiles pass each other: both travel on and both can land)
 	for c in get_tree().get_nodes_in_group("clones"):
 		if c.side != owner_fighter.side and rect().intersects(c.hurtbox()):
 			c.pop()

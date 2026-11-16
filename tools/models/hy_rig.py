@@ -86,17 +86,37 @@ def normalise(ob, height):
         ob.data.update()
 
 
-def decimate(ob, target):
+def _collapse(ob, ratio, keep=None, factor=1.0):
+    m = ob.modifiers.new("dec", "DECIMATE")
+    m.decimate_type = "COLLAPSE"
+    m.ratio = min(1.0, ratio)
+    m.use_collapse_triangulate = True
+    if keep:
+        m.vertex_group = keep
+        m.invert_vertex_group = True    # weighted = protected
+        m.vertex_group_factor = factor
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.modifier_apply(modifier=m.name)
+    return sum(len(p.vertices) - 2 for p in ob.data.polygons)
+
+
+def decimate(ob, target, keep=None):
+    """Collapse to about `target` triangles. With `keep` (a vertex group over the face), the last
+    step favours the face: it keeps more of its detail and hair spikes and clothes give up more.
+    The even first pass keeps the silhouette (feet, hair tips) from being collapsed away."""
     tris = sum(len(p.vertices) - 2 for p in ob.data.polygons)
     if tris <= target:
         return tris
-    m = ob.modifiers.new("dec", "DECIMATE")
-    m.decimate_type = "COLLAPSE"
-    m.ratio = target / tris
-    m.use_collapse_triangulate = True
-    bpy.context.view_layer.objects.active = ob
-    bpy.ops.object.modifier_apply(modifier=m.name)
-    out = sum(len(p.vertices) - 2 for p in ob.data.polygons)
+    if keep is None:
+        out = _collapse(ob, target / tris)
+    else:
+        mid = _collapse(ob, target * 3.0 / tris)
+        out = _collapse(ob, target / mid, keep, 1.0)
+        if out > target * 1.08:
+            out = _collapse(ob, target / out)
+        face = sum(1 for p in ob.data.polygons
+                   if all(ob.vertex_groups[keep].index in [g.group for g in ob.data.vertices[i].groups] for i in p.vertices))
+        log(f"face keeps {face} triangles")
     log(f"decimated {tris} -> {out} triangles")
     return out
 
@@ -143,6 +163,60 @@ def slab(v, z0, z1):
     return v[(v[:, 2] >= z0) & (v[:, 2] < z1)]
 
 
+def neck_and_chin(v, H):
+    """Shoulder line, neck and chin heights from the body's shape.
+    Neck: the first slice above the shoulders that is much narrower than them. Chin: walking down
+    the middle of the face, the point where the front surface falls back (under the jaw). The neck
+    joint must sit below the chin, or the jaw is skinned to the neck and shears when the head turns
+    (a short thick neck under wide shoulders, as on Rhex, puts the narrow slice inside the jaw)."""
+    def span_at(z, dz=0.006):
+        sl = slab(v, z - dz * H, z + dz * H)
+        return central_span(sl[:, 0], H * 0.006) if len(sl) else 0.0
+    zs = np.arange(0.66, 0.95, 0.005) * H
+    raw = np.array([span_at(z) for z in zs])
+    widths = np.array([np.median(raw[max(0, i - 2):i + 3]) for i in range(len(raw))])
+    band = (zs >= 0.68 * H) & (zs <= 0.88 * H)
+    peak_i = int(np.argmax(np.where(band, widths, 0.0)))
+    neck_z = 0.84 * H
+    for i in range(peak_i + 1, len(zs)):
+        if widths[i] < 0.6 * widths[peak_i]:
+            neck_z = float(zs[i])
+            break
+    sh_z = neck_z - 0.035 * H
+
+    def front_y(z):
+        s = slab(v, z - 0.004 * H, z + 0.004 * H)
+        s = s[np.abs(s[:, 0]) < 0.025 * H]
+        return float(np.percentile(s[:, 1], 1)) if len(s) > 4 else None
+    # the face's front at mouth height, then down until the surface recedes under the jaw
+    z = neck_z + 0.05 * H
+    face = front_y(z)
+    chin_z = neck_z
+    while face is not None and z > sh_z:
+        fy = front_y(z)
+        if fy is None or fy > face + 0.02 * H:
+            break
+        face = min(face, fy)
+        chin_z = z
+        z -= 0.0025 * H
+    return neck_z, sh_z, chin_z, span_at
+
+
+def face_group(ob, H):
+    """Vertex group 'keep' over the face (front of the head between the chin and the brow)."""
+    v = verts(ob)
+    neck_z, sh_z, chin_z, _ = neck_and_chin(v, H)
+    g = ob.vertex_groups.new(name="keep")
+    head = slab(v, chin_z, chin_z + 0.15 * H)
+    head = head[np.abs(head[:, 0]) < 0.07 * H]
+    yc = float(np.median(head[:, 1])) if len(head) else 0.0
+    idx = [i for i, co in enumerate(v)
+           if chin_z - 0.015 * H < co[2] < chin_z + 0.15 * H and abs(co[0]) < 0.075 * H and co[1] < yc + 0.01 * H]
+    g.add(idx, 1.0, "REPLACE")
+    log(f"face group: {len(idx)} vertices (chin z {chin_z / H:.3f}H)")
+    return "keep"
+
+
 def joints(ob, H):
     v = verts(ob)
     J = {}
@@ -154,22 +228,7 @@ def joints(ob, H):
         J[side + "Fist"] = Vector(far.mean(0))
     # neck: the narrowest point of the central body between the shoulders and the head
     # (found, not assumed, so tall hair like a mohawk doesn't move the shoulders)
-    def span_at(z, dz=0.006):
-        sl = slab(v, z - dz * H, z + dz * H)
-        return central_span(sl[:, 0], H * 0.006) if len(sl) else 0.0
-    zs = np.arange(0.66, 0.95, 0.005) * H
-    raw = np.array([span_at(z) for z in zs])
-    widths = np.array([np.median(raw[max(0, i - 2):i + 3]) for i in range(len(raw))])
-    # shoulders: the widest slice in the upper body; neck: the first slice above them that is
-    # much narrower (a scarf or collar can't hide it; tall hair above the skull doesn't matter)
-    band = (zs >= 0.68 * H) & (zs <= 0.88 * H)
-    peak_i = int(np.argmax(np.where(band, widths, 0.0)))
-    neck_z = 0.84 * H
-    for i in range(peak_i + 1, len(zs)):
-        if widths[i] < 0.6 * widths[peak_i]:
-            neck_z = float(zs[i])
-            break
-    sh_z = neck_z - 0.035 * H
+    neck_z, sh_z, chin_z, span_at = neck_and_chin(v, H)
     # shoulder joints: the outer edge of the shoulders just below their top, less the deltoid
     sh_span = span_at(sh_z - 0.02 * H, 0.008)
     sh_x = max(sh_span - 0.045 * H, 0.08 * H)
@@ -177,7 +236,14 @@ def joints(ob, H):
     chest = slab(v, sh_z - 0.12 * H, sh_z - 0.08 * H)
     chest_c = chest[np.abs(chest[:, 0]) < half_w]
     y_chest = float(np.percentile(chest_c[:, 1], 2) + 0.56 * (np.percentile(chest_c[:, 1], 98) - np.percentile(chest_c[:, 1], 2))) if len(chest_c) else 0.0
-    log(f"neck z {neck_z / H:.3f}H  shoulder z {sh_z / H:.3f}H  shoulder x {sh_x:.3f}  torso half-width {half_w:.3f}")
+    # the neck joint below the chin, the head joint at it: the whole jaw moves with the head
+    neck_j = max(min(neck_z, chin_z - 0.016 * H), sh_z + 0.01 * H)
+    head_j = max(chin_z - 0.004 * H, neck_j + 0.015 * H)
+    if neck_j < neck_z:
+        log(f"chin at {chin_z / H:.3f}H: neck joint lowered {neck_z / H:.3f}H -> {neck_j / H:.3f}H")
+    else:
+        head_j = neck_z + 0.035 * H
+    log(f"neck z {neck_j / H:.3f}H  head z {head_j / H:.3f}H  shoulder z {sh_z / H:.3f}H  shoulder x {sh_x:.3f}  torso half-width {half_w:.3f}")
     # spine, centred front-to-back on each slice
     def yc(z):
         """Depth centre of the body at height z: a little behind the middle of front and back
@@ -194,8 +260,8 @@ def joints(ob, H):
     J["Chest"] = Vector((0, yc(0.665 * body), 0.665 * body))
     J["UpperChest"] = Vector((0, yc(0.74 * body), 0.74 * body))
     head_y = yc(neck_z + 0.07 * H)   # above the collar and scarf
-    J["Neck"] = Vector((0, 0.5 * (yc(sh_z - 0.04 * H) + head_y), neck_z))
-    J["Head"] = Vector((0, head_y, neck_z + 0.035 * H))
+    J["Neck"] = Vector((0, 0.5 * (yc(sh_z - 0.04 * H) + head_y), neck_j))
+    J["Head"] = Vector((0, head_y, head_j))
     J["HeadTop"] = Vector((0, J["Head"].y, H))
     # legs: the two clusters in a thigh slice
     thigh = slab(v, 0.36 * body, 0.42 * body)
@@ -361,6 +427,7 @@ def main():
     ap.add_argument("--tris", type=int, default=60000)
     ap.add_argument("--tex", type=int, default=2048)
     ap.add_argument("--build", type=float, default=1.0, help="widen the body (x and depth) by this factor")
+    ap.add_argument("--keep-face", action="store_true", help="decimate the face less than the rest")
     a = ap.parse_args(argv)
     reset()
     ob = import_mesh(a.src)
@@ -372,7 +439,7 @@ def main():
             vtx.co.y *= a.build
         ob.data.update()
         log("build x", a.build)
-    decimate(ob, a.tris)
+    decimate(ob, a.tris, face_group(ob, a.height) if a.keep_face else None)
     shrink_textures(ob, a.tex)
     J = joints(ob, a.height)
     for k in sorted(J):

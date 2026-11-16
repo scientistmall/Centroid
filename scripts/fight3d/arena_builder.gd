@@ -113,6 +113,8 @@ static func lights(root: Node3D, moon: Color, rim: Color, key_energy := 1.2) -> 
 	key.light_energy = key_energy
 	key.rotation_degrees = Vector3(-35, 20, 0)
 	key.shadow_enabled = not low
+	key.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL   # one cascade: the fight is a small area
+	key.directional_shadow_max_distance = 30.0
 	key.shadow_opacity = 0.55   # no sun: soft shadows, not black pools
 	root.add_child(key)
 	# strong rim light from behind — makes fighters pop from the background

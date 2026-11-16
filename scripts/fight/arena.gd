@@ -23,8 +23,8 @@ var _dust_t := 0.0
 var _push_amt := 0.2
 ## Opening charge: each round the fighters start at the far edges of the arena (camera pulled
 ## wide on the whole backdrop) and sprint at each other into fighting range.
-const STAGE_HALF := 600.0   # px either side of the centre the fighters can move in
-const START_GAP := 470.0    # px from the centre each fighter starts a round (fighting range is 330)
+const STAGE_HALF := 1150.0  # px either side of the centre the fighters can move in (walls)
+const START_GAP := 560.0    # px from the centre each fighter starts a round
 const INTRO_ZOOM := 1.0
 var time_left := 99.0
 var ground_y := 880.0
@@ -178,6 +178,8 @@ func _make_fighter(id: String, ctrl: Object) -> Fighter:
 	f.got_hit.connect(_on_hit)
 	f.power_used.connect(_on_power)
 	f.special_hit.connect(_on_special_hit)
+	f.parried.connect(func(d: Fighter, _a: Fighter): _pop_text(d, "PARRY!", Color(0.55, 0.9, 1.0)))
+	f.evaded.connect(func(d: Fighter): _pop_text(d, "EVADE", Color(0.85, 1.0, 0.7)))
 	world.add_child(f)
 	return f
 
@@ -208,7 +210,9 @@ func _start_round() -> void:
 		_briefed = true
 		touch.visible = false
 		hud.visible = false
-		await _show_vs().closed
+		var vs := _show_vs()
+		_prewarm.call_deferred()   # behind the VS screen
+		await vs.closed
 		hud.visible = true
 		await _show_briefing().closed
 		touch.visible = true
@@ -230,6 +234,25 @@ func _start_round() -> void:
 	enemy.advance = true
 
 
+## Compile every effect, material and cut-in this fight can use while the VS screen covers the
+## stage, so the first power or hit never stalls (phones compile shaders on first use).
+func _prewarm() -> void:
+	for f in [player, enemy]:
+		for i in f.powers.size():
+			MangaBriefing.art_for(f.char_id, i + 1)
+	if not Vfx3D.on():
+		return
+	for f in [player, enemy]:
+		Vfx3D.on_hit(f.position + Vector2(0, -170), f.color, false, false, f.element)
+		Vfx3D.on_hit(f.position + Vector2(0, -170), f.color, true, true, f.element)
+		for p in f.powers:
+			Vfx3D.charge(f, p)
+			Vfx3D.on_power(f, p)
+		if f.has_meta("power_at"):
+			f.remove_meta("power_at")
+	Vfx3D.particles(Vfx3D.world(player.position, 0.1), Color(0.5, 0.42, 0.34), "dust", 4, 0.5)
+
+
 func _wait(t: float) -> void:
 	await get_tree().create_timer(t, false, false, true).timeout
 
@@ -242,10 +265,10 @@ func _physics_process(delta: float) -> void:
 	# dust kicks up behind charging fighters
 	_dust_t -= delta
 	if _dust_t <= 0.0 and Vfx3D.on():
-		_dust_t = 0.07
+		_dust_t = 0.16
 		for f in [player, enemy]:
 			if f and f.advance:
-				Vfx3D.particles(Vfx3D.world(f.position, 0.1), Color(0.5, 0.42, 0.34), "dust", 6, 0.5)
+				Vfx3D.particles(Vfx3D.world(f.position, 0.1), Color(0.5, 0.42, 0.34), "dust", 8, 0.5)
 	if phase == "fight":
 		time_left -= delta
 		hud.time_left = time_left
@@ -264,8 +287,32 @@ func _physics_process(delta: float) -> void:
 		_shake_px = Vector2(randf_range(-shake, shake), randf_range(-shake, shake))
 	else:
 		_shake_px = Vector2.ZERO
+
+
+
+## Visuals follow the render frame (smooth at any refresh rate); the fight logic stays at the
+## physics rate.
+func _process(delta: float) -> void:
 	_update_camera(delta)
 	_sync_puppets()
+
+
+## A word that pops up over a fighter and floats away (PARRY!, EVADE).
+func _pop_text(f: Fighter, text: String, col: Color) -> void:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", Ink.letter_font())
+	l.add_theme_font_size_override("font_size", 64)
+	l.add_theme_color_override("font_color", col)
+	l.add_theme_color_override("font_outline_color", Ink.INK)
+	l.add_theme_constant_override("outline_size", 14)
+	l.position = f.position + Vector2(-90, -310)
+	effects.add_child(l)
+	var t := l.create_tween().set_parallel(true)
+	t.tween_property(l, "position:y", l.position.y - 90.0, 0.7).set_ease(Tween.EASE_OUT)
+	t.tween_property(l, "modulate:a", 0.0, 0.7).set_delay(0.25)
+	t.chain().tween_callback(l.queue_free)
+	AudioManager.sfx("block", 2.0)
 
 
 ## Dynamic framing: zoom in when the fighters are close, out when apart, and follow
@@ -322,18 +369,18 @@ func _sync_puppets() -> void:
 			_puppets[f].sync()
 
 
+## The fighters never pass each other, at any time (powers and dashes included): the player
+## stays on the left, at least Fighter.MIN_GAP from the enemy (Fighter._keep_side does the same
+## for each fighter as it moves).
 func _separate() -> void:
 	if player == null or enemy == null or not player.is_alive() or not enemy.is_alive():
 		return
-	if player.state == Fighter.S.POWER or enemy.state == Fighter.S.POWER:
-		return
 	var dx := enemy.position.x - player.position.x
-	var min_d := Fighter.BODY_HALF_W * 2.0
-	if absf(dx) < min_d and absf(enemy.position.y - player.position.y) < 200.0:
-		var push := (min_d - absf(dx)) / 2.0
-		var s := signf(dx) if dx != 0.0 else 1.0
-		player.position.x = clampf(player.position.x - s * push, stage.x, stage.y)
-		enemy.position.x = clampf(enemy.position.x + s * push, stage.x, stage.y)
+	if dx < Fighter.MIN_GAP:
+		var mid := (player.position.x + enemy.position.x) / 2.0
+		mid = clampf(mid, stage.x + Fighter.MIN_GAP / 2.0, stage.y - Fighter.MIN_GAP / 2.0)
+		player.position.x = mid - Fighter.MIN_GAP / 2.0
+		enemy.position.x = mid + Fighter.MIN_GAP / 2.0
 
 
 ## Anime cut-in banner + a short dramatic slow-down when a power fires.
@@ -478,8 +525,11 @@ func _swap_member() -> void:
 ## picture once; if it is black, step the graphics down (HIGH -> LOW -> SAFE), remember it for
 ## this phone and restart the fight. If even SAFE is black, say so on screen with the GPU name.
 func _check_render() -> void:
-	if DisplayServer.get_name() != "headless":   # (no frames are drawn headless)
-		await RenderingServer.frame_post_draw
+	if DisplayServer.get_name() == "headless":   # nothing is drawn headless: only the test hook
+		if force_black_check:
+			_on_black_render()
+		return
+	await RenderingServer.frame_post_draw
 	var img: Image
 	if stage3d.viewport:
 		var tex := stage3d.viewport.get_texture()
@@ -501,6 +551,10 @@ func _check_render() -> void:
 		lum = 0.0
 	if lum >= 0.02:
 		return
+	_on_black_render()
+
+
+func _on_black_render() -> void:
 	var lvl := stage3d.level
 	if Settings.graphics == Settings.Gfx.AUTO and lvl < Settings.Gfx.SAFE:
 		Settings.graphics_detected = lvl + 1
