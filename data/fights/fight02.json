@@ -10,7 +10,7 @@
 	"enemy": "vaska",
 	"rounds_to_win": 2,
 	"round_time": 99,
-	"ai": 0.48,
+	"ai": 0.4,
 	"flag": "fight02_completed",
 	"win_next": {
 		"type": "story",

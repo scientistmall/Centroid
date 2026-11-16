@@ -9,7 +9,7 @@
 	"enemy": "mael",
 	"rounds_to_win": 2,
 	"round_time": 99,
-	"ai": 0.52,
+	"ai": 0.5,
 	"flag": "fight03_completed",
 	"win_next": {
 		"type": "story",

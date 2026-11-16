@@ -18,8 +18,8 @@ func _ready() -> void:
 	# close-ups of the enemy's face: head turned toward the opponent (as in the fight), then
 	# square to the camera
 	var args := OS.get_cmdline_user_args()
-	if args.size() > 1 and args[1] == "close":
-		var m = a._puppets[a.enemy]
+	if args.size() > 1 and args[1] in ["close", "close_player"]:
+		var m = a._puppets[a.player if args[1] == "close_player" else a.enemy]
 		a.set_process(false)   # the fight camera stops following
 		var cam: Camera3D = a.stage3d.camera
 		for k in 2:

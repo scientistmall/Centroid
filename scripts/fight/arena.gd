@@ -97,7 +97,9 @@ func _build() -> void:
 	team = p_ids if p_ids is Array else [p_ids]
 	for id in team:
 		team_hp[id] = -1.0
-	enemy = _make_fighter(fight.get("enemy", "rhex"), AIController.new(clampf(float(fight.get("ai", 0.45)) * Settings.ai_multiplier(), 0.1, 1.0)))
+	Settings.current_losses = StoryManager.losses_at(fight_id)
+	enemy = _make_fighter(fight.get("enemy", "rhex"), AIController.new(
+		Settings.enemy_level(float(fight.get("ai", 0.45)), StoryManager.losses_at(fight_id))))
 	AudioManager.play_music(fight.get("music", "battle_1"))
 	player = _make_fighter(team[0], PlayerController.new())
 	player.opponent = enemy
@@ -579,11 +581,12 @@ func _on_black_render() -> void:
 
 func _match_over(victory: bool) -> void:
 	phase = "over"
+	StoryManager.record_fight(fight_id, victory)
 	AudioManager.sting("victory" if victory else "defeat")
 	touch.visible = false
 	_show_overlay(
 		"VICTORY" if victory else "DEFEAT",
-		"" if victory else "The story continues only after victory.",
+		"" if victory else "The story continues only after victory. Each retry eases this fight a little.",
 		[["Continue", _continue]] if victory else [["Retry", _retry], ["Main Menu", _to_menu]],
 		Color(1, 0.85, 0.4) if victory else Color(1, 0.35, 0.3))
 

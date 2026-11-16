@@ -52,6 +52,8 @@ const MOVE_TABLE := {
 	"heavy": [[0.36, 0.1, 0.38, 110.0, 230.0, 0.6, 520.0, 70.0]],
 }
 const POWER_DAMAGE := [130.0, 230.0, 380.0]
+const POWER_STUN := [[0.5, 300.0], [0.7, 460.0], [1.0, 560.0]]   # [stun, knock] by power level
+const POWER_REACH := 600.0       # lock-on reach of every close-range power (bursts, dashes)
 const SP3_WINDUP := 0.6          # the ultimate's cinematic: the opponent is frozen while it winds up
 
 var ground_y := 880.0
@@ -140,6 +142,12 @@ func setup(fighter_data: Dictionary) -> void:
 			pw["startup"] = SP3_WINDUP
 			pw["unblockable"] = true
 		pw.erase("armor")
+		pw.erase("launch")   # no juggles (MCOC): a launched fighter could be hit again before landing
+		if pw.get("type", "") == "projectile":
+			pw["speed"] = 1300.0   # one projectile speed: equally hard to react to for everyone
+		if float(pw.get("damage", 0.0)) > 0.0:
+			pw["stun"] = POWER_STUN[mini(i, 2)][0]
+			pw["knock"] = POWER_STUN[mini(i, 2)][1]
 	costume = PortraitArt.look_for(char_id).get("fighter", {})
 	if element != "" and _emitter == null:
 		_emitter = Vfx.element_emitter(element, color)
@@ -682,6 +690,9 @@ func _try_power(i: int) -> bool:
 	var locked := opponent != null and absf(opponent.position.x - position.x) <= reach
 	set_meta("power_locked", locked)
 	set_meta("power_at", opponent.position if locked else position + Vector2(facing * minf(reach, 900.0), 0.0))
+	# a locked dash is fast enough to reach the target within its active time
+	set_meta("dash_speed", maxf(float(p.get("speed", 2200.0)),
+		(absf(opponent.position.x - position.x) - MIN_GAP) / maxf(0.05, float(p.get("active", 0.2))) + 200.0) if locked else float(p.get("speed", 2200.0)))
 	if i == 2 and opponent and locked:
 		# the ultimate's cinematic: the opponent is frozen while it winds up (MCOC special 3)
 		opponent.hitstop = maxf(opponent.hitstop, float(p.get("startup", SP3_WINDUP)) + 0.05)
@@ -697,13 +708,13 @@ func _try_power(i: int) -> bool:
 static func power_reach(p: Dictionary) -> float:
 	match String(p.get("type", "")):
 		"burst":
-			return maxf(float(p.get("radius", 250.0)), 420.0)
+			return POWER_REACH
 		"lash":
 			return float(p.get("reach", 400.0))
 		"drain":
 			return float(p.get("range", 650.0))
 		"dash":
-			return float(p.get("speed", 2200.0)) * float(p.get("active", 0.2)) + MIN_GAP + 60.0
+			return POWER_REACH
 		"projectile", "pull":
 			return 4000.0
 	return 0.0
@@ -715,6 +726,10 @@ func _power_update(_delta: float) -> void:
 	var recovery: float = power_def.get("recovery", 0.3)
 	var t := state_time
 	var type: String = power_def.get("type", "projectile")
+	# every damaging power is untouchable through its wind-up and strike (MCOC specials), whatever
+	# its type, so no kit trades better than another
+	if float(power_def.get("damage", 0.0)) > 0.0 and t < startup + active:
+		invuln = maxf(invuln, 0.05)
 	match type:
 		"projectile":
 			var count := int(power_def.get("count", 1))
@@ -752,7 +767,7 @@ func _power_update(_delta: float) -> void:
 			if t >= startup and t < startup + active:
 				invuln = 0.05
 				# rush in and strike; stop at the opponent (never through them)
-				vel.x = 0.0 if move_hit else facing * float(power_def.get("speed", 2200))
+				vel.x = 0.0 if move_hit else facing * float(get_meta("dash_speed", power_def.get("speed", 2200)))
 				if not move_hit and opponent and (_dash_rect().intersects(opponent.hurtbox()) \
 						or absf(opponent.position.x - position.x) <= MIN_GAP + 30.0):
 					move_hit = true

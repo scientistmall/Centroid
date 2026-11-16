@@ -44,6 +44,7 @@ func chapters_done() -> int:
 
 var flags: Dictionary = {}
 var resume_point: Dictionary = {}
+var losses: Dictionary = {}     # fight id -> defeats since its last win (eases the next attempt)
 
 
 func _ready() -> void:
@@ -55,6 +56,19 @@ func set_flag(flag_name: String, value: bool = true) -> void:
 		return
 	flags[flag_name] = value
 	save_game()
+
+
+## A fight was lost / won: each defeat eases that fight a little until it is won.
+func record_fight(fight_id: String, won: bool) -> void:
+	if won:
+		losses.erase(fight_id)
+	else:
+		losses[fight_id] = int(losses.get(fight_id, 0)) + 1
+	save_game()
+
+
+func losses_at(fight_id: String) -> int:
+	return int(losses.get(fight_id, 0))
 
 
 func has_flag(flag_name: String) -> bool:
@@ -80,6 +94,7 @@ func is_chapter_unlocked(index: int) -> bool:
 func new_game() -> void:
 	flags = {}
 	resume_point = {}
+	losses = {}
 	save_game()
 
 
@@ -88,7 +103,7 @@ func save_game() -> void:
 	if f == null:
 		push_warning("Could not write save file: %s" % FileAccess.get_open_error())
 		return
-	f.store_string(JSON.stringify({"version": 1, "flags": flags, "resume": resume_point}))
+	f.store_string(JSON.stringify({"version": 1, "flags": flags, "resume": resume_point, "losses": losses}))
 
 
 func load_game() -> void:
@@ -101,3 +116,4 @@ func load_game() -> void:
 	if data is Dictionary:
 		flags = data.get("flags", {})
 		resume_point = data.get("resume", {})
+		losses = data.get("losses", {})

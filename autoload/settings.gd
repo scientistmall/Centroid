@@ -53,12 +53,28 @@ func graphics_info() -> String:
 ## Damage scale by difficulty: the AI hits harder on Hard and softer on Easy, the player the
 ## other way round. Every fighter shares the same move numbers, so this is the only difference.
 func damage_mult(attacker_is_ai: bool) -> float:
-	var t: Array = [[1.15, 0.8], [1.0, 1.0], [0.9, 1.25]][clampi(difficulty, 0, 2)]
-	return t[1] if attacker_is_ai else t[0]
+	var t: Array = [[1.15, 0.8], [1.0, 1.0], [1.0, 1.1]][clampi(difficulty, 0, 2)]
+	if attacker_is_ai:
+		# each defeat at this fight also softens the AI's blows a little (see enemy_level)
+		return t[1] * (1.0 - 0.06 * mini(current_losses, 3))
+	return t[0]
+
+
+## The enemy's skill for a fight: the story's curve (each fight's "ai" rises chapter by chapter),
+## scaled by difficulty, eased after each defeat there (up to three), never above MAX_AI so
+## every fight stays winnable.
+const MAX_AI := 0.75
+const EASE_PER_LOSS := 0.07
+var current_losses := 0          # defeats at the fight in progress (set by the arena)
+
+
+func enemy_level(fight_ai: float, losses_here: int) -> float:
+	var lvl := fight_ai * ai_multiplier() - EASE_PER_LOSS * mini(losses_here, 3)
+	return clampf(lvl, 0.12, MAX_AI)
 
 
 func ai_multiplier() -> float:
-	return [0.7, 1.0, 1.3][clampi(difficulty, 0, 2)]
+	return [0.7, 1.0, 1.15][clampi(difficulty, 0, 2)]
 
 
 func save_settings() -> void:

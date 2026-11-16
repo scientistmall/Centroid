@@ -9,7 +9,7 @@
 	"enemy": "rhex",
 	"rounds_to_win": 2,
 	"round_time": 99,
-	"ai": 0.42,
+	"ai": 0.3,
 	"flag": "fight01_completed",
 	"win_next": {
 		"type": "story",

@@ -63,6 +63,7 @@ func _reset(gap: float, e_player := 0.0, e_enemy := 0.0) -> Array:
 
 func _ready() -> void:
 	Settings.difficulty = 1
+	StoryManager.losses = {}   # no easing from earlier defeats
 	SceneRouter._busy = true
 	SceneRouter.current = {"type": "fight", "id": "fight01", "no_briefing": true}
 	a = load("res://scenes/fight/arena.tscn").instantiate()
@@ -203,9 +204,28 @@ func _test_equal_damage() -> void:
 	for i in 3:
 		_check(is_equal_approx(float(kael.powers[i]["damage"]), float(rhex.powers[i]["damage"])), "power %d: same damage (%d)" % [i + 1, int(kael.powers[i]["damage"])])
 	_check(kael.max_hp == rhex.max_hp, "same HP (%d)" % int(kael.max_hp))
+	Settings.current_losses = 0
 	Settings.difficulty = 2
 	var hard_ai := Settings.damage_mult(true)
 	Settings.difficulty = 0
 	var easy_ai := Settings.damage_mult(true)
 	Settings.difficulty = 1
 	_check(hard_ai > 1.0 and easy_ai < 1.0 and Settings.damage_mult(true) == 1.0, "difficulty scales the AI's damage (easy %.2f, hard %.2f)" % [easy_ai, hard_ai])
+	# the story's curve rises chapter by chapter, stays under the cap, and eases after defeats
+	var curve := []
+	for fid in ["fight01", "fight02", "fight03", "fight04"]:
+		var d = JSON.parse_string(FileAccess.get_file_as_string("res://data/fights/%s.json" % fid))
+		curve.append(float(d.get("ai", 0.0)))
+	var rising := true
+	for i in range(1, curve.size()):
+		rising = rising and curve[i] > curve[i - 1]
+	_check(rising, "enemy skill rises fight by fight %s" % str(curve))
+	Settings.difficulty = 2
+	var top := Settings.enemy_level(curve[-1], 0)
+	var eased := Settings.enemy_level(curve[-1], 3)
+	Settings.current_losses = 3
+	var eased_dmg := Settings.damage_mult(true)
+	Settings.current_losses = 0
+	Settings.difficulty = 1
+	_check(top <= Settings.MAX_AI, "the hardest fight on Hard stays under the cap (%.2f <= %.2f)" % [top, Settings.MAX_AI])
+	_check(eased < top - 0.15 and eased_dmg < 1.0, "three defeats ease the fight (skill %.2f -> %.2f, AI damage x%.2f)" % [top, eased, eased_dmg])
