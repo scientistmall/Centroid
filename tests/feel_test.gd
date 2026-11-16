@@ -121,6 +121,32 @@ func _ready() -> void:
 	_check(fresh and clips.size() == hits, "every hit crossfades into a fresh reaction %s" % str(clips))
 	_check(heavy_ok, "the combo ender gets the heavy reaction, the rest the light one")
 	await _frames(60)
+	# nobody sinks: through hit reactions (both clips), a knockdown and the get-up, the bodies
+	# stay on the floor without needing the safety lift
+	c = await _reset(200.0)
+	var worst := 0.0
+	var lowest := 9.0
+	for i in 200:
+		if i % 9 == 0 and i < 80:
+			c[0].once["light"] = true
+		if i == 100:
+			a.player.energy = 300.0
+			a.player._try_power(1)   # knocks the enemy down
+		await get_tree().physics_frame
+		await get_tree().process_frame
+		for m in [pm, em]:
+			worst = maxf(worst, m.floor_lift)
+			lowest = minf(lowest, m.lowest_point())
+	var went_down := false
+	for i in 120:
+		await get_tree().physics_frame
+		await get_tree().process_frame
+		went_down = went_down or a.enemy.state == Fighter.S.DOWN
+		for m in [pm, em]:
+			worst = maxf(worst, m.floor_lift)
+			lowest = minf(lowest, m.lowest_point())
+	_check(went_down, "the second power knocks the opponent down (then they get up)")
+	_check(worst < 0.03, "no clip puts a fighter under the floor (largest lift needed %.3f m, lowest point %.3f m)" % [worst, lowest])
 	# 6. the AI's blocks against mediums are not accidental parries at Normal
 	c = await _reset(240.0)
 	a.enemy.controller = AIController.new(Settings.enemy_level(0.5, 0))
@@ -154,5 +180,33 @@ func _test_clips(m) -> void:
 			var speed: float = (m._timeline(clip, su, su, mv["active"], mv["recovery"]) - m._timeline(clip, 0.0, su, mv["active"], mv["recovery"])) / su
 			if speed > 2.1:
 				fast.append("%s x%.1f" % [clip, speed])
+	# every clip's hips are in the set's units: standing clips keep the hips near idle height
+	var lib: AnimationLibrary = m._anims
+	var idle_h := _hips_range(lib.get_animation("idle"))
+	var off := []
+	for n in lib.get_animation_list():
+		if String(n).ends_with("~") or n in ["knockdown", "get_up", "defeat"]:
+			continue
+		var r := _hips_range(lib.get_animation(n))
+		if r.y > 0.0 and (r.y < idle_h.y * 0.45 or r.y > idle_h.y * 1.8):
+			off.append("%s (hips up to %.2f, idle %.2f)" % [n, r.y, idle_h.y])
+	var gu := _hips_range(lib.get_animation("get_up"))
+	if gu.y < idle_h.y * 0.6:
+		off.append("get_up never stands (hips up to %.2f, idle %.2f)" % [gu.y, idle_h.y])
+	_check(off.is_empty(), "every clip is in the set's units %s" % str(off))
 	_check(late.is_empty(), "every attack clip strikes in its first 60%% %s" % str(late))
 	_check(fast.is_empty(), "no wind-up plays faster than 2x %s" % str(fast))
+
+
+## [lowest, highest] hips height in a clip (its own units); (0, 0) if it has no hips track.
+func _hips_range(an: Animation) -> Vector2:
+	for t in an.get_track_count():
+		if an.track_get_type(t) == Animation.TYPE_POSITION_3D and String(an.track_get_path(t)).ends_with("Hips"):
+			var lo := INF
+			var hi := -INF
+			for k in an.track_get_key_count(t):
+				var y: float = (an.track_get_key_value(t, k) as Vector3).y
+				lo = minf(lo, y)
+				hi = maxf(hi, y)
+			return Vector2(lo, hi)
+	return Vector2.ZERO

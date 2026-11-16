@@ -32,6 +32,7 @@ func _build(dir: String, out: String, ref: String) -> void:
 	var overrides := _strike_overrides(dir)
 	var d := DirAccess.open(dir)
 	var names := []
+	var rescaled := []
 	for f in d.get_files():
 		if not f.ends_with(".fbx"):
 			continue
@@ -44,12 +45,21 @@ func _build(dir: String, out: String, ref: String) -> void:
 			continue
 		var ap: AnimationPlayer = aps[0]
 		var a: Animation = ap.get_animation(ap.get_animation_list()[0]).duplicate(true)
+		# clips can come from different Mixamo rigs (other units, other proportions): bring the
+		# hips' positions into this set's units by the ratio of the two rigs' hips rest heights,
+		# or a clip from a smaller-unit rig drops the hips to the floor and buries the fighter
+		var unit := _unit_scale(root)
+		if absf(unit - 1.0) > 0.02:
+			rescaled.append("%s x%.2f" % [clip, unit])
 		for t in a.get_track_count():
 			if a.track_get_type(t) == Animation.TYPE_POSITION_3D and String(a.track_get_path(t)).ends_with("mixamorig_Hips"):
-				var p0: Vector3 = a.track_get_key_value(t, 0)
+				var p0: Vector3 = (a.track_get_key_value(t, 0) as Vector3) * unit
 				for k in a.track_get_key_count(t):
-					var p: Vector3 = a.track_get_key_value(t, k)
+					var p: Vector3 = (a.track_get_key_value(t, k) as Vector3) * unit
 					a.track_set_key_value(t, k, Vector3(p0.x, p.y, p0.z))
+			elif a.track_get_type(t) == Animation.TYPE_POSITION_3D and absf(unit - 1.0) > 0.02:
+				for k in a.track_get_key_count(t):
+					a.track_set_key_value(t, k, (a.track_get_key_value(t, k) as Vector3) * unit)
 		a.loop_mode = Animation.LOOP_LINEAR if clip in LOOP else Animation.LOOP_NONE
 		var strike := _strike_time(a)
 		a.set_meta("strike_bone", _last_limb)
@@ -90,6 +100,8 @@ func _build(dir: String, out: String, ref: String) -> void:
 	lib.set_meta("ref", ref)
 	ResourceSaver.save(lib, out)
 	print("ANIMS %d clips -> %s:\n  %s" % [names.size(), out, "\n  ".join(names)])
+	if not rescaled.is_empty():
+		print("  hips rescaled to the set's units: ", ", ".join(rescaled))
 
 
 ## An AI clip retargeted onto the set's reference skeleton (the one its Mixamo clips use), with
@@ -199,6 +211,24 @@ func _strike_time(a: Animation) -> float:
 				best_t = e[0]
 				_last_limb = ["right_hand", "left_hand", "right_foot", "left_foot"][k]
 	return best_t
+
+
+## Set units per clip unit: the reference rig's hips rest height over this clip's own rig's.
+func _unit_scale(clip_root: Node) -> float:
+	if _sk == null:
+		_ref = (load(_ref_path) as PackedScene).instantiate()
+		_sk = _ref.find_children("*", "Skeleton3D", true, false)[0]
+	var sks := clip_root.find_children("*", "Skeleton3D", true, false)
+	if sks.is_empty():
+		return 1.0
+	var csk: Skeleton3D = sks[0]
+	var a := _sk.find_bone("mixamorig_Hips")
+	var b := csk.find_bone("mixamorig_Hips")
+	if a < 0 or b < 0:
+		return 1.0
+	var ha := _sk.get_bone_global_rest(a).origin.y
+	var hb := csk.get_bone_global_rest(b).origin.y
+	return ha / hb if absf(hb) > 1e-6 else 1.0
 
 
 ## Hand-set strike times from set.txt ("strike.light_1=0.31"), for clips the measure misreads.

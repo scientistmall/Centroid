@@ -70,6 +70,8 @@ var _last_state := -1
 var _serial := -1            # Fighter.state_serial last seen: a new one restarts a time-mapped clip
 var _alt := false            # alternate clip name (alias) so a restart of the same clip crossfades
 var _vrm := false
+var _floor_bones: PackedInt32Array = []   # feet, hips and head: none may go under the floor
+var floor_lift := 0.0        # how far the body had to be lifted this frame (tests watch this)
 var _meshes: Array[MeshInstance3D] = []
 var _overlay: ShaderMaterial
 var _sk: Skeleton3D
@@ -585,6 +587,31 @@ func _target_yaw() -> float:
 	return fighter.facing * (PI / 2.0 - (0.0 if profile else TURN))
 
 
+## No clip can bury a fighter: if a foot, the hips or the head is under the floor after the
+## animation (a clip made for another rig, a bad retarget), lift the body back onto it.
+func lowest_point() -> float:
+	if _sk == null:
+		return 0.0
+	if _floor_bones.is_empty():
+		for n in ["LeftFoot", "RightFoot", "Hips", "Head", "mixamorig_LeftFoot", "mixamorig_RightFoot",
+				"mixamorig_Hips", "mixamorig_Head"]:
+			var b := _sk.find_bone(n)
+			if b >= 0:
+				_floor_bones.append(b)
+	var low := INF
+	var xf := _sk.global_transform
+	for b in _floor_bones:
+		low = minf(low, (xf * _sk.get_bone_global_pose(b).origin).y)
+	return low - stage.to_world(Vector2(0, fighter.ground_y)).y
+
+
+func _keep_on_floor() -> void:
+	var low := lowest_point()
+	floor_lift = maxf(0.0, 0.02 - low)
+	if floor_lift > 0.0:
+		position.y += floor_lift
+
+
 ## Every clip also under "<name>~": restarting the same clip (a second hit, the same move again)
 ## crossfades from the alias instead of snapping back to its first frame.
 static func _with_aliases(lib: AnimationLibrary) -> AnimationLibrary:
@@ -724,6 +751,7 @@ func sync() -> void:
 	_yaw = lerp_angle(_yaw, _target_yaw(), 1.0 - exp(-dt * 22.0))
 	rotation.y = _yaw
 	_animate(dt)
+	_keep_on_floor()
 	var flash := clampf(fighter.flash, 0.0, 1.0) * 0.45
 	if fighter.state == Fighter.S.ATTACK and fighter.move_kind == "heavy" \
 			and fighter.state_time < float(fighter.move.get("startup", 0.36)):
