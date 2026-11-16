@@ -89,7 +89,7 @@ var _two_w := 0.0
 var _wnode: Node3D           # the weapon; shown only while a power runs (summoned, then gone)
 var _wshow := 0.0            # 0..1 how far the weapon is summoned
 var _w_base_scale := Vector3.ONE   # the weapon's attachment scale, read once it is placed
-const SUMMON_IN := 0.16      # seconds for the weapon to flash into the hands
+const SUMMON_IN := 0.1       # seconds for the weapon to flash into the hands
 const SUMMON_OUT := 0.3      # seconds for it to dissolve after the power            # 0 = weapon follows the right hand, 1 = hilt through both fists
 
 
@@ -337,22 +337,73 @@ func _ease_w() -> float:
 	return maxf(0.001, 1.0 + 1.6 * pow(t - 1.0, 3.0) + 0.6 * pow(t - 1.0, 2.0)) if t > 0.0 else 0.001
 
 
-## The body stands turned toward the camera (TURN) so the player sees it; the neck and head turn
-## back so the eyes stay on the opponent. Applied after the animation, about the skeleton's up.
-func _look_at_opponent() -> void:
-	# the head turns back by however far the body is turned toward the camera right now
-	var body_turn := absf(angle_difference(rotation.y, fighter.facing * PI / 2.0))
-	var yaw := body_turn * LOOK * (1.0 if fighter.state != Fighter.S.KO else 0.0)
-	for pair in [["Neck", 0.4], ["Head", 0.6]]:
-		var b := _b(pair[0])
-		if b < 0:
-			continue
-		var p := _sk.get_bone_parent(b)
-		var pg := _sk.get_bone_global_pose(p).basis.get_rotation_quaternion() if p >= 0 else Quaternion.IDENTITY
-		var g := pg * _sk.get_bone_pose_rotation(b)
-		# turn away from the camera (+Z) toward the side the fighter faces
-		var turn := Quaternion(Vector3.UP, yaw * float(fighter.facing) * float(pair[1]))
-		_sk.set_bone_pose_rotation(b, (pg.inverse() * turn * g).normalized())
+## The eyes stay on the opponent: after the animation the head is aimed along the line to the
+## opponent (a little toward the camera, so the face shows), level, whatever the clip did with it
+## (guard clips tuck the chin and tilt the head). Full in the guard, lighter during strikes so
+## the clip's head motion still reads, off while being hit or down.
+var _look_w := 0.0
+
+
+func _look_at_opponent(dt: float) -> void:
+	var st := fighter.state
+	var want := 0.0
+	if st in [Fighter.S.IDLE, Fighter.S.WALK, Fighter.S.BLOCK, Fighter.S.FROZEN, Fighter.S.DASH]:
+		want = 0.9
+	elif st in [Fighter.S.ATTACK, Fighter.S.POWER, Fighter.S.BLOCKSTUN]:
+		want = 0.5
+	_look_w = move_toward(_look_w, want, dt * 6.0)
+	var hb := _b("Head")
+	if _look_w <= 0.01 or hb < 0:
+		return
+	var p := _sk.get_bone_parent(hb)
+	var pg := _sk.get_bone_global_pose(p).basis.orthonormalized() if p >= 0 else Basis.IDENTITY
+	var r0 := _sk.get_bone_global_rest(hb).basis.orthonormalized()
+	var m := (pg * Basis(_sk.get_bone_pose_rotation(hb))) * r0.inverse()   # the head's turn from rest
+	var sk_b := _sk.global_transform.basis.orthonormalized()
+	var d := (sk_b.inverse() * Vector3(float(fighter.facing), -0.06, 0.4).normalized()).normalized()
+	var up := (sk_b.inverse() * Vector3.UP).normalized()
+	var x := up.cross(d).normalized()
+	var tgt := Basis(x, d.cross(x).normalized(), d)   # the face (+Z at rest) along d, upright
+	var q := m.get_rotation_quaternion().slerp(tgt.get_rotation_quaternion(), _look_w)
+	_sk.set_bone_pose_rotation(hb, (pg.inverse() * (Basis(q) * r0)).get_rotation_quaternion())
+
+
+## A fighter's own bearing in the guard (data "posture": {"straighten": degrees, "stance": 0..1}):
+## the shared guard clip is hunched with a deep, wide squat; `straighten` lifts the chest and
+## `stance` brings the legs part of the way back toward standing. Only while standing guard
+## (idle, walking, blocking), eased in and out so moves still start from the clip's pose.
+var _posture_w := 0.0
+
+
+func _posture(dt: float) -> void:
+	var cfg: Dictionary = fighter.data.get("posture", {})
+	if cfg.is_empty():
+		return
+	var on: bool = fighter.state in [Fighter.S.IDLE, Fighter.S.FROZEN, Fighter.S.BLOCK, Fighter.S.WALK] \
+		and not bool(fighter.get_meta("intro_run", false))
+	_posture_w = move_toward(_posture_w, 1.0 if on else 0.0, dt * 7.0)
+	if _posture_w <= 0.01:
+		return
+	var w := _posture_w * _posture_w * (3.0 - 2.0 * _posture_w)
+	var stance := float(cfg.get("stance", 0.0)) * w
+	if stance > 0.0:
+		for n in ["LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg", "LeftFoot", "RightFoot"]:
+			var b := _b(n)
+			if b >= 0:
+				_sk.set_bone_pose_rotation(b, _sk.get_bone_pose_rotation(b).slerp(_sk.get_bone_rest(b).basis.get_rotation_quaternion(), stance))
+	var lift := deg_to_rad(float(cfg.get("straighten", 0.0))) * w
+	if lift != 0.0:
+		# lean back about the body's own left-right axis (skeleton space)
+		for pair in [["Spine", 0.55], ["Chest", 0.45]]:
+			var b2 := _b(pair[0])
+			if b2 < 0:
+				continue
+			var p2 := _sk.get_bone_parent(b2)
+			var pg2 := _sk.get_bone_global_pose(p2).basis.orthonormalized() if p2 >= 0 else Basis.IDENTITY
+			var g2 := pg2 * Basis(_sk.get_bone_pose_rotation(b2))
+			var side := (_sk.get_bone_global_pose(_b("Hips")).basis.orthonormalized() * _sk.get_bone_global_rest(_b("Hips")).basis.orthonormalized().inverse()) * Vector3.RIGHT
+			var turned := Basis(side.normalized(), -lift * float(pair[1])) * g2
+			_sk.set_bone_pose_rotation(b2, (pg2.inverse() * turned).get_rotation_quaternion())
 
 
 ## Fist centre (inside the closed fingers) of one hand, in skeleton space.
@@ -819,12 +870,15 @@ func sync() -> void:
 		for g in _grip:
 			_sk.set_bone_pose_rotation(g[0], g[1])
 	if _vrm:
-		_look_at_opponent()
+		_posture(dt)
+		_look_at_opponent(dt)
 	_summon(dt)
 	if _two_handed:
 		# both hands on the weapon only while it is summoned for a power
-		var hold := _wshow > 0.5 and not (fighter.state in [Fighter.S.HURT, Fighter.S.KO, Fighter.S.WIN])
-		_hold = move_toward(_hold, 1.0 if hold else 0.0, dt * 6.0)
+		# both hands close on the weapon the moment it appears (powers are short: a late second
+		# hand never arrives), and let go as it dissolves
+		var hold := fighter.state == Fighter.S.POWER and _wshow > 0.0
+		_hold = move_toward(_hold, 1.0 if hold else 0.0, dt * (16.0 if hold else 6.0))
 		if _wshow > 0.01 or _hold > 0.01:   # (nothing to do while the weapon is away)
 			_left_hand_ik()
 			_place_two_handed(dt)

@@ -5,6 +5,7 @@
 	"weapon": "sword",
 	"two_handed": true,
 	"anim_set": "kael",
+	"posture": {"straighten": 12, "stance": 0.35},
 	"grip_span": 0.12,
 	"max_hp": 1000,
 	"walk_speed": 440,
