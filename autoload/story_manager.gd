@@ -9,7 +9,7 @@ const SAVE_PATH := "user://save.json"
 ## `requires` is empty or that flag is set, and completed when `done` is set.
 const CHAPTERS := [
 	{"title": "Prologue — The Falling Star", "short": "PROLOGUE", "day": 1, "day_label": "YEARS AGO", "place": "The Falling Star",
-		"fighters": ["auren", "veyr"], "requires": "", "done": "prologue_seen", "start": {"type": "story", "id": "prologue"}},
+		"fighters": ["auren", "veyr"], "cast": ["veyr", "auren", "seran"], "requires": "", "done": "prologue_seen", "start": {"type": "story", "id": "prologue"}},
 	{"title": "Chapter 1 — Kael vs. Rhex", "short": "CHAPTER 1", "day": 4, "day_label": "DAY 4", "place": "The Abandoned Training Ground",
 		"fighters": ["kael", "rhex"], "requires": "prologue_seen", "done": "fight01_completed", "start": {"type": "story", "id": "ch01_pre"}},
 	{"title": "Chapter 2 — Tala vs. Vaska", "short": "CHAPTER 2", "day": 10, "day_label": "DAY 10", "place": "The Silent Forest",

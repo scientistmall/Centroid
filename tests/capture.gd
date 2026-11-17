@@ -38,6 +38,7 @@ func _ready() -> void:
 	if _want("hand"): await _shot_hand()
 	if _want("body"): await _shot_body()
 	if _want("chapters"): await _shot_scene("res://scenes/ui/chapter_select.tscn", "chapters", true)
+	if _want("chapters_prologue"): await _shot_chapter(0, "chapters_prologue")
 	if _want("settings"): await _shot_settings()
 	if _want("vs"): await _shot_vs()
 	if _want("briefing"): await _shot_briefing("fight01", "briefing")
@@ -246,6 +247,19 @@ func _shot_scene(path: String, name: String, with_progress := false) -> void:
 			StoryManager.flags[f] = true
 	var sc = load(path).instantiate()
 	add_child(sc)
+	for i in 20: await get_tree().process_frame
+	await _save(name)
+	sc.queue_free()
+	StoryManager.new_game()
+
+
+## The chapter screen with one chapter selected.
+func _shot_chapter(index: int, name: String) -> void:
+	StoryManager.flags["prologue_seen"] = true
+	var sc = load("res://scenes/ui/chapter_select.tscn").instantiate()
+	add_child(sc)
+	await get_tree().process_frame
+	sc._select(index)
 	for i in 20: await get_tree().process_frame
 	await _save(name)
 	sc.queue_free()

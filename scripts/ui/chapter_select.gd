@@ -97,6 +97,60 @@ class _Map extends Control:
 					accept_event()
 					return
 
+	## The story's people, full figure (the title screen's cut-outs), side by side in one manga
+	## panel: the middle one larger and in front.
+	static var _figs := {}
+
+	func _draw_cast(ids: Array, r: Rect2, tint: Color) -> void:
+		draw_rect(Rect2(r.position + Vector2(7, 7), r.size), Color(0, 0, 0, 0.85))
+		draw_rect(r, Ink.NIGHT_LOW)
+		# behind them, the eclipse over the Solar Altar (the title screen's painting), dimmed
+		if not _figs.has("_plate"):
+			_figs["_plate"] = load("res://assets/title/plate.png") if ResourceLoader.exists("res://assets/title/plate.png") else null
+		if _figs["_plate"]:
+			MangaBriefing.draw_cover(self, _figs["_plate"], r, Vector2(0.5, 0.4), Color(tint.r * 0.6, tint.g * 0.6, tint.b * 0.7))
+		var n := ids.size()
+		var order := []
+		for k in n:
+			if k != n / 2:
+				order.append(k)
+		order.append(n / 2)   # the centre figure last: in front
+		for k in order:
+			var id := String(ids[k])
+			if not _figs.has(id):
+				var path := "res://assets/title/%s.png" % id
+				_figs[id] = load(path) if ResourceLoader.exists(path) else null
+			var tex: Texture2D = _figs[id]
+			if tex == null:
+				continue
+			var centre: bool = k == n / 2
+			var fh := r.size.y * (1.0 if centre else 0.86)
+			var fw := fh * tex.get_width() / float(tex.get_height())
+			var cx: float = r.position.x + r.size.x * (float(k) + 0.5) / n
+			var dst := Rect2(cx - fw / 2.0, r.end.y - fh, fw, fh)
+			# keep inside the panel (crop what overhangs the sides)
+			var src := Rect2(Vector2.ZERO, tex.get_size())
+			if dst.position.x < r.position.x:
+				var cut := (r.position.x - dst.position.x) / fw
+				src.position.x += cut * src.size.x
+				src.size.x -= cut * tex.get_width()
+				dst.size.x -= r.position.x - dst.position.x
+				dst.position.x = r.position.x
+			if dst.end.x > r.end.x:
+				var cut2 := (dst.end.x - r.end.x) / fw
+				src.size.x -= cut2 * tex.get_width()
+				dst.size.x -= dst.end.x - r.end.x
+			if dst.position.y < r.position.y:
+				var cut3 := (r.position.y - dst.position.y) / fh
+				src.position.y += cut3 * tex.get_height()
+				src.size.y -= cut3 * tex.get_height()
+				dst.size.y -= r.position.y - dst.position.y
+				dst.position.y = r.position.y
+			var dim := 1.0 if centre else 0.82
+			draw_texture_rect_region(tex, dst, src, Color(tint.r * dim, tint.g * dim, tint.b * dim))
+		draw_rect(r, Ink.INK, false, 6.0)
+		draw_rect(r.grow(-6), Color(1, 1, 1, 0.8), false, 2.0)
+
 	func _draw() -> void:
 		var w := size.x
 		var h := size.y
@@ -155,10 +209,17 @@ class _Map extends Control:
 		Metal.shout(self, Vector2(px + 10, h * 0.25), String(sel_ch.get("short", "")) + "  ·  " + String(sel_ch.get("day_label", "")), 52, Metal.GOLD, Metal.GOLD, false)
 		var tf := UiStyle.bold_font()
 		draw_string(tf, Vector2(px + 12, h * 0.31), String(sel_ch.get("place", "")), HORIZONTAL_ALIGNMENT_LEFT, pw, 38, Color(0.85, 0.9, 1.0))
-		# the matchup: each fighter's splash art in a manga panel, a red VS burst between
+		# the matchup: each fighter's splash art in a manga panel, a red VS burst between.
+		# A story-only chapter (no fight, e.g. the prologue) shows its cast in one panel instead.
 		var f: Array = sel_ch.get("fighters", [])
 		var unlocked_sel := StoryManager.is_chapter_unlocked(cs.selected)
 		var tint := Color.WHITE if unlocked_sel else Color(0.22, 0.22, 0.28)
+		var cast: Array = sel_ch.get("cast", [])
+		if not cast.is_empty():
+			_draw_cast(cast, Rect2(px + 4, h * 0.35, pw - 8, h * 0.37), tint)
+			var status0 := "COMPLETED" if StoryManager.is_chapter_done(cs.selected) else ("NEW" if unlocked_sel else "LOCKED")
+			Metal.shout(self, Vector2(px + pw / 2, h * 0.775), status0, 46, Metal.GOLD if status0 == "COMPLETED" else (Metal.CYAN if status0 == "NEW" else Color(0.6, 0.6, 0.65)), Metal.CYAN)
+			return
 		for k in 2:
 			var ar := Rect2(px + 4 + k * (pw * 0.5 + 6), h * 0.35, pw * 0.5 - 10, h * 0.37)
 			draw_rect(Rect2(ar.position + Vector2(7, 7), ar.size), Color(0, 0, 0, 0.85))
