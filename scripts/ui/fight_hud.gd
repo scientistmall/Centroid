@@ -103,7 +103,7 @@ func banner(text: String, sub: String = "") -> void:
 	_banner = text
 	_sub = sub
 	_banner_t = 0.0
-	_banner_col = Color("ff5a4a") if text in ["K.O.", "DEFEAT"] else (Metal.GOLD if text == "FIGHT!" else Color.WHITE)
+	_banner_col = Color("ff5a4a") if text in ["K.O.", "DEFEAT"] else (Metal.GOLD if text in ["FIGHT!", "3", "2", "1"] else Color.WHITE)
 
 
 func clear_banner() -> void:

@@ -21,6 +21,7 @@ var round_no := 1
 var phase := "intro"
 var _dust_t := 0.0
 var _push_amt := 0.2
+var countdown_shown: Array = []   # numbers shown before rounds 2+ (tests read it)
 var _shake_t := 0.0
 var _cine := 0.0               # 0..1 cinematic close-up amount
 var _cine_on := false
@@ -237,6 +238,13 @@ func _start_round() -> void:
 		await _wait(1.6)
 	hud.banner("ROUND %d" % round_no if _mode() == "single" else "READY")
 	await _wait(1.0)
+	if round_no > 1 and _mode() == "single":
+		# a breather before the next round: 3, 2, 1 (the clock and the fighters wait)
+		for n in [3, 2, 1]:
+			countdown_shown.append(n)
+			hud.banner(str(n))
+			AudioManager.sfx("caption_tick", 0.0)
+			await _wait(1.0)
 	hud.banner("FIGHT!")
 	shake = 18.0
 	AudioManager.sfx("gong", -4.0)
