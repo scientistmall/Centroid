@@ -49,6 +49,8 @@ func _reset(gap: float) -> Array:
 		f.advance = false
 		f._buf.clear()
 		f.set_state(Fighter.S.IDLE)
+		if "string_lock" in f:
+			f.string_lock = 0.0
 	a.player.position = Vector2(mid - gap / 2.0, a.ground_y)
 	a.enemy.position = Vector2(mid + gap / 2.0, a.ground_y)
 	a.player.controller = ps

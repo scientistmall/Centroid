@@ -19,6 +19,7 @@ var _react := ""            # "block" or "evade"
 var _clock := 0.0
 var _tap := 0.0             # light-attack tapping rhythm in a combo
 var _combo_left := 0        # hits still to throw in the committed combo
+var _seen_free := -1.0      # the last "freed after a string" moment acted on
 var _breath := 0.0          # a short pause after a combo or a block (readable, punishable)
 
 
@@ -53,6 +54,12 @@ func get_input(f: Fighter, delta: float) -> Dictionary:
 		if pr.owner_fighter == opp and absf(pr.position.x - f.position.x) < 520.0:
 			tid = "pr_%d" % pr.get_instance_id()
 			special = true
+	if tid != "" and tid != _threat_id and _block_time > 0.0:
+		# already guarding when the attack comes: keep the guard up through it (re-raising it
+		# now would land in the parry window and turn an ordinary block into a parry)
+		_threat_id = tid
+		_block_time = maxf(_block_time, 0.45)
+		_react = ""
 	if tid != "" and tid != _threat_id:
 		_threat_id = tid
 		var see := 0.35 if opp.is_veiled() else 1.0
@@ -86,6 +93,17 @@ func get_input(f: Fighter, delta: float) -> Dictionary:
 			return out
 		_block_time = 0.3 + rng.randf() * 0.35
 		_react = ""
+	# freed after the opponent's string (Fighter._end_string): take the turn, decide again now,
+	# and often put the guard up instead of standing there to be dashed into again
+	var freed_at: float = f.get_meta("freed_at", -1.0)
+	if freed_at >= 0.0 and freed_at != _seen_free and f.clock - freed_at < 0.4 \
+			and f.state not in [Fighter.S.HURT, Fighter.S.BLOCKSTUN]:
+		_seen_free = freed_at
+		_think = 0.0
+		_combo_left = 0
+		_breath = 0.0
+		if rng.randf() < 0.3 + level * 0.35:
+			_block_time = maxf(_block_time, rng.randf_range(0.3, 0.5))
 	_block_time = maxf(0.0, _block_time - delta)
 	if _block_time > 0.0:
 		out["block"] = true

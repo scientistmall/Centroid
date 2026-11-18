@@ -51,6 +51,8 @@ func _reset(gap: float, e_player := 0.0, e_enemy := 0.0) -> Array:
 		f._buf.clear()
 		f.clear_statuses()
 		f.set_state(Fighter.S.IDLE)
+		if "string_lock" in f:
+			f.string_lock = 0.0
 	a.player.position = Vector2(mid - gap / 2.0, a.ground_y)
 	a.enemy.position = Vector2(mid + gap / 2.0, a.ground_y)
 	a.player.energy = e_player
@@ -80,6 +82,7 @@ func _ready() -> void:
 	await _test_powers_land()
 	await _test_buffer()
 	await _test_dash_in()
+	await _test_turns()
 	await _test_no_cross()
 	_test_equal_damage()
 	_test_dynamic_resolution()
@@ -171,6 +174,36 @@ func _test_dash_in() -> void:
 		await _frames(3)
 	a.enemy.intercepted.disconnect(on_int)
 	_check(got[0], "hitting a fighter as they dash in is an intercept")
+	await _frames(40)
+
+
+## MCOC turns: spamming the dash-in swipe can't keep beating a fighter forever. After the first
+## string the defender is freed before the next attack lands, so holding block stops the rest.
+func _test_turns() -> void:
+	var c := await _reset(600.0)
+	var hp0: float = a.enemy.hp
+	var first_end := -1.0
+	var freed := false
+	var dmg_after := 0.0
+	var last_hp: float = a.enemy.hp
+	var t := 0.0
+	for i in 180:
+		c[0].once["forward"] = true          # swipe toward, every frame
+		await get_tree().physics_frame
+		t += 1.0 / 60.0
+		if a.enemy.hp < hp0:
+			c[1].hold["block"] = true          # hit once: from now on Rhex holds block
+		if first_end < 0.0 and a.enemy.hp < hp0 and a.player.state not in [Fighter.S.ATTACK, Fighter.S.DASH]:
+			first_end = t                     # Kael's first string is over
+		if first_end >= 0.0:
+			if a.enemy.state in [Fighter.S.IDLE, Fighter.S.BLOCK]:
+				freed = true
+			if a.enemy.hp < last_hp:
+				dmg_after += last_hp - a.enemy.hp
+		last_hp = a.enemy.hp
+	_check(hp0 - a.enemy.hp > 0.0 and first_end > 0.0, "the first dash-in string lands (damage %d)" % int(hp0 - a.enemy.hp))
+	_check(freed, "after the string the defender gets control back (free before the next attack)")
+	_check(dmg_after == 0.0, "spamming dash-in can't keep beating a blocking defender (%d more damage)" % int(dmg_after))
 	await _frames(40)
 
 

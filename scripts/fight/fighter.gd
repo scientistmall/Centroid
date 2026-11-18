@@ -43,6 +43,10 @@ const POWER_BUFFER := 0.6        # ... and a power tap
 const MIN_GAP := 150.0           # closest the two bodies get (they never pass each other or overlap)
 const DOWN_TIME := 0.55          # knocked down by a special: on the ground this long ...
 const GETUP_TIME := 0.85         # ... then the get-up (untouchable throughout, MCOC-style)
+## MCOC turns: when an attack string ends (that connected), the opponent is freed at once and
+## the attacker pauses before a new attack or dash-in, so the opponent always gets a turn.
+const STRING_LOCK := 0.4         # attacker: no new attack / dash-in for this long
+const FREE_AFTER_STRING := 0.08  # defender: what is left of their hit- or blockstun
 const HITSTOP := {"light": 0.06, "medium": 0.08, "heavy": 0.12, "power": 0.12}
 const PARRY_WINDOW := 0.15       # block started this soon before a hit = parry
 const PARRY_STUN := 0.8
@@ -115,6 +119,8 @@ var dash_dir := 0                # +1 dash forward, -1 dash back (S.DASH)
 var dash_attack := false         # this dash forward ends in a medium strike (swipe toward)
 var combo_n := 0                 # moves thrown in the current string (a combo is 5 at most)
 var _light_i := 0                # which light animation comes next in the string
+var string_lock := 0.0           # > 0: just finished a string; defence only (block, dash back, specials)
+var _string_hit := false         # the current string has connected (hit or blocked)
 var state_serial := 0            # bumps on every state change: the 3D body restarts a clip on it
 ## Set by a 3D model: where the striking hand / foot is (fight pixels), for the hit spark.
 var strike_source: Callable
@@ -183,6 +189,8 @@ func reset_for_round() -> void:
 	move = {}
 	queued = ""
 	_buf.clear()
+	string_lock = 0.0
+	_string_hit = false
 	set_state(S.FROZEN)
 	hp_changed.emit(self)
 	energy_changed.emit(self)
@@ -191,9 +199,23 @@ func reset_for_round() -> void:
 func set_state(s: S) -> void:
 	if advance and s not in [S.IDLE, S.WALK]:
 		_stop_advance()   # hit, blocked, attacking, jumping: the charge is over
+	if state in [S.ATTACK, S.POWER] and s not in [S.ATTACK, S.POWER]:
+		_end_string(s)
 	state = s
 	state_time = 0.0
 	state_serial += 1
+
+
+## An attack string is over (the next combo hit and a special cancel are part of it). If it
+## connected, the opponent is freed now and the attacker waits STRING_LOCK before attacking again:
+## spamming the dash-in can't keep a fighter stunned forever. Being hit or parried ends nothing.
+func _end_string(next: S) -> void:
+	if _string_hit and next in [S.IDLE, S.WALK, S.AIR, S.BLOCK, S.DASH]:
+		string_lock = STRING_LOCK
+		if opponent and is_instance_valid(opponent) and opponent.state in [S.HURT, S.BLOCKSTUN]:
+			opponent.stun_time = minf(opponent.stun_time, FREE_AFTER_STRING)
+			opponent.set_meta("freed_at", opponent.clock)
+	_string_hit = false
 
 
 func is_grounded() -> bool:
@@ -264,6 +286,7 @@ func _physics_process(delta: float) -> void:
 	state_time += delta
 	flash = maxf(0.0, flash - delta * 5.0)
 	invuln = maxf(0.0, invuln - delta)
+	string_lock = maxf(0.0, string_lock - delta)
 	for k in statuses.keys():
 		statuses[k] -= delta
 		if statuses[k] <= 0.0:
@@ -483,6 +506,8 @@ func _neutral_action() -> bool:
 	if _take("dash_back"):
 		_start_dash(-1)
 		return true
+	if string_lock > 0.0:
+		return false   # a string just ended: the opponent's turn (presses here simply lapse)
 	if _take("heavy"):
 		combo_n = 1
 		_start_attack("heavy", 0)
@@ -723,6 +748,7 @@ func _check_melee_hit() -> void:
 ## Full power bars, capped by how many powers the fighter has.
 ## Both fighters freeze on a connect (hit-stop), so the impact reads.
 func _impact(t: float) -> void:
+	_string_hit = true
 	hitstop = maxf(hitstop, t)
 	if opponent:
 		opponent.hitstop = maxf(opponent.hitstop, t)
